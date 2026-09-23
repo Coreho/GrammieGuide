@@ -1,50 +1,57 @@
-import { app, BrowserWindow } from 'electron'
+import { app } from 'electron'
 import { join } from 'path'
-import { is } from '@electron-toolkit/utils'
-import { loadConfig } from './config/store'
+import { loadConfig, getConfig } from './config/store'
 import { startHeartbeat, stopHeartbeat } from './services/reliability/watchdog'
 import { registerAllIpc } from './ipc'
+import {
+  createLauncherWindow,
+  createAdminWindow,
+  getLauncherWindow,
+  unregisterAllShortcuts
+} from './windows/windowManager'
+import { initEmbeddedBrowser, isBrowserOpen, getIdleMs, closeEmbeddedBrowser } from './services/browser/embeddedBrowser'
+import { logActivity } from './services/activityLog/activityLog'
 
 /**
- * M1 scope: boot a plain window, load/validate config, start the heartbeat.
- * Kiosk lockdown, BrowserView embedding, and the tile-grid renderer land in
- * M2 (see the plan). This file stays a thin bootstrap - it wires services
- * together and nothing else, unlike the old app's index.js which grew to
- * ~500 lines by also owning every reliability timer inline.
+ * Thin bootstrap: wires services together and nothing else, unlike the old
+ * app's index.js which grew to ~500 lines by also owning every reliability
+ * timer and window-creation detail inline.
  */
 
-let mainWindow: BrowserWindow | null = null
+const INACTIVITY_CHECK_INTERVAL_MS = 30_000
+let inactivityTimer: NodeJS.Timeout | null = null
 
-function createWindow(): void {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    show: false,
-    webPreferences: {
-      preload: join(__dirname, '../preload/launcher.mjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false
+function startInactivityWatch(): void {
+  inactivityTimer = setInterval(() => {
+    if (!isBrowserOpen()) return
+    const timeoutMs = getConfig().confusion.inactivityTimeoutMinutes * 60_000
+    if (getIdleMs() >= timeoutMs) {
+      closeEmbeddedBrowser()
+      logActivity('browser-inactivity-timeout')
+      getLauncherWindow()?.webContents.send('browser:idle-timeout', {})
     }
-  })
-
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/launcher/index.html`)
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/launcher/index.html'))
-  }
+  }, INACTIVITY_CHECK_INTERVAL_MS)
 }
 
 app.whenReady().then(() => {
   loadConfig()
   registerAllIpc()
-  createWindow()
+  const win = createLauncherWindow()
+  initEmbeddedBrowser(win)
+  startInactivityWatch()
   startHeartbeat(join(app.getPath('userData'), 'heartbeat.txt'))
+
+  // Playwright can't send a real Ctrl+Shift+A keypress to a kiosk-locked
+  // window, so E2E tests need a way to open the admin window directly.
+  // Only active when a test explicitly opts in via env var.
+  if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
+    ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = { createAdminWindow }
+  }
 })
 
 app.on('window-all-closed', () => {
   stopHeartbeat()
+  if (inactivityTimer) clearInterval(inactivityTimer)
+  unregisterAllShortcuts()
   if (process.platform !== 'darwin') app.quit()
 })

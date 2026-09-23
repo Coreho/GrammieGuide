@@ -21,9 +21,8 @@ export const weatherConfigSchema = z.object({
   locations: z.array(
     z.object({
       id: z.string(),
-      label: z.string(),
-      latitude: z.number(),
-      longitude: z.number()
+      /** Free-text place name, geocoded (and cached) at fetch time - same UX as the old app. */
+      label: z.string()
     })
   ),
   units: z.enum(['imperial', 'metric']).default('imperial')
@@ -54,7 +53,8 @@ export const displayConfigSchema = z.object({
 
 export const reliabilityConfigSchema = z.object({
   wifiAdapterName: z.string().optional(),
-  adminPinHash: z.string().optional()
+  adminPinHash: z.string().optional(),
+  adminPinSalt: z.string().optional()
 })
 
 export const configSchema = z.object({
@@ -69,6 +69,23 @@ export const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>
 export type Tile = z.infer<typeof tileSchema>
+
+/**
+ * Never sent to any renderer as-is - secrets (the Anthropic API key, PIN
+ * hash+salt) are stripped. Matches the old app's security model: the
+ * caregiver can *set* the API key/PIN but the app never reads it back to
+ * any renderer afterward.
+ */
+export type PublicConfig = Omit<Config, 'buddy' | 'reliability'> & {
+  buddy: Omit<Config['buddy'], 'anthropicApiKey'>
+  reliability: Omit<Config['reliability'], 'adminPinHash' | 'adminPinSalt'>
+}
+
+export function toPublicConfig(cfg: Config): PublicConfig {
+  const { anthropicApiKey: _key, ...publicBuddy } = cfg.buddy
+  const { adminPinHash: _hash, adminPinSalt: _salt, ...publicReliability } = cfg.reliability
+  return { ...cfg, buddy: publicBuddy, reliability: publicReliability }
+}
 
 export function defaultConfig(): Config {
   return configSchema.parse({

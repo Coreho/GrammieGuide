@@ -1,13 +1,28 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { IpcChannel, IpcRequest, IpcResponse } from '@shared/ipcContract'
+import type { IpcChannel, IpcRequest, IpcResponse, IpcEventName, IpcEvents } from '@shared/ipcContract'
 
 function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<IpcResponse<C>> {
   return ipcRenderer.invoke(channel, req)
 }
 
+function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => void): () => void {
+  const listener = (_e: unknown, payload: IpcEvents[E]): void => cb(payload)
+  ipcRenderer.on(event, listener)
+  return () => ipcRenderer.removeListener(event, listener)
+}
+
 const launcherApi = {
   getConfig: () => invoke('config:get'),
-  setConfig: (patch: IpcRequest<'config:set'>) => invoke('config:set', patch)
+  setFontScale: (fontScale: number) => invoke('display:setFontScale', { fontScale }),
+  getWeather: (label: string, units: 'imperial' | 'metric') => invoke('weather:get', { label, units }),
+
+  openBrowser: (url: string) => invoke('browser:open', { url }),
+  goHome: () => invoke('browser:goHome'),
+  goBack: () => invoke('browser:goBack'),
+  reportActivity: () => ipcRenderer.send('browserView:activity'),
+
+  onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) => on('browser:blocked', cb),
+  onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb())
 }
 
 contextBridge.exposeInMainWorld('launcher', launcherApi)

@@ -1,6 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AdminApi } from '../../../preload/admin'
-import type { ReliabilityEvent } from '../../../shared/ipcContract'
+import { PinSetup } from './components/PinSetup'
+import { PinGate } from './components/PinGate'
+import { TilesTab } from './components/TilesTab'
+import { DisplayTab } from './components/DisplayTab'
+import { WeatherTab } from './components/WeatherTab'
+import { ConfusionTab } from './components/ConfusionTab'
+import { ActivityTab } from './components/ActivityTab'
+import { ReliabilityTab } from './components/ReliabilityTab'
+import { useConfigStore } from './state/useConfigStore'
 
 declare global {
   interface Window {
@@ -8,52 +16,68 @@ declare global {
   }
 }
 
-/**
- * M1 debug harness for the reliability layer: lets a developer trigger
- * volume enforcement / Wi-Fi adapter discovery / (later) watchdog
- * registration by hand on real hardware and see the structured result,
- * instead of the old app's console.warn-only visibility. Full admin
- * panel (Tile CRUD, Display, Confusion tuning, PIN gate) lands in M2.
- */
+type Stage = 'loading' | 'setup' | 'locked' | 'unlocked'
+type Tab = 'tiles' | 'display' | 'weather' | 'confusion' | 'activity' | 'reliability'
+
 export default function App() {
-  const [log, setLog] = useState<ReliabilityEvent[]>([])
-  const [lastAction, setLastAction] = useState<ReliabilityEvent | null>(null)
+  const [stage, setStage] = useState<Stage>('loading')
+  const [tab, setTab] = useState<Tab>('tiles')
+  const load = useConfigStore((s) => s.load)
 
-  async function refreshLog(): Promise<void> {
-    setLog(await window.admin.getReliabilityLog(50))
-  }
+  useEffect(() => {
+    window.admin.isPinSet().then((isSet) => setStage(isSet ? 'locked' : 'setup'))
+  }, [])
 
-  async function run(action: () => Promise<ReliabilityEvent>): Promise<void> {
-    const result = await action()
-    setLastAction(result)
-    await refreshLog()
-  }
+  useEffect(() => {
+    if (stage === 'unlocked') load()
+  }, [stage, load])
+
+  if (stage === 'loading') return null
+  if (stage === 'setup') return <PinSetup onDone={() => setStage('unlocked')} />
+  if (stage === 'locked') return <PinGate onUnlocked={() => setStage('unlocked')} />
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: 32 }}>
-      <h1>GrammieGuide Admin - Reliability Debug (M1)</h1>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <button onClick={() => run(() => window.admin.testVolume())}>Test volume enforcement</button>
-        <button onClick={() => run(() => window.admin.testWifiDiscovery())}>
-          Test Wi-Fi adapter discovery
-        </button>
-        <button onClick={refreshLog}>Refresh log</button>
-      </div>
-      {lastAction && (
-        <p>
-          Last action: <code>{JSON.stringify(lastAction)}</code>
-        </p>
-      )}
-      <h2>Reliability log</h2>
-      <ul>
-        {log.map((e, i) => (
-          <li key={i}>
-            <code>
-              {e.ts} - {e.op} - {e.ok ? 'ok' : 'FAILED'} {e.detail ? `- ${e.detail}` : ''}
-            </code>
-          </li>
+    <div style={{ fontFamily: 'sans-serif', display: 'flex', minHeight: '100vh' }}>
+      <nav style={{ width: 200, background: '#1f2d3d', color: '#fff', padding: 16 }}>
+        <h2>GrammieGuide</h2>
+        {(['tiles', 'display', 'weather', 'confusion', 'activity', 'reliability'] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: 10,
+              marginBottom: 4,
+              background: tab === t ? '#3a5f8a' : 'transparent',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            {t[0]?.toUpperCase()}
+            {t.slice(1)}
+          </button>
         ))}
-      </ul>
+        <button
+          onClick={async () => {
+            await window.admin.lock()
+            setStage('locked')
+          }}
+          style={{ marginTop: 24, width: '100%', padding: 10 }}
+        >
+          Lock
+        </button>
+      </nav>
+      <main style={{ flex: 1, padding: 24 }}>
+        {tab === 'tiles' && <TilesTab />}
+        {tab === 'display' && <DisplayTab />}
+        {tab === 'weather' && <WeatherTab />}
+        {tab === 'confusion' && <ConfusionTab />}
+        {tab === 'activity' && <ActivityTab />}
+        {tab === 'reliability' && <ReliabilityTab />}
+      </main>
     </div>
   )
 }

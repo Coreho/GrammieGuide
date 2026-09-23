@@ -1,4 +1,21 @@
-// Preload for the embedded BrowserView used by web tiles (M2: escape-guard
-// / popup-block logic ports here from the old app's ipc.js openEmbeddedBrowser()).
-// Intentionally empty for M1 - no web tiles exist yet.
-export {}
+import { ipcRenderer } from 'electron'
+
+/**
+ * Forwards user activity inside the embedded web tile to the main process
+ * so the shared inactivity/confusion timer resets on real interaction, not
+ * just on navigation. No contextBridge exposure needed - this preload only
+ * listens, it doesn't give the loaded page any privileged API.
+ */
+let lastSent = 0
+const THROTTLE_MS = 2000
+
+function reportActivity(): void {
+  const now = Date.now()
+  if (now - lastSent < THROTTLE_MS) return
+  lastSent = now
+  ipcRenderer.send('browserView:activity')
+}
+
+for (const eventName of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
+  document.addEventListener(eventName, reportActivity, { capture: true, passive: true })
+}
