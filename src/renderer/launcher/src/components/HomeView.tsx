@@ -3,8 +3,8 @@ import type { WeatherSnapshot } from '@shared/ipcContract'
 import { TileGrid } from './TileGrid'
 import { WeatherGlyph } from './WeatherGlyph'
 import { FontScaleControl } from './FontScaleControl'
-import { HelpButton } from './HelpButton'
 import { CHIP_SHADOW } from '../clay'
+import { BuddyCanvas } from '../buddy/BuddyCanvas'
 
 export function HomeView({
   time,
@@ -15,7 +15,7 @@ export function HomeView({
   fontStep,
   onFontStepChange,
   onActivateTile,
-  onHelp
+  onBuddyTap
 }: {
   time: string
   ampm: string
@@ -25,7 +25,7 @@ export function HomeView({
   fontStep: number
   onFontStepChange: (step: number) => void
   onActivateTile: (tile: TileType) => void
-  onHelp: () => void
+  onBuddyTap: () => void
 }) {
   return (
     <>
@@ -78,9 +78,20 @@ export function HomeView({
 
       <TileGrid tiles={tiles} onActivate={onActivateTile} />
 
-      <footer style={{ flex: 'none', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32 }}>
+      {/*
+        M3: a fixed idle spot, not roaming yet - the tile grid fills the
+        rest of the stage edge to edge, so there's no free floor for a
+        roaming character until M4 works out avoid-rectangles around the
+        grid. This strip is that "M4 will expand this" placeholder.
+      */}
+      <div style={{ flex: 'none', height: 150, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+        <div style={{ width: 150, height: 150 }}>
+          <BuddyCanvas onTap={onBuddyTap} />
+        </div>
+      </div>
+
+      <footer style={{ flex: 'none', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start', gap: 32 }}>
         <FontScaleControl step={fontStep} onChange={onFontStepChange} />
-        <HelpButton onClick={onHelp} />
       </footer>
     </>
   )

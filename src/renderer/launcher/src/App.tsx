@@ -7,10 +7,10 @@ import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { NavBar } from './components/NavBar'
-import { HelpOverlay } from './components/HelpOverlay'
 import { WeatherOverlay } from './components/WeatherOverlay'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
+import { BuddyChatPanel } from './buddy/BuddyChatPanel'
 
 declare global {
   interface Window {
@@ -36,9 +36,9 @@ function timeParts(now: Date): { time: string; ampm: string; date: string } {
 export default function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null)
   const [view, setView] = useState<View>('home')
-  const [showHelp, setShowHelp] = useState(false)
   const [showWeather, setShowWeather] = useState(false)
   const [showConfusion, setShowConfusion] = useState(false)
+  const [showBuddyChat, setShowBuddyChat] = useState(false)
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -156,7 +156,7 @@ export default function App() {
             fontStep={config.display.fontStep}
             onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
-            onHelp={() => setShowHelp(true)}
+            onBuddyTap={() => setShowBuddyChat(true)}
           />
         )}
         {toast && <Toast message={toast} />}
@@ -164,7 +164,6 @@ export default function App() {
 
       {view === 'browser' && <NavBar onHome={goHome} onBack={goBack} />}
 
-      {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
       {showWeather && (
         <WeatherOverlay
           locationLabel={config.weather.locations[0]?.label ?? null}
@@ -173,6 +172,7 @@ export default function App() {
         />
       )}
       {showConfusion && <ConfusionOverlay onClose={() => setShowConfusion(false)} />}
+      {showBuddyChat && <BuddyChatPanel onClose={() => setShowBuddyChat(false)} />}
     </div>
   )
 }

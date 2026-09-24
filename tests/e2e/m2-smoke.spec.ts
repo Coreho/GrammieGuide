@@ -36,7 +36,6 @@ test.afterAll(async () => {
 
 test('launcher boots and shows the empty-tiles message', async () => {
   await expect(launcherPage.getByText(/No tiles configured yet/i)).toBeVisible({ timeout: 10_000 })
-  await expect(launcherPage.getByRole('button', { name: 'Get help' })).toBeVisible()
 })
 
 test('on-screen font scale control changes --font-scale live', async () => {
