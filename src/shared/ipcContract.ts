@@ -47,6 +47,17 @@ export type WeatherSnapshot = {
   hourly: WeatherHourEntry[]
 }
 
+export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
+
+/**
+ * `reply` is always something safe to show grandma - even on failure the
+ * main process supplies a calm, non-technical line, so the renderer never
+ * has to invent error copy. `reason` is for logging/tests only.
+ */
+export type BuddyChatResult =
+  | { ok: true; reply: string }
+  | { ok: false; reason: 'no-key' | 'unavailable' | 'declined'; reply: string }
+
 export interface IpcApi {
   'config:get': { request: void; response: PublicConfig }
   'config:set': { request: Partial<Config>; response: PublicConfig }
@@ -64,6 +75,10 @@ export interface IpcApi {
   'admin:lock': { request: void; response: void }
   'admin:isUnlocked': { request: void; response: boolean }
   'admin:hasApiKey': { request: void; response: boolean }
+  /** Empty string clears the key. Write-only: the key is never read back to any renderer. */
+  'admin:setApiKey': { request: { apiKey: string }; response: { ok: boolean } }
+
+  'buddy:chat': { request: { turns: BuddyChatTurn[] }; response: BuddyChatResult }
 
   'display:setFontStep': { request: { step: number }; response: PublicConfig }
 

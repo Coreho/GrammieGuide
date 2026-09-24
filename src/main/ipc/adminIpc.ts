@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
-import { getConfig } from '../config/store'
+import { getConfig, setConfig } from '../config/store'
+import { logActivity } from '../services/activityLog/activityLog'
 import {
   isPinSet,
   setPin,
@@ -20,5 +21,13 @@ export function registerAdminIpc(): void {
   ipcMain.handle('admin:hasApiKey', () => {
     requireAdminUnlocked()
     return Boolean(getConfig().buddy.anthropicApiKey)
+  })
+  ipcMain.handle('admin:setApiKey', (_e, req: { apiKey: string }) => {
+    requireAdminUnlocked()
+    const apiKey = typeof req?.apiKey === 'string' ? req.apiKey.trim() : ''
+    const buddy = getConfig().buddy
+    setConfig({ buddy: { ...buddy, anthropicApiKey: apiKey || undefined } })
+    logActivity(apiKey ? 'buddy-api-key-set' : 'buddy-api-key-cleared')
+    return { ok: true }
   })
 }

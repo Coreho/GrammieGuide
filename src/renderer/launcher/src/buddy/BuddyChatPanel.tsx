@@ -1,33 +1,52 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { zLayers } from '@shared/zLayers'
+import type { BuddyChatTurn } from '@shared/ipcContract'
 
 /**
- * M3 scope: proves the tap-to-greet interaction and chat UI shape. The
- * reply is a stubbed, honestly-worded placeholder - not a fake AI
- * conversation - real Anthropic wiring lands in M4. Deliberately styled
- * nothing like HelpOverlay (different icon, different accent color,
- * different tone) so the two are never visually confusable.
+ * Tap-to-greet chat with Buddy. Replies come from the main process
+ * (buddy:chat), which owns the API key and always returns a calm,
+ * showable line - even on failure - so this panel never renders error
+ * text of its own. Deliberately styled nothing like HelpOverlay (different
+ * icon, different accent color, different tone) so the two are never
+ * visually confusable.
  */
 type Message = { from: 'user' | 'buddy'; text: string }
 
-const STUB_REPLIES = [
-  "I'm still learning how to really talk, but I love that you said hi!",
-  "That's nice! My real conversation skills are coming soon.",
-  "I hear you! I can't chat properly just yet, but I'm working on it."
-]
+function toTurns(messages: Message[]): BuddyChatTurn[] {
+  return messages.map((m) => ({ role: m.from === 'user' ? 'user' : 'assistant', text: m.text }))
+}
 
 export function BuddyChatPanel({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([
     { from: 'buddy', text: 'Hi! Tap the box below and say something to me.' }
   ])
   const [draft, setDraft] = useState('')
+  const [waiting, setWaiting] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-  function send(): void {
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages, waiting])
+
+  async function send(): Promise<void> {
     const text = draft.trim()
-    if (!text) return
-    const reply = STUB_REPLIES[Math.floor(Math.random() * STUB_REPLIES.length)] ?? STUB_REPLIES[0]!
-    setMessages((prev) => [...prev, { from: 'user', text }, { from: 'buddy', text: reply }])
+    if (!text || waiting) return
+    const next: Message[] = [...messages, { from: 'user', text }]
+    setMessages(next)
     setDraft('')
+    setWaiting(true)
+    try {
+      const result = await window.launcher.buddyChat(toTurns(next))
+      setMessages((prev) => [...prev, { from: 'buddy', text: result.reply }])
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { from: 'buddy', text: "I'm having a little trouble hearing you right now. Let's try again in a bit." }
+      ])
+    } finally {
+      setWaiting(false)
+    }
   }
 
   return (
@@ -93,7 +112,10 @@ export function BuddyChatPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div
+          ref={scrollRef}
+          style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}
+        >
           {messages.map((m, i) => (
             <div
               key={i}
@@ -110,13 +132,29 @@ export function BuddyChatPanel({ onClose }: { onClose: () => void }) {
               {m.text}
             </div>
           ))}
+          {waiting && (
+            <div
+              aria-live="polite"
+              style={{
+                alignSelf: 'flex-start',
+                padding: '12px 18px',
+                borderRadius: 18,
+                fontSize: 'calc(18px * var(--font-scale, 1))',
+                background: 'var(--s3,#E8E6E1)',
+                color: 'var(--ink2,#5E5D59)',
+                fontStyle: 'italic'
+              }}
+            >
+              Buddy is thinking…
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 12, padding: 20, borderTop: '1px solid var(--s3,#E8E6E1)' }}>
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && send()}
+            onKeyDown={(e) => e.key === 'Enter' && void send()}
             placeholder="Say something..."
             style={{
               flex: 1,
@@ -129,8 +167,10 @@ export function BuddyChatPanel({ onClose }: { onClose: () => void }) {
             }}
           />
           <button
-            onClick={send}
+            onClick={() => void send()}
+            disabled={waiting}
             style={{
+              opacity: waiting ? 0.6 : 1,
               fontSize: 'calc(18px * var(--font-scale, 1))',
               fontWeight: 700,
               padding: '12px 24px',

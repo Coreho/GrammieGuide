@@ -43,7 +43,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 ### Config
 
 - **Schema:** `src/shared/configSchema.ts` defines a zod schema, versioned by `CURRENT_SCHEMA_VERSION`. It is persisted through electron-store in `src/main/config/store.ts`.
-- **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `config:set` also refuses to write the PIN fields; those change only through `admin:setPin`.
+- **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `setConfig` merges only one level deep, so `config:set` runs patches through `mergeAdminPatch()`, which always carries the current secrets forward. Secrets change only through `admin:setPin` / `admin:setApiKey`.
 - **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` and list it in `migrations/index.ts`. `runner.ts` applies the migrations in order and re-validates after each one. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
 
 ### Reliability (Windows-specific)
@@ -53,6 +53,13 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 - **Watchdog:** the app writes a heartbeat file every 15s. An independent scheduled task (`GrammieGuideWatchdog`) runs `resources/watchdog/watchdog.ps1`. Keep that script ASCII-only and saved as UTF-8 with BOM.
 - **Volume:** the volume ceiling uses the `loudness` native module, with a C# fallback (`resources/reliability/VolumeHelper.cs`; the compiled DLL is gitignored).
 - **Wi-Fi:** `wifiHealer.ts` handles adapter discovery and self-healing.
+
+### Buddy chat
+
+- **Main process only:** `buddy:chat` → `services/ai/buddyChatService.ts`. The API key, the client (`anthropicClient.ts`) and the frozen system prompt (`buddyPrompt.ts`) all live in main.
+- **History:** the renderer keeps the on-screen history and sends it every turn; the service sanitizes it (`toApiMessages`).
+- **Replies:** every result carries a `reply` that is safe to show her, including on failure. Technical detail goes to the activity log, and chat content is never logged.
+- **Model:** the default is Haiku 4.5, which rejects `effort`; other models get `effort: 'low'`.
 
 ### Embedded browser
 

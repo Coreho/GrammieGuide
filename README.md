@@ -11,7 +11,7 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **M1 done** - scaffolding + reliability spine (typed config store with versioned migrations, shared PowerShell exec helper, watchdog/volume/Wi-Fi-healing rebuild), verified on real hardware.
 - **M2 done** - kiosk Home screen (tile grid, embedded browser, weather, help, font-scale control) in the Clay Launcher design, plus the PIN-gated caregiver admin panel.
 - **M3 done** - static 3D Buddy (procedural cat, tap-to-greet chat panel with a stubbed reply).
-- **Next: M4** - real Anthropic-backed Buddy conversation, Buddy roaming.
+- **M4 in progress** - real Anthropic-backed Buddy chat done (admin Buddy tab for key/model/chattiness). Still to do: roaming + behavior state machine (waiting on the final 3D cat model; the procedural M3 cat stands in until then), speech in/out.
 
 ## Scripts
 

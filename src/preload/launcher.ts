@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { IpcChannel, IpcRequest, IpcResponse, IpcEventName, IpcEvents } from '@shared/ipcContract'
+import type {
+  IpcChannel,
+  IpcRequest,
+  IpcResponse,
+  IpcEventName,
+  IpcEvents,
+  BuddyChatTurn
+} from '@shared/ipcContract'
 
 function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<IpcResponse<C>> {
   return ipcRenderer.invoke(channel, req)
@@ -20,6 +27,8 @@ const launcherApi = {
   goHome: () => invoke('browser:goHome'),
   goBack: () => invoke('browser:goBack'),
   reportActivity: () => ipcRenderer.send('browserView:activity'),
+
+  buddyChat: (turns: BuddyChatTurn[]) => invoke('buddy:chat', { turns }),
 
   onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) => on('browser:blocked', cb),
   onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb())

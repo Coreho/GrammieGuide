@@ -16,6 +16,7 @@ const adminApi = {
   lock: () => invoke('admin:lock'),
   isUnlocked: () => invoke('admin:isUnlocked'),
   hasApiKey: () => invoke('admin:hasApiKey'),
+  setApiKey: (apiKey: string) => invoke('admin:setApiKey', { apiKey }),
 
   getActivityLog: (limit?: number) => invoke('activity:get', { limit }),
   getReliabilityLog: (limit?: number) => invoke('reliability:getLog', { limit }),

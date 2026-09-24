@@ -6,6 +6,7 @@ import { TilesTab } from './components/TilesTab'
 import { DisplayTab } from './components/DisplayTab'
 import { WeatherTab } from './components/WeatherTab'
 import { ConfusionTab } from './components/ConfusionTab'
+import { BuddyTab } from './components/BuddyTab'
 import { ActivityTab } from './components/ActivityTab'
 import { ReliabilityTab } from './components/ReliabilityTab'
 import { useConfigStore } from './state/useConfigStore'
@@ -17,7 +18,7 @@ declare global {
 }
 
 type Stage = 'loading' | 'setup' | 'locked' | 'unlocked'
-type Tab = 'tiles' | 'display' | 'weather' | 'confusion' | 'activity' | 'reliability'
+type Tab = 'tiles' | 'display' | 'weather' | 'buddy' | 'confusion' | 'activity' | 'reliability'
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('loading')
@@ -40,7 +41,7 @@ export default function App() {
     <div style={{ fontFamily: 'sans-serif', display: 'flex', minHeight: '100vh' }}>
       <nav style={{ width: 200, background: '#1f2d3d', color: '#fff', padding: 16 }}>
         <h2>GrammieGuide</h2>
-        {(['tiles', 'display', 'weather', 'confusion', 'activity', 'reliability'] as Tab[]).map((t) => (
+        {(['tiles', 'display', 'weather', 'buddy', 'confusion', 'activity', 'reliability'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -74,6 +75,7 @@ export default function App() {
         {tab === 'tiles' && <TilesTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'weather' && <WeatherTab />}
+        {tab === 'buddy' && <BuddyTab />}
         {tab === 'confusion' && <ConfusionTab />}
         {tab === 'activity' && <ActivityTab />}
         {tab === 'reliability' && <ReliabilityTab />}

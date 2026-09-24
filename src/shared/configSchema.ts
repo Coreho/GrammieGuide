@@ -41,7 +41,7 @@ export const confusionConfigSchema = z.object({
 
 export const buddyConfigSchema = z.object({
   anthropicApiKey: z.string().optional(),
-  model: z.string().default('claude-haiku-4-5-20251001'),
+  model: z.string().default('claude-haiku-4-5'),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
   cloudTtsEnabled: z.boolean().default(true)
 })
@@ -91,6 +91,29 @@ export function toPublicConfig(cfg: Config): PublicConfig {
   return { ...cfg, buddy: publicBuddy, reliability: publicReliability }
 }
 
+/**
+ * Applies an admin-panel patch without ever touching secrets. The admin
+ * renderer only holds PublicConfig, so a patch like { buddy: {...} } built
+ * from it has no anthropicApiKey - and store.ts's setConfig merges one level
+ * deep, so passing that through as-is would silently wipe the key (same for
+ * the PIN hash/salt under reliability). Secrets always come from `current`;
+ * they only change via their own dedicated admin:* channels.
+ */
+export function mergeAdminPatch(current: Config, patch: Partial<Config>): Partial<Config> {
+  const merged: Partial<Config> = { ...patch }
+  if (patch.buddy) {
+    merged.buddy = { ...patch.buddy, anthropicApiKey: current.buddy.anthropicApiKey }
+  }
+  if (patch.reliability) {
+    merged.reliability = {
+      ...patch.reliability,
+      adminPinHash: current.reliability.adminPinHash,
+      adminPinSalt: current.reliability.adminPinSalt
+    }
+  }
+  return merged
+}
+
 export function defaultConfig(): Config {
   return configSchema.parse({
     schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -100,7 +123,7 @@ export function defaultConfig(): Config {
       inactivityTimeoutMinutes: 3,
       rapidTap: { count: 20, windowMs: 4000, clusterRadiusPx: 80, cooldownMs: 15000 }
     },
-    buddy: { model: 'claude-haiku-4-5-20251001', chattiness: 'off', cloudTtsEnabled: true },
+    buddy: { model: 'claude-haiku-4-5', chattiness: 'off', cloudTtsEnabled: true },
     display: { fontStep: DEFAULT_FONT_STEP, theme: 'tilesBold', ambientBackground: true, volumeCeiling: 70 },
     reliability: {}
   })
