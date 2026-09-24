@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { runPowerShell, encodeCommand } from '../../src/main/services/reliability/shellExec'
 import type { ExecFileFn } from '../../src/main/services/reliability/shellExec'
 
