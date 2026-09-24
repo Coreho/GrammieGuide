@@ -1,4 +1,4 @@
-import type { WeatherSnapshot, WeatherHourEntry } from '@shared/ipcContract'
+import type { WeatherSnapshot, WeatherHourEntry, WeatherCategory } from '@shared/ipcContract'
 
 /**
  * Ported near-verbatim from grandmas-launcher's src/main/weather.js (Open-Meteo,
@@ -87,6 +87,7 @@ export async function fetchWeatherForLocation(
       unit,
       condition: wmoCodeToCondition(current.weathercode),
       icon: wmoCodeToIcon(current.weathercode),
+      category: wmoCodeToCategory(current.weathercode),
       feelsLike: Math.round(current.apparent_temperature),
       humidity: Math.round(current.relativehumidity_2m),
       windSpeed: Math.round(current.windspeed_10m),
@@ -115,6 +116,17 @@ export function wmoCodeToCondition(code: number): string {
   if (code <= 86) return 'Snow showers'
   if (code <= 99) return 'Thunderstorm'
   return 'Unknown'
+}
+
+/** Drives which layered glassy icon (sun/cloud/rain/snow/storm) the launcher's weather chip renders. */
+export function wmoCodeToCategory(code: number): WeatherCategory {
+  if (code <= 2) return 'clear'
+  if (code === 3) return 'cloudy'
+  if (code <= 49) return 'fog'
+  if (code <= 69 || (code >= 80 && code <= 82)) return 'rain'
+  if (code <= 79 || (code >= 85 && code <= 86)) return 'snow'
+  if (code <= 99) return 'storm'
+  return 'cloudy'
 }
 
 export function wmoCodeToIcon(code: number): string {

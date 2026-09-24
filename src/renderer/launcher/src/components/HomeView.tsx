@@ -1,38 +1,87 @@
 import type { Tile as TileType } from '@shared/configSchema'
+import type { WeatherSnapshot } from '@shared/ipcContract'
 import { TileGrid } from './TileGrid'
+import { WeatherGlyph } from './WeatherGlyph'
+import { FontScaleControl } from './FontScaleControl'
+import { HelpButton } from './HelpButton'
+import { CHIP_SHADOW } from '../clay'
 
 export function HomeView({
+  time,
+  ampm,
+  date,
+  weather,
   tiles,
-  onActivate,
+  fontStep,
+  onFontStepChange,
+  onActivateTile,
   onHelp
 }: {
+  time: string
+  ampm: string
+  date: string
+  weather: WeatherSnapshot | null
   tiles: TileType[]
-  onActivate: (tile: TileType) => void
+  fontStep: number
+  onFontStepChange: (step: number) => void
+  onActivateTile: (tile: TileType) => void
   onHelp: () => void
 }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <TileGrid tiles={tiles} onActivate={onActivate} />
-      </div>
-      <button
-        onClick={onHelp}
-        style={{
-          position: 'fixed',
-          bottom: 20,
-          right: 20,
-          fontSize: 'calc(1.2rem * var(--font-scale, 1))',
-          padding: '18px 28px',
-          borderRadius: 20,
-          border: '3px solid #fff',
-          background: '#c0392b',
-          color: '#fff',
-          fontWeight: 700,
-          cursor: 'pointer'
-        }}
-      >
-        Help
-      </button>
-    </div>
+    <>
+      <header style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 'none' }}>
+        <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', justifyContent: 'space-between', gap: 48 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, minWidth: 0, whiteSpace: 'nowrap' }}>
+            <span
+              style={{
+                fontSize: 'calc(130px * var(--font-scale, 1))',
+                fontWeight: 800,
+                letterSpacing: '-0.035em',
+                lineHeight: 0.9,
+                color: 'var(--ink,#2E2E2C)',
+                textShadow: '0 2px 0 var(--hl,#fff), 0 8px 18px rgba(var(--sh,60,55,45),.12)'
+              }}
+            >
+              {time}
+            </span>
+            <span style={{ fontSize: 'calc(44px * var(--font-scale, 1))', fontWeight: 700, color: 'var(--ink2,#5E5D59)' }}>
+              {ampm}
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 22,
+              padding: '22px 34px 22px 24px',
+              borderRadius: 32,
+              background: 'linear-gradient(180deg, var(--s1,#FBFAF7), var(--s2,#ECEAE5))',
+              boxShadow: CHIP_SHADOW
+            }}
+          >
+            <WeatherGlyph category={weather?.category ?? 'cloudy'} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ fontSize: 'calc(56px * var(--font-scale, 1))', fontWeight: 800, lineHeight: 1, letterSpacing: '-0.02em' }}>
+                {weather ? `${weather.temp}°` : '--°'}
+              </div>
+              <div style={{ fontSize: 'calc(28px * var(--font-scale, 1))', fontWeight: 600, color: 'var(--ink2,#4A4945)', whiteSpace: 'nowrap' }}>
+                {weather ? weather.condition : 'Set a location in Settings'}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ fontSize: 'calc(36px * var(--font-scale, 1))', fontWeight: 600, color: 'var(--ink2,#3E3D3A)', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+          {date}
+        </div>
+      </header>
+
+      <TileGrid tiles={tiles} onActivate={onActivateTile} />
+
+      <footer style={{ flex: 'none', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32 }}>
+        <FontScaleControl step={fontStep} onChange={onFontStepChange} />
+        <HelpButton onClick={onHelp} />
+      </footer>
+    </>
   )
 }

@@ -36,14 +36,14 @@ test.afterAll(async () => {
 
 test('launcher boots and shows the empty-tiles message', async () => {
   await expect(launcherPage.getByText(/No tiles configured yet/i)).toBeVisible({ timeout: 10_000 })
-  await expect(launcherPage.getByRole('button', { name: 'Help' })).toBeVisible()
+  await expect(launcherPage.getByRole('button', { name: 'Get help' })).toBeVisible()
 })
 
 test('on-screen font scale control changes --font-scale live', async () => {
   const before = await launcherPage.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--font-scale')
   )
-  await launcherPage.getByRole('button', { name: 'Increase text size' }).click()
+  await launcherPage.getByRole('button', { name: 'Make text bigger' }).click()
   await launcherPage.waitForTimeout(300)
   const after = await launcherPage.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--font-scale')

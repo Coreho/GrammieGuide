@@ -29,6 +29,8 @@ export type WeatherHourEntry = {
   icon: string
 }
 
+export type WeatherCategory = 'clear' | 'cloudy' | 'fog' | 'rain' | 'snow' | 'storm'
+
 export type WeatherSnapshot = {
   locationLabel: string
   resolvedName: string
@@ -36,6 +38,7 @@ export type WeatherSnapshot = {
   unit: 'F' | 'C'
   condition: string
   icon: string
+  category: WeatherCategory
   feelsLike: number
   humidity: number
   windSpeed: number
@@ -62,7 +65,7 @@ export interface IpcApi {
   'admin:isUnlocked': { request: void; response: boolean }
   'admin:hasApiKey': { request: void; response: boolean }
 
-  'display:setFontScale': { request: { fontScale: number }; response: PublicConfig }
+  'display:setFontStep': { request: { step: number }; response: PublicConfig }
 
   'weather:get': { request: { label: string; units: 'imperial' | 'metric' }; response: WeatherSnapshot | null }
 

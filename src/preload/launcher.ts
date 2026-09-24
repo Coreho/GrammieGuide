@@ -13,7 +13,7 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 
 const launcherApi = {
   getConfig: () => invoke('config:get'),
-  setFontScale: (fontScale: number) => invoke('display:setFontScale', { fontScale }),
+  setFontStep: (step: number) => invoke('display:setFontStep', { step }),
   getWeather: (label: string, units: 'imperial' | 'metric') => invoke('weather:get', { label, units }),
 
   openBrowser: (url: string) => invoke('browser:open', { url }),

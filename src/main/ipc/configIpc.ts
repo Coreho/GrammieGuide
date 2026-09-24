@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { getConfig, setConfig } from '../config/store'
 import { toPublicConfig, type Config } from '@shared/configSchema'
+import { FONT_STEP_COUNT } from '@shared/theme'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { logActivity } from '../services/activityLog/activityLog'
 
@@ -20,8 +21,8 @@ export function registerConfigIpc(): void {
     return toPublicConfig(setConfig(sanitized))
   })
 
-  ipcMain.handle('display:setFontScale', (_e, req: { fontScale: number }) => {
-    const clamped = Math.min(1.6, Math.max(0.8, req.fontScale))
-    return toPublicConfig(setConfig({ display: { ...getConfig().display, fontScale: clamped } }))
+  ipcMain.handle('display:setFontStep', (_e, req: { step: number }) => {
+    const clamped = Math.min(FONT_STEP_COUNT - 1, Math.max(0, Math.round(req.step)))
+    return toPublicConfig(setConfig({ display: { ...getConfig().display, fontStep: clamped } }))
   })
 }

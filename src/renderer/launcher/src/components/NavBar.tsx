@@ -15,8 +15,8 @@ export function NavBar({ onHome, onBack }: { onHome: () => void; onBack: () => v
         alignItems: 'center',
         gap: 16,
         padding: '0 20px',
-        background: '#1f2d3d',
-        color: '#fff'
+        background: 'var(--bgB,#1f2d3d)',
+        color: 'var(--ink,#fff)'
       }}
     >
       <button onClick={onHome} style={navButtonStyle}>
@@ -34,7 +34,7 @@ const navButtonStyle: CSSProperties = {
   padding: '12px 24px',
   borderRadius: 16,
   border: 'none',
-  background: '#3a5f8a',
-  color: '#fff',
+  background: 'var(--s1,#3a5f8a)',
+  color: 'var(--ink,#fff)',
   cursor: 'pointer'
 }

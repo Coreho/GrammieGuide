@@ -31,13 +31,13 @@ export function OverlayShell({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#20344a',
-          color: '#fff',
+          background: 'linear-gradient(180deg, var(--s1,#FBFAF7), var(--s2,#ECEAE5))',
+          color: 'var(--ink,#2E2E2C)',
           borderRadius: 24,
           padding: 40,
           maxWidth: '80vw',
           textAlign: 'center',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          boxShadow: 'inset 0 3px 1px var(--hl,#fff), 0 20px 40px rgba(var(--sh,60,55,45),.3)'
         }}
       >
         {children}

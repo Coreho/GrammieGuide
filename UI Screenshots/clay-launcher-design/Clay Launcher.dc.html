@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#E4E2DD;font-family:'Figtree',system-ui,sans-serif;color:#2E2E2C;overflow:hidden}
+a{color:#2E2E2C}a:hover{color:#3FA27E}
+input::placeholder{color:#A3A19C}
+</style>
+</helmet>
+<div style="position:fixed;inset:0;background:#E4E2DD;overflow:hidden">
+<div style="position:absolute;left:50%;top:50%;width:1440px;height:900px;transform:{{ stageTransform }};transform-origin:center;overflow:hidden;background-color:#ECEAE5;background-image:{{ gridBg }};background-size:32px 32px, 32px 32px, 160px 160px, 160px 160px">
+  <sc-if value="{{ showRulers }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:22px;display:flex;justify-content:space-between;padding:0 40px;align-items:flex-end;font-size:9px;color:#A9A7A1;pointer-events:none">
+      <sc-for list="{{ ticks }}" as="t" hint-placeholder-count="12"><div style="display:flex;flex-direction:column;align-items:center;gap:3px"><span>{{ t }}</span><span style="width:1px;height:6px;background:#BDBBB5"></span></div></sc-for>
+    </div>
+    <div style="position:absolute;top:0;bottom:0;left:0;width:22px;display:flex;flex-direction:column;justify-content:space-between;padding:40px 0 120px;align-items:flex-end;pointer-events:none">
+      <sc-for list="{{ vticks }}" as="t" hint-placeholder-count="8"><span style="width:6px;height:1px;background:#BDBBB5"></span></sc-for>
+    </div>
+  </sc-if>
+
+  <div style="position:absolute;top:48px;left:56px;display:flex;flex-direction:column;gap:22px">
+    <sc-for list="{{ desktopIcons }}" as="d" hint-placeholder-count="4">
+      <div onDoubleClick="{{ d.open }}" style="width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:default;user-select:none">
+        <div style="width:58px;height:58px;border-radius:18px;background:{{ d.bg }};box-shadow:inset 0 2px 1px rgba(255,255,255,.85), inset 0 -4px 8px rgba(0,0,0,.08), 0 10px 18px rgba(60,55,45,.16), 0 2px 3px rgba(60,55,45,.12);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:{{ d.fg }}">{{ d.initials }}</div>
+        <div style="font-size:12px;font-weight:600;color:#4A4945">{{ d.name }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position:absolute;top:44px;right:56px;text-align:right;user-select:none">
+    <div style="font-size:84px;font-weight:700;letter-spacing:-3px;line-height:1;color:#2E2E2C;text-shadow:0 2px 0 #fff, 0 6px 14px rgba(60,55,45,.12)">{{ time }}</div>
+    <div style="font-size:15px;font-weight:600;color:#7C7A75;margin-top:8px">{{ date }}</div>
+  </div>
+
+  <sc-if value="{{ open }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:50%;bottom:108px;transform:translateX(-50%);width:760px;height:720px;box-sizing:border-box;padding:28px 30px 22px;border-radius:34px;background:linear-gradient(180deg,#F6F5F1,#ECEAE5);box-shadow:inset 0 3px 1px rgba(255,255,255,.95), inset 0 -6px 14px rgba(0,0,0,.05), 0 30px 60px rgba(60,55,45,.22), 0 10px 20px rgba(60,55,45,.12), 0 0 0 1px rgba(255,255,255,.6);display:flex;flex-direction:column;gap:20px;overflow:hidden">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#8D8B86;letter-spacing:.3px">{{ greeting }}</div>
+          <div style="font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.1">Launcher</div>
+        </div>
+        <div style="font-size:11px;color:#A3A19C;font-weight:500">Size 34 / 800</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;height:54px;padding:0 20px;border-radius:999px;background:#E3E1DC;box-shadow:inset 0 4px 8px rgba(0,0,0,.14), inset 0 -2px 2px rgba(255,255,255,.8), 0 0 0 5px #B9B7B1, 0 0 0 6px #A9A7A1, 0 8px 16px rgba(60,55,45,.14)">
+        <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Search apps, files, settings" style="flex:1;border:none;outline:none;background:transparent;font:inherit;font-size:15px;color:#2E2E2C">
+        <sc-if value="{{ hasQuery }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ clearQuery }}" style="font-size:12px;font-weight:700;color:#7C7A75;cursor:pointer;padding:4px 10px;border-radius:999px;background:#EDEBE6;box-shadow:0 2px 4px rgba(0,0,0,.12)">Clear</div>
+        </sc-if>
+        <div style="width:18px;height:18px;border:2.5px solid #5E5D59;border-radius:50%;box-sizing:border-box;position:relative"><div style="position:absolute;right:-6px;bottom:-5px;width:7px;height:2.5px;background:#5E5D59;transform:rotate(45deg);border-radius:2px"></div></div>
+      </div>
+
+      <div style="display:flex;padding:5px;border-radius:999px;background:#B6B4AE;box-shadow:inset 0 3px 6px rgba(0,0,0,.18), 0 2px 1px rgba(255,255,255,.8);align-self:flex-start;gap:4px">
+        <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="3">
+          <div onClick="{{ tab.select }}" style="padding:8px 22px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;color:{{ tab.color }};background:{{ tab.bg }};box-shadow:{{ tab.shadow }}">{{ tab.label }}</div>
+        </sc-for>
+      </div>
+
+      <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;margin:0 -10px;padding:6px 10px 14px">
+        <sc-if value="{{ showGrid }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:18px 12px">
+            <sc-for list="{{ gridApps }}" as="a" hint-placeholder-count="12">
+              <div onClick="{{ a.launch }}" style="display:flex;flex-direction:column;align-items:center;gap:9px;padding:10px 4px;border-radius:20px;cursor:pointer;transition:transform .15s" style-hover="transform:translateY(-3px);background:rgba(255,255,255,.45)" style-active="transform:translateY(1px)">
+                <div style="width:62px;height:62px;border-radius:20px;background:{{ a.bg }};box-shadow:inset 0 2px 1px rgba(255,255,255,.85), inset 0 -4px 8px rgba(0,0,0,.08), 0 10px 18px rgba(60,55,45,.16), 0 2px 3px rgba(60,55,45,.12);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:{{ a.fg }}">{{ a.initials }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:#4A4945;text-align:center">{{ a.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 18px;border-radius:14px;background:linear-gradient(180deg,#F6E39A,#EDD376);box-shadow:inset 0 2px 1px rgba(255,255,255,.7), 0 6px 12px rgba(60,55,45,.14);font-size:13px;font-weight:700;color:#5C4B12">⚠ No apps match “{{ query }}”</div>
+          </sc-if>
+        </sc-if>
+        <sc-if value="{{ showRecent }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px">
+            <sc-for list="{{ recent }}" as="r" hint-placeholder-count="4">
+              <div onClick="{{ r.launch }}" style="position:relative;cursor:pointer">
+                <div style="position:absolute;left:10px;right:10px;bottom:-8px;height:20px;border-radius:16px;background:#D6D4CE;box-shadow:0 6px 10px rgba(60,55,45,.14)"></div>
+                <div style="position:relative;display:flex;gap:14px;align-items:center;padding:14px 16px;border-radius:18px;background:linear-gradient(180deg,#F7F6F2,#EDEBE6);box-shadow:inset 0 2px 1px #fff, 0 8px 16px rgba(60,55,45,.14), 0 1px 2px rgba(60,55,45,.12)" style-hover="background:#FAF9F6">
+                  <div style="width:46px;height:46px;flex:none;border-radius:14px;background:{{ r.bg }};box-shadow:inset 0 2px 1px rgba(255,255,255,.85), inset 0 -3px 6px rgba(0,0,0,.08), 0 5px 10px rgba(60,55,45,.14);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:{{ r.fg }}">{{ r.initials }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.title }}</div>
+                    <div style="font-size:12px;color:#8D8B86;margin-top:2px">{{ r.meta }}</div>
+                  </div>
+                  <div style="padding:5px 12px;border-radius:999px;background:#C9C7C1;font-size:11px;font-weight:700;color:#4A4945;box-shadow:inset 0 1px 1px rgba(255,255,255,.6), 0 2px 3px rgba(0,0,0,.12)">{{ r.app }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid #DAD8D2;box-shadow:0 -1px 0 #fff">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(180deg,#A6EBD0,#7FD6B4);box-shadow:inset 0 2px 1px rgba(255,255,255,.8), 0 5px 10px rgba(60,55,45,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#1F5A45">AR</div>
+          <div>
+            <div style="font-size:14px;font-weight:700">Alex Rivera</div>
+            <div style="font-size:11px;color:#8D8B86">Local account</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div style="height:40px;padding:0 18px;border-radius:999px;display:flex;align-items:center;font-size:13px;font-weight:700;color:#4A4945;background:linear-gradient(180deg,#F7F6F2,#E8E6E1);box-shadow:inset 0 2px 1px #fff, 0 5px 10px rgba(60,55,45,.14), 0 1px 2px rgba(60,55,45,.12);cursor:pointer" style-active="transform:translateY(1px)">Settings</div>
+          <div onClick="{{ togglePower }}" style="height:40px;padding:0 18px;border-radius:999px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(180deg,#EE9A9A,#DE7676);box-shadow:inset 0 2px 1px rgba(255,255,255,.55), 0 5px 10px rgba(150,60,60,.22);cursor:pointer" style-active="transform:translateY(1px)">⏻ Power</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:28px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:46px;padding:0 22px;border-radius:16px;background:{{ toastBg }};box-shadow:inset 0 2px 1px rgba(255,255,255,.7), 0 10px 20px rgba(60,55,45,.18);font-size:14px;font-weight:700;color:{{ toastFg }}">{{ toast }}</div>
+  </sc-if>
+
+  <div style="position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:68px;padding:0 12px;border-radius:26px;background:linear-gradient(180deg,#F6F5F1,#E9E7E2);box-shadow:inset 0 3px 1px #fff, inset 0 -4px 8px rgba(0,0,0,.05), 0 18px 34px rgba(60,55,45,.2), 0 4px 8px rgba(60,55,45,.12)">
+    <div onClick="{{ toggleOpen }}" style="width:48px;height:48px;border-radius:16px;background:linear-gradient(180deg,#A6EBD0,#7FD6B4);box-shadow:{{ startShadow }};display:grid;grid-template-columns:10px 10px;grid-template-rows:10px 10px;gap:3px;place-content:center;cursor:pointer">
+      <span style="border-radius:3px;background:#fff;box-shadow:0 1px 2px rgba(31,90,69,.3)"></span><span style="border-radius:3px;background:#fff;box-shadow:0 1px 2px rgba(31,90,69,.3)"></span><span style="border-radius:3px;background:#fff;box-shadow:0 1px 2px rgba(31,90,69,.3)"></span><span style="border-radius:3px;background:#fff;box-shadow:0 1px 2px rgba(31,90,69,.3)"></span>
+    </div>
+    <div style="width:1px;height:34px;background:#D6D4CE;box-shadow:1px 0 0 #fff"></div>
+    <sc-for list="{{ dock }}" as="k" hint-placeholder-count="6">
+      <div onClick="{{ k.launch }}" style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:16px" style-hover="transform:translateY(-3px)">
+        <div style="width:42px;height:42px;border-radius:14px;background:{{ k.bg }};box-shadow:inset 0 2px 1px rgba(255,255,255,.85), inset 0 -3px 6px rgba(0,0,0,.08), 0 6px 10px rgba(60,55,45,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:{{ k.fg }}">{{ k.initials }}</div>
+        <span style="position:absolute;bottom:-5px;width:{{ k.dotW }};height:4px;border-radius:2px;background:#7FD6B4"></span>
+      </div>
+    </sc-for>
+    <div style="width:1px;height:34px;background:#D6D4CE;box-shadow:1px 0 0 #fff"></div>
+    <div style="display:flex;align-items:center;gap:12px;padding:0 10px 0 4px">
+      <div style="display:flex;gap:6px">
+        <span style="padding:4px 10px;border-radius:999px;background:#C9C7C1;font-size:11px;font-weight:700;color:#4A4945;box-shadow:inset 0 1px 1px rgba(255,255,255,.6)">Wi‑Fi</span>
+        <span style="padding:4px 10px;border-radius:999px;background:linear-gradient(180deg,#A6EBD0,#7FD6B4);font-size:11px;font-weight:700;color:#1F5A45;box-shadow:inset 0 1px 1px rgba(255,255,255,.6)">86%</span>
+      </div>
+      <div style="text-align:right;line-height:1.2">
+        <div style="font-size:13px;font-weight:700">{{ time }}</div>
+        <div style="font-size:11px;color:#8D8B86">{{ shortDate }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;gridWallpaper&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;showRulers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;startOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { open: this.props.startOpen ?? true, tab: 'pinned', query: '', toast: null, toastKind: 'ok', now: new Date(), running: ['Files', 'Browser'] };
+  componentDidMount() {
+    this.t = setInterval(() => this.setState({ now: new Date() }), 15000);
+    this.onResize = () => this.setState({ scale: Math.min(window.innerWidth / 1440, window.innerHeight / 900) });
+    this.onResize(); window.addEventListener('resize', this.onResize);
+  }
+  componentWillUnmount() { clearInterval(this.t); clearTimeout(this.tt); window.removeEventListener('resize', this.onResize); }
+  tones = {
+    mint: ['linear-gradient(180deg,#A6EBD0,#7FD6B4)', '#1F5A45'],
+    surface: ['linear-gradient(180deg,#FBFAF7,#ECEAE5)', '#4A4945'],
+    gray: ['linear-gradient(180deg,#D3D1CB,#BAB8B2)', '#3E3D3A'],
+    yellow: ['linear-gradient(180deg,#F6E39A,#EDD376)', '#5C4B12'],
+    pink: ['linear-gradient(180deg,#F2B0B0,#E48C8C)', '#6A2222'],
+    dark: ['linear-gradient(180deg,#6A6965,#4E4D4A)', '#F3F2EE'],
+  };
+  apps = [
+    ['Files', 'Fi', 'surface'], ['Browser', 'Br', 'mint'], ['Mail', 'Ma', 'gray'], ['Calendar', 'Ca', 'yellow'],
+    ['Photos', 'Ph', 'pink'], ['Terminal', '>_', 'dark'], ['Notes', 'No', 'yellow'], ['Music', 'Mu', 'mint'],
+    ['Settings', 'Se', 'gray'], ['Store', 'St', 'surface'], ['Code', '</>', 'dark'], ['Calculator', '±', 'surface'],
+    ['Paint', 'Pa', 'pink'], ['Maps', 'Mp', 'mint'], ['Weather', 'We', 'surface'], ['Clock', 'Cl', 'gray'],
+    ['Camera', 'Cm', 'dark'], ['Spreadsheet', 'Sh', 'mint'],
+  ].map(([name, initials, tone]) => ({ name, initials, bg: this.tones[tone][0], fg: this.tones[tone][1] }));
+  recentItems = [
+    ['Q3 Budget review.xlsx', 'Edited 12 min ago', 'Spreadsheet'], ['Brand moodboard.png', 'Yesterday, 18:40', 'Photos'],
+    ['launcher-notes.md', 'Yesterday, 11:02', 'Notes'], ['index.tsx', 'Mon, 09:15', 'Code'],
+    ['Invoice #2041.pdf', 'Sep 19', 'Files'], ['Team sync', 'Tomorrow, 10:00', 'Calendar'],
+  ];
+  launch(name) {
+    clearTimeout(this.tt);
+    this.setState(s => ({ toast: `✓ Opening ${name}…`, toastKind: 'ok', running: s.running.includes(name) ? s.running : [...s.running, name] }));
+    this.tt = setTimeout(() => this.setState({ toast: null }), 1600);
+  }
+  renderVals() {
+    const { open, tab, query, now, running, toast, toastKind } = this.state;
+    const find = n => this.apps.find(a => a.name === n);
+    const q = query.trim().toLowerCase();
+    let list = tab === 'all' ? [...this.apps].sort((a, b) => a.name.localeCompare(b.name)) : this.apps.slice(0, 12);
+    if (q) list = this.apps.filter(a => a.name.toLowerCase().includes(q));
+    const effTab = q ? 'all' : tab;
+    const h = now.getHours();
+    const grid = this.props.gridWallpaper ?? true;
+    const line = 'rgba(160,156,148,.14)', major = 'rgba(160,156,148,.22)';
+    return {
+      stageTransform: `translate(-50%,-50%) scale(${this.state.scale ?? 1})`,
+      gridBg: grid ? `linear-gradient(${line} 1px,transparent 1px),linear-gradient(90deg,${line} 1px,transparent 1px),linear-gradient(${major} 1px,transparent 1px),linear-gradient(90deg,${major} 1px,transparent 1px)` : 'none',
+      showRulers: this.props.showRulers ?? true,
+      ticks: Array.from({ length: 13 }, (_, i) => i),
+      vticks: Array.from({ length: 10 }, (_, i) => i),
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      date: now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }),
+      shortDate: now.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      greeting: h < 12 ? 'Good morning, Alex' : h < 18 ? 'Good afternoon, Alex' : 'Good evening, Alex',
+      open,
+      toggleOpen: () => this.setState(s => ({ open: !s.open })),
+      startShadow: open ? 'inset 0 3px 6px rgba(31,90,69,.35), 0 1px 1px rgba(255,255,255,.8)' : 'inset 0 2px 1px rgba(255,255,255,.8), 0 6px 12px rgba(63,162,126,.3)',
+      query, hasQuery: !!q,
+      onQuery: e => this.setState({ query: e.target.value }),
+      clearQuery: () => this.setState({ query: '' }),
+      tabs: [['pinned', 'Pinned'], ['all', 'All apps'], ['recent', 'Recent']].map(([id, label]) => {
+        const on = effTab === id;
+        return { label, select: () => this.setState({ tab: id, query: '' }),
+          bg: on ? 'linear-gradient(180deg,#A6EBD0,#7FD6B4)' : 'transparent', color: on ? '#1F5A45' : '#fff',
+          shadow: on ? 'inset 0 2px 1px rgba(255,255,255,.7), 0 3px 6px rgba(0,0,0,.18)' : 'none' };
+      }),
+      showGrid: effTab !== 'recent', showRecent: effTab === 'recent',
+      gridApps: list.map(a => ({ ...a, launch: () => this.launch(a.name) })),
+      noResults: !!q && list.length === 0,
+      recent: this.recentItems.map(([title, meta, app]) => { const a = find(app); return { title, meta, app, initials: a.initials, bg: a.bg, fg: a.fg, launch: () => this.launch(app) }; }),
+      desktopIcons: ['Files', 'Browser', 'Notes', 'Store'].map(n => ({ ...find(n), open: () => this.launch(n) })),
+      dock: ['Files', 'Browser', 'Mail', 'Code', 'Music', 'Photos'].map(n => ({ ...find(n), dotW: running.includes(n) ? '14px' : '0px', launch: () => this.launch(n) })),
+      hasToast: !!toast, toast,
+      toastBg: toastKind === 'ok' ? 'linear-gradient(180deg,#A6EBD0,#7FD6B4)' : 'linear-gradient(180deg,#F2B0B0,#E48C8C)',
+      toastFg: toastKind === 'ok' ? '#1F5A45' : '#6A2222',
+      togglePower: () => { clearTimeout(this.tt); this.setState({ toast: 'ⓘ Shut down · Restart · Sleep', toastKind: 'err' }); this.tt = setTimeout(() => this.setState({ toast: null }), 2200); },
+    };
+  }
+}
+</script>
+</body>
+</html>

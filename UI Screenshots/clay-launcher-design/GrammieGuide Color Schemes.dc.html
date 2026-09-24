@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#D9D7D2;font-family:'Figtree',system-ui,sans-serif;color:#2E2E2C}a{color:#2E2E2C}a:hover{color:#2F7F62}</style>
+</helmet>
+<section style="padding:64px 64px 0;display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:40px;font-weight:800;letter-spacing:-0.02em">Turn 3: high-contrast tiles</div>
+    <div style="font-size:20px;color:#4A4945">Deeper background, fully saturated tiles, pure white type. Four clearly different hues: amber, green, blue, violet.</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:48px">
+    <div id="3a" style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="padding:4px 12px;border-radius:999px;background:#2E2E2C;color:#fff;font-size:18px;font-weight:800">3a</span><span style="font-size:24px;font-weight:700">Tiles Bold</span><span style="font-size:18px;color:#4A4945">More contrast version of <a href="#2a">2a</a></span></div>
+      <div style="position:relative;width:1440px;height:900px;transform:translateZ(0);overflow:hidden;border-radius:28px;box-shadow:0 30px 60px rgba(60,55,45,.22)"><dc-import name="GrammieGuide Home" theme="Tiles Bold" embedded="{{ true }}" hint-size="1440px,900px"></dc-import></div>
+    </div>
+  </div>
+</section>
+<section style="padding:64px 64px 0;display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:40px;font-weight:800;letter-spacing:-0.02em">Turn 2: bold color tiles</div>
+    <div style="font-size:20px;color:#4A4945">Based on your reference: dark teal ground, each tile its own solid color. Red and orange tiles were left out so Help stays the only warm, red element.</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:48px">
+    <div id="2a" style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="padding:4px 12px;border-radius:999px;background:#2E2E2C;color:#fff;font-size:18px;font-weight:800">2a</span><span style="font-size:24px;font-weight:700">Tiles</span><span style="font-size:18px;color:#4A4945">One color per activity, easier to remember by color</span></div>
+      <div style="position:relative;width:1440px;height:900px;transform:translateZ(0);overflow:hidden;border-radius:28px;box-shadow:0 30px 60px rgba(60,55,45,.22)"><dc-import name="GrammieGuide Home" theme="Tiles" embedded="{{ true }}" hint-size="1440px,900px"></dc-import></div>
+    </div>
+  </div>
+</section>
+<section style="padding:64px;display:flex;flex-direction:column;gap:32px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font-size:40px;font-weight:800;letter-spacing:-0.02em">Turn 1: color schemes</div>
+    <div style="font-size:20px;color:#4A4945">Same layout and clay style in every scheme. Help stays deep red in all four so it never blends in.</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:48px">
+    <div id="1a" style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="padding:4px 12px;border-radius:999px;background:#2E2E2C;color:#fff;font-size:18px;font-weight:800">1a</span><span style="font-size:24px;font-weight:700">Mint</span><span style="font-size:18px;color:#4A4945">The original: fresh and calm</span></div>
+      <div style="position:relative;width:1440px;height:900px;transform:translateZ(0);overflow:hidden;border-radius:28px;box-shadow:0 30px 60px rgba(60,55,45,.22)"><dc-import name="GrammieGuide Home" theme="Mint" embedded="{{ true }}" hint-size="1440px,900px"></dc-import></div>
+    </div>
+    <div id="1b" style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="padding:4px 12px;border-radius:999px;background:#2E2E2C;color:#fff;font-size:18px;font-weight:800">1b</span><span style="font-size:24px;font-weight:700">Butter</span><span style="font-size:18px;color:#4A4945">Warm linen and soft yellow, homey</span></div>
+      <div style="position:relative;width:1440px;height:900px;transform:translateZ(0);overflow:hidden;border-radius:28px;box-shadow:0 30px 60px rgba(60,55,45,.22)"><dc-import name="GrammieGuide Home" theme="Butter" embedded="{{ true }}" hint-size="1440px,900px"></dc-import></div>
+    </div>
+    <div id="1c" style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="padding:4px 12px;border-radius:999px;background:#2E2E2C;color:#fff;font-size:18px;font-weight:800">1c</span><span style="font-size:24px;font-weight:700">Sky</span><span style="font-size:18px;color:#4A4945">Cool gray and pale blue, airy</span></div>
+      <div style="position:relative;width:1440px;height:900px;transform:translateZ(0);overflow:hidden;border-radius:28px;box-shadow:0 30px 60px rgba(60,55,45,.22)"><dc-import name="GrammieGuide Home" theme="Sky" embedded="{{ true }}" hint-size="1440px,900px"></dc-import></div>
+    </div>
+    <div id="1d" style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px"><span style="padding:4px 12px;border-radius:999px;background:#2E2E2C;color:#fff;font-size:18px;font-weight:800">1d</span><span style="font-size:24px;font-weight:700">Evening</span><span style="font-size:18px;color:#4A4945">Dark clay for low glare after sunset</span></div>
+      <div style="position:relative;width:1440px;height:900px;transform:translateZ(0);overflow:hidden;border-radius:28px;box-shadow:0 30px 60px rgba(60,55,45,.22)"><dc-import name="GrammieGuide Home" theme="Evening" embedded="{{ true }}" hint-size="1440px,900px"></dc-import></div>
+    </div>
+  </div>
+</section>
+</x-dc>
+</body>
+</html>
