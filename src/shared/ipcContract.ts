@@ -101,6 +101,8 @@ export interface IpcEvents {
   'browser:blocked': { url: string }
   'browser:can-go-back-changed': { canGoBack: boolean }
   'browser:idle-timeout': Record<string, never>
+  /** Pushed to the launcher whenever config changes, so admin edits show up live. */
+  'config:changed': PublicConfig
 }
 
 export type IpcEventName = keyof IpcEvents

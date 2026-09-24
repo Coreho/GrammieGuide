@@ -82,11 +82,8 @@ test('admin window: PIN setup gates the panel, then tile CRUD persists', async (
 })
 
 test('the tile just added opens the embedded browser with NavBar Home/Back', async () => {
-  // M2 has no live cross-window config sync yet - the launcher only reads
-  // config on mount, so it needs a reload to pick up the tile the admin
-  // window just persisted.
-  await launcherPage.reload()
-  await launcherPage.getByRole('button', { name: /Test Site/ }).click()
+  // No reload: config:changed pushes the admin's new tile to the launcher live.
+  await launcherPage.getByRole('button', { name: /Test Site/ }).click({ timeout: 5_000 })
 
   await expect(launcherPage.getByRole('button', { name: '🏠 Home' })).toBeVisible({ timeout: 10_000 })
   await expect(launcherPage.getByRole('button', { name: '← Back' })).toBeVisible()

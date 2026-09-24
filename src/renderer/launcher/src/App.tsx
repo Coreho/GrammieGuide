@@ -49,6 +49,7 @@ export default function App() {
 
   useEffect(() => {
     window.launcher.getConfig().then(setConfig)
+    return window.launcher.onConfigChanged(setConfig)
   }, [])
 
   useEffect(() => {

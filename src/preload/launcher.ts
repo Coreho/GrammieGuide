@@ -31,7 +31,8 @@ const launcherApi = {
   buddyChat: (turns: BuddyChatTurn[]) => invoke('buddy:chat', { turns }),
 
   onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) => on('browser:blocked', cb),
-  onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb())
+  onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb()),
+  onConfigChanged: (cb: (config: IpcEvents['config:changed']) => void) => on('config:changed', cb)
 }
 
 contextBridge.exposeInMainWorld('launcher', launcherApi)

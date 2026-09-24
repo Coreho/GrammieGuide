@@ -11,23 +11,39 @@ function TileIcon({ tile }: { tile: TileType }) {
 export function Tile({
   tile,
   index,
+  compact = false,
+  dense = false,
   onActivate
 }: {
   tile: TileType
   index: number
+  /** Icon beside the label instead of above it - used when tiles share the height across rows. */
+  compact?: boolean
+  /** Label only, no icon - for the narrowest (4-column, multi-row) layout. */
+  dense?: boolean
   onActivate: (tile: TileType) => void
 }) {
+  const wellSize = compact
+    ? { height: 'min(calc(112px - 24px * var(--font-scale, 1)), 100%)', aspectRatio: '1', borderRadius: 28 }
+    : {
+        width: 'calc(152px - 40px * var(--font-scale, 1))',
+        height: 'calc(152px - 40px * var(--font-scale, 1))',
+        borderRadius: 34
+      }
+
   return (
     <button
       onClick={() => onActivate(tile)}
+      aria-label={tile.label}
       style={{
         minWidth: 0,
+        minHeight: 0,
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: compact ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 18,
-        padding: '18px 12px',
+        gap: compact ? 22 : 18,
+        padding: compact ? '14px 24px' : '18px 12px',
         border: 'none',
         borderRadius: 40,
         cursor: 'pointer',
@@ -49,29 +65,38 @@ export function Tile({
         e.currentTarget.style.boxShadow = TILE_SHADOW
       }}
     >
-      <div
-        style={{
-          width: 'calc(152px - 40px * var(--font-scale, 1))',
-          height: 'calc(152px - 40px * var(--font-scale, 1))',
-          flex: 'none',
-          borderRadius: 34,
-          color: 'var(--wi, var(--ai, #1F5A45))',
-          background: 'var(--well, linear-gradient(180deg, var(--a1,#A6EBD0), var(--a2,#7FD6B4)))',
-          boxShadow: WELL_SHADOW,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        <TileIcon tile={tile} />
-      </div>
+      {!dense && (
+        <div
+          style={{
+            ...wellSize,
+            flex: 'none',
+            color: 'var(--wi, var(--ai, #1F5A45))',
+            background: 'var(--well, linear-gradient(180deg, var(--a1,#A6EBD0), var(--a2,#7FD6B4)))',
+            boxShadow: WELL_SHADOW,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <TileIcon tile={tile} />
+        </div>
+      )}
       <div
         style={{
           fontSize: 'calc(34px * var(--font-scale, 1))',
           fontWeight: 700,
-          textAlign: 'center',
+          textAlign: compact && !dense ? 'left' : 'center',
           lineHeight: 1.1,
-          whiteSpace: 'nowrap'
+          minWidth: 0,
+          maxWidth: '100%',
+          overflow: 'hidden',
+          // Wrap whole words onto a second line before ever truncating -
+          // a clipped "Pho..." is much harder to recognise than a wrapped label.
+          display: '-webkit-box',
+          WebkitBoxOrient: 'vertical',
+          WebkitLineClamp: 2,
+          overflowWrap: 'normal',
+          wordBreak: 'normal'
         }}
       >
         {tile.label}
