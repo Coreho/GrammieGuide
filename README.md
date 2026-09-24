@@ -8,7 +8,10 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Status
 
-**M1 in progress** - scaffolding + reliability spine (typed config store with versioned migrations, shared PowerShell exec helper, watchdog/volume/Wi-Fi-healing rebuild). No Home screen / kiosk UI yet - that's M2.
+- **M1 done** - scaffolding + reliability spine (typed config store with versioned migrations, shared PowerShell exec helper, watchdog/volume/Wi-Fi-healing rebuild), verified on real hardware.
+- **M2 done** - kiosk Home screen (tile grid, embedded browser, weather, help, font-scale control) in the Clay Launcher design, plus the PIN-gated caregiver admin panel.
+- **M3 done** - static 3D Buddy (procedural cat, tap-to-greet chat panel with a stubbed reply).
+- **Next: M4** - real Anthropic-backed Buddy conversation, Buddy roaming.
 
 ## Scripts
 
@@ -17,3 +20,5 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - `npm run test` - unit tests (Vitest)
 - `npm run typecheck` - TypeScript project references, no emit
 - `npm run lint` - ESLint
+- `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first)
+- `npm run package` - Windows installer via electron-builder
