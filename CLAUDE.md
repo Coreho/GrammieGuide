@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 GrammieGuide is a dementia-friendly Windows kiosk launcher for an elderly user, plus a PIN-gated caregiver admin panel. Built with Electron, React 19, TypeScript and electron-vite. It is a clean rewrite of the older `grandmas-launcher` repo, which keeps running on the real device as the safety net. Code from that repo is referenced for patterns only; never merge between the two. Many comments explain what an old-app pattern was replaced with and why, so keep that context when editing.
 
-Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D Buddy, …) from an external plan doc (`i-kinda-wanna-overhaul-moonlit-prism.md`, not in this repo).
+Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D Buddy, …) from an external plan doc (`i-kinda-wanna-overhaul-moonlit-prism.md`, not in this repo). The README's Status section tracks which milestones are done.
+
+`@ghostery/adblocker-electron`, `msedge-tts` and `xstate` are installed, but nothing in `src/` imports them yet. They are there for work that is still planned (such as speech and Buddy's behavior state machine), so don't assume they are wired up.
 
 ## Commands
 
@@ -38,13 +40,13 @@ Three processes, each with its own electron-vite entry. The `@shared` alias reso
 2. Add the handler in the matching `src/main/ipc/<domain>Ipc.ts`. Each domain is registered from `ipc/index.ts`.
 3. Expose it in the relevant preload.
 
-Handlers that only a caregiver may use must call `requireAdminUnlocked()` first. This is enforced in the main process, not just by the UI gate.
+Handlers that only a caregiver may use must call `requireAdminUnlocked()` first. This is enforced in the main process, not just by the UI gate. The unlock flag lives in memory in `services/auth/adminAuth.ts`, so it resets when the app restarts. The PIN is 4–8 digits, hashed with scrypt, and locks out for 30s after 5 failed tries.
 
 ### Config
 
 - **Schema:** `src/shared/configSchema.ts` defines a zod schema, versioned by `CURRENT_SCHEMA_VERSION`. It is persisted through electron-store in `src/main/config/store.ts`.
 - **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `setConfig` merges only one level deep, so `config:set` runs patches through `mergeAdminPatch()`, which always carries the current secrets forward. Secrets change only through `admin:setPin` / `admin:setApiKey`.
-- **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` and list it in `migrations/index.ts`. `runner.ts` applies the migrations in order and re-validates after each one. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
+- **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` (named `NNN-description.ts`, e.g. `002-weather-locations-array.ts`) and list it in `migrations/index.ts`. The schema is still at version 1 and the list is empty, so there's no existing migration to copy. Port each migration from the old app's `store.js` as exactly one file. `runner.ts` applies the migrations in order and re-validates after each one. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
 
 ### Reliability (Windows-specific)
 
@@ -58,7 +60,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 - **Main process only:** `buddy:chat` → `services/ai/buddyChatService.ts`. The API key, the client (`anthropicClient.ts`) and the frozen system prompt (`buddyPrompt.ts`) all live in main.
 - **History:** the renderer keeps the on-screen history and sends it every turn; the service sanitizes it (`toApiMessages`).
-- **Replies:** every result carries a `reply` that is safe to show her, including on failure. Technical detail goes to the activity log, and chat content is never logged.
+- **Replies:** every result carries a `reply` that is safe to show her, including on failure. Technical detail goes to the activity log, and chat content is never logged. The activity log (`services/activityLog/activityLog.ts`) keeps only the last 1000 events in memory and is not saved to disk.
 - **Model:** the default is Haiku 4.5, which rejects `effort`; other models get `effort: 'low'`.
 
 ### Embedded browser
