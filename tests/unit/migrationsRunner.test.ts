@@ -16,6 +16,12 @@ describe('runMigrations', () => {
     expect(result.config).toEqual(cfg)
   })
 
+  it("treats electron-store's empty {} (a fresh install) as first boot, not corruption", () => {
+    const result = runMigrations({})
+    expect(result.ok).toBe(true)
+    expect(result.config).toEqual(defaultConfig())
+  })
+
   it('falls back to defaults (not a crash) when stored config is garbage', () => {
     const result = runMigrations({ schemaVersion: 1, tiles: 'not-an-array' })
     expect(result.ok).toBe(false)

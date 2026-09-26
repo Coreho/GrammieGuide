@@ -52,5 +52,59 @@
     "typescript": "^5.9.2",
     "vite": "^7.3.6",
     "vitest": "^5.0.1"
+  },
+  "build": {
+    "appId": "com.family.grammieguide",
+    "productName": "GrammieGuide",
+    "copyright": "Copyright © 2026",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/watchdog",
+        "to": "watchdog"
+      },
+      {
+        "from": "resources/reliability",
+        "to": "reliability",
+        "filter": [
+          "*.cs"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/loudness/impl/windows/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "highestAvailable"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GrammieGuide",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "include": "build/installer.nsh"
+    }
   }
 }

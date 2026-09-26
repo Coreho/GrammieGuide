@@ -72,6 +72,19 @@ export type BuddyListenResult =
   | { ok: true; text: string }
   | { ok: false; reason: 'nothing-heard' | 'no-mic' | 'unavailable' }
 
+/**
+ * What "Import settings from Grandma's Launcher" would bring over, shown to
+ * the caregiver before applying. Settings only: tiles are set up fresh.
+ */
+export type OldLauncherImportPreview =
+  | { found: false }
+  | {
+      found: true
+      /** Human-readable settings that would change. */
+      settings: string[]
+      notImported: string[]
+    }
+
 export interface IpcApi {
   'config:get': { request: void; response: PublicConfig }
   'config:set': { request: Partial<Config>; response: PublicConfig }
@@ -91,6 +104,8 @@ export interface IpcApi {
   'admin:hasApiKey': { request: void; response: boolean }
   /** Empty string clears the key. Write-only: the key is never read back to any renderer. */
   'admin:setApiKey': { request: { apiKey: string }; response: { ok: boolean } }
+  'admin:previewOldLauncherImport': { request: void; response: OldLauncherImportPreview }
+  'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
   'buddy:chat': { request: { turns: BuddyChatTurn[] }; response: BuddyChatResult }
   /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */

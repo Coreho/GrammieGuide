@@ -37,19 +37,33 @@ async function getLoudness(): Promise<typeof import('loudness') | null> {
   return loudnessModule ?? null
 }
 
+/**
+ * `quiet`: the 30s background loop only logs when it actually lowered the
+ * volume or something failed - a routine "was fine" every 30s would push
+ * everything else out of the 500-entry reliability log within hours. The
+ * admin panel's test button leaves it off so it always gets an entry back.
+ */
 export async function enforceVolumeCeiling(
   ceilingPercent: number,
   resourcesDir: string,
-  execFileImpl?: ExecFileFn
+  execFileImpl?: ExecFileFn,
+  opts: { quiet?: boolean } = {}
 ): Promise<void> {
   const loudness = await getLoudness()
   if (loudness) {
     try {
       const current = await loudness.getVolume()
-      if (current > ceilingPercent) {
+      const lowered = current > ceilingPercent
+      if (lowered) {
         await loudness.setVolume(ceilingPercent)
       }
-      logReliabilityEvent({ op: 'volume-enforce-loudness', ok: true, detail: `was ${current}` })
+      if (lowered || !opts.quiet) {
+        logReliabilityEvent({
+          op: 'volume-enforce-loudness',
+          ok: true,
+          detail: lowered ? `lowered from ${current} to ${ceilingPercent}` : `was ${current}`
+        })
+      }
       return
     } catch (err) {
       logReliabilityEvent({

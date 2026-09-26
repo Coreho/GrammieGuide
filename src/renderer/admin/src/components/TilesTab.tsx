@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Tile } from '@shared/configSchema'
+import type { OldLauncherImportPreview } from '@shared/ipcContract'
 import { useConfigStore } from '../state/useConfigStore'
 
 /**
@@ -13,6 +14,8 @@ export function TilesTab() {
   const [url, setUrl] = useState('')
   const [icon, setIcon] = useState('')
   const [saved, setSaved] = useState(false)
+  const [importPreview, setImportPreview] = useState<OldLauncherImportPreview | null>(null)
+  const [importResult, setImportResult] = useState('')
 
   if (!config) return null
 
@@ -36,9 +39,51 @@ export function TilesTab() {
     flashSaved()
   }
 
+  const previewImport = async (): Promise<void> => {
+    setImportResult('')
+    setImportPreview(await window.admin.previewOldLauncherImport())
+  }
+
+  const applyImport = async (): Promise<void> => {
+    const result = await window.admin.applyOldLauncherImport()
+    setImportPreview(null)
+    setImportResult(result.ok ? 'Settings imported.' : "Couldn't read the old launcher's settings.")
+    // The import saved through main, so pull the fresh config into this panel.
+    await useConfigStore.getState().load()
+  }
+
   return (
     <div>
       <h2>Home Screen Tiles</h2>
+
+      <h3>Moving from Grandma&apos;s Launcher?</h3>
+      <p style={{ fontSize: '.85rem', color: '#666' }}>
+        Brings over her settings from the old launcher on this computer: text size, weather location, volume limit and
+        timeouts. Tiles aren&apos;t copied; set them up fresh below. The old launcher itself is left untouched.
+      </p>
+      <button onClick={() => void previewImport()}>Import settings from Grandma&apos;s Launcher…</button>
+      {importResult && <p>{importResult}</p>}
+      {importPreview && !importPreview.found && <p>The old launcher&apos;s settings weren&apos;t found on this computer.</p>}
+      {importPreview?.found && (
+        <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 12, margin: '8px 0' }}>
+          <strong>Will bring over:</strong>
+          <ul>
+            {importPreview.settings.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+            {importPreview.settings.length === 0 && <li>Nothing - the old launcher has no settings to carry over.</li>}
+          </ul>
+          <strong>Won&apos;t bring over:</strong>
+          <ul>
+            {importPreview.notImported.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <button onClick={() => void applyImport()}>Import</button>{' '}
+          <button onClick={() => setImportPreview(null)}>Cancel</button>
+        </div>
+      )}
+
       {saved && <p style={{ color: 'green' }}>Saved!</p>}
       <ul>
         {config.tiles.map((tile) => (

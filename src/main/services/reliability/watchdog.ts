@@ -1,6 +1,7 @@
-import { writeFileSync, existsSync, mkdirSync } from 'fs'
+import { writeFileSync, existsSync, mkdirSync, rmSync } from 'fs'
 import { join } from 'path'
-import { runPowerShell, type ExecFileFn } from './shellExec'
+import type { ExecFileFn } from './shellExec'
+import { registerTask, AUTOSTART_TASK, WATCHDOG_TASK } from './scheduledTasks'
 import { logReliabilityEvent } from './reliabilityLog'
 
 /**
@@ -9,13 +10,13 @@ import { logReliabilityEvent } from './reliabilityLog'
  * resources/watchdog/watchdog.ps1 (kept ASCII-only / UTF-8-BOM to close the
  * mojibake bug found in the old app's copy of this script at
  * resources/watchdog/watchdog.ps1:23). Registration now goes through
- * shellExec instead of the old app's hand-rolled base64 in watchdog.js, and
- * is verified with Get-ScheduledTask immediately after so a silent
- * registration failure actually surfaces (old app: a console.warn nobody saw).
+ * scheduledTasks.ts instead of the old app's hand-rolled base64 in
+ * watchdog.js, and is verified with Get-ScheduledTask in the same script so
+ * a silent registration failure actually surfaces (old app: a console.warn
+ * nobody saw).
  */
 
 const HEARTBEAT_INTERVAL_MS = 15_000
-const TASK_NAME = 'GrammieGuideWatchdog'
 
 let heartbeatTimer: NodeJS.Timeout | null = null
 
@@ -42,35 +43,62 @@ export async function registerWatchdogTask(
   watchdogScriptPath: string,
   heartbeatPath: string,
   exePath: string,
-  execFileImpl?: ExecFileFn
+  execFileImpl?: ExecFileFn,
+  opts: { keepDisabled?: boolean } = {}
 ): Promise<boolean> {
-  const registerScript = `
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -NonInteractive -WindowStyle Hidden -File "${watchdogScriptPath}" -HeartbeatPath "${heartbeatPath}" -ExePath "${exePath}"'
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew
-Register-ScheduledTask -TaskName '${TASK_NAME}' -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
-`.trim()
-
-  const registerResult = await runPowerShell(registerScript, { execFileImpl })
-  if (!registerResult.ok) {
-    logReliabilityEvent({
-      op: 'watchdog-register',
-      ok: false,
-      detail: registerResult.error ?? registerResult.stderr,
-      durationMs: registerResult.durationMs
-    })
-    return false
-  }
-
-  const verifyResult = await runPowerShell(
-    `if (Get-ScheduledTask -TaskName '${TASK_NAME}' -ErrorAction SilentlyContinue) { Write-Output 'present' } else { exit 1 }`,
-    { execFileImpl }
+  // -ExecutionPolicy Bypass: Windows client editions default to Restricted,
+  // under which -File refuses to run the script at all - M1's registration
+  // check passed while the watchdog itself could never have executed.
+  const result = await registerTask(
+    {
+      name: WATCHDOG_TASK,
+      execute: 'powershell.exe',
+      argument: `-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "${watchdogScriptPath}" -HeartbeatPath "${heartbeatPath}" -ExePath "${exePath}"`,
+      trigger: 'every-minute',
+      timeLimitMinutes: 2
+    },
+    execFileImpl,
+    opts
   )
-  logReliabilityEvent({
-    op: 'watchdog-register',
-    ok: verifyResult.ok,
-    detail: verifyResult.ok ? 'verified present via Get-ScheduledTask' : 'registered but verification failed',
-    durationMs: verifyResult.durationMs
-  })
-  return verifyResult.ok
+  logReliabilityEvent({ op: 'watchdog-register', ok: result.ok, detail: result.detail })
+  return result.ok
+}
+
+/** Starts the installed app when she logs in. Runs with no time limit (see scheduledTasks.ts). */
+export async function registerAutostartTask(
+  exePath: string,
+  execFileImpl?: ExecFileFn,
+  opts: { keepDisabled?: boolean } = {}
+): Promise<boolean> {
+  const result = await registerTask(
+    { name: AUTOSTART_TASK, execute: exePath, trigger: 'at-logon', timeLimitMinutes: 0 },
+    execFileImpl,
+    opts
+  )
+  logReliabilityEvent({ op: 'autostart-register', ok: result.ok, detail: result.detail })
+  return result.ok
+}
+
+/**
+ * Ctrl+Shift+Q means "really close the kiosk": the watchdog script sees this
+ * flag and leaves it closed instead of relaunching it a minute later. The
+ * next start (autostart at logon, or someone opening it) clears it, which
+ * re-arms the watchdog.
+ */
+export const QUIT_FLAG = 'quit-flag.txt'
+
+export function writeQuitFlag(userDataDir: string): void {
+  try {
+    writeFileSync(join(userDataDir, QUIT_FLAG), new Date().toISOString(), 'utf8')
+  } catch (err) {
+    logReliabilityEvent({ op: 'quit-flag-write', ok: false, detail: String(err) })
+  }
+}
+
+export function clearQuitFlag(userDataDir: string): void {
+  try {
+    rmSync(join(userDataDir, QUIT_FLAG), { force: true })
+  } catch (err) {
+    logReliabilityEvent({ op: 'quit-flag-clear', ok: false, detail: String(err) })
+  }
 }

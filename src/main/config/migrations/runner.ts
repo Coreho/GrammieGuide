@@ -14,7 +14,10 @@ export type MigrationResult =
  * with a broken config - the old app has no equivalent safety net.
  */
 export function runMigrations(rawStored: unknown): MigrationResult {
-  if (rawStored === undefined || rawStored === null) {
+  // electron-store hands back {} when there's no file yet (a fresh install),
+  // not undefined - that's a first boot, not a corrupt config to back up.
+  const isEmpty = typeof rawStored === 'object' && rawStored !== null && Object.keys(rawStored).length === 0
+  if (rawStored === undefined || rawStored === null || isEmpty) {
     return { ok: true, config: defaultConfig() }
   }
 

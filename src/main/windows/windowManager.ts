@@ -1,6 +1,7 @@
 import { BrowserWindow, globalShortcut, app } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import { writeQuitFlag } from '../services/reliability/watchdog'
 
 /**
  * Kiosk lockdown, ported conceptually from the old app's windows.js. Real
@@ -81,7 +82,11 @@ export function createAdminWindow(): BrowserWindow {
 
 function registerGlobalShortcuts(): void {
   // Always-available escape hatch, regardless of kiosk mode.
-  globalShortcut.register('Ctrl+Shift+Q', () => app.quit())
+  globalShortcut.register('Ctrl+Shift+Q', () => {
+    // Deliberate quit: tell the watchdog not to bring the kiosk back.
+    writeQuitFlag(app.getPath('userData'))
+    app.quit()
+  })
   globalShortcut.register('Ctrl+Shift+A', () => createAdminWindow())
 
   if (!KIOSK_ENABLED) return

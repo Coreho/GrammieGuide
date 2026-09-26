@@ -20,8 +20,8 @@ Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D 
 - Single test file: `npx vitest run tests/unit/urlPolicy.test.ts`, or filter by test name with `-t "<name>"`
 - `npm run test:e2e`: Playwright against the **built** app (`electron .` launches `out/main/index.js`). Run `npm run build` first. It uses a fresh temp `--user-data-dir` and sets `GRAMMIEGUIDE_E2E=1`, which exposes `globalThis.__e2e__.createAdminWindow` because Playwright can't send the Ctrl+Shift+A shortcut to a kiosk window.
 - `sh scripts/blender/buildBuddy.sh`: rebuilds Buddy's model (`src/renderer/launcher/src/buddy/assets/buddy.glb`) from the Meshy downloads in the gitignored `CatModel/meshy/`. Needs Blender 5.2 (override the path with `BLENDER=`); takes about 70s. See "Buddy's model" below.
-- `npx tsx scripts/debugReliability.ts`: manual real-hardware check of the Wi-Fi, volume and watchdog code. It is safe to re-run and cleans up after itself.
-- `npm run package`: Windows installer via electron-builder
+- `npx tsx scripts/debugReliability.ts`: manual real-hardware check of the Wi-Fi, volume and scheduled-task code. It registers both tasks, runs the watchdog once against a throwaway folder to prove it executes, then removes them. Safe to re-run on a dev machine; not on a kiosk where GrammieGuide is installed, since it replaces and then removes the real tasks.
+- `npm run package`: Windows NSIS installer into `dist/` (config is the `build` block in `package.json`; icon and uninstall hook in `build/`). Installing it for real is documented in `docs/kiosk-install.md`, with the switch/rollback scripts in `scripts/kiosk/`.
 
 Shortcuts: `Ctrl+Shift+Q` always quits. `Ctrl+Shift+A` opens the admin window, and so does `Ctrl+Shift+Esc` in kiosk mode.
 
@@ -47,13 +47,16 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 - **Schema:** `src/shared/configSchema.ts` defines a zod schema, versioned by `CURRENT_SCHEMA_VERSION`. It is persisted through electron-store in `src/main/config/store.ts`.
 - **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `setConfig` merges only one level deep, so `config:set` runs patches through `mergeAdminPatch()`, which always carries the current secrets forward. Secrets change only through `admin:setPin` / `admin:setApiKey`.
+- **Old launcher import:** `config/importOldLauncher.ts` maps grandmas-launcher's `%APPDATA%\grandmas-launcher\config.json` (read-only) to weather, display and confusion settings. Tiles are deliberately not imported (Home's tiles are set up fresh), behind `admin:previewOldLauncherImport` / `admin:applyOldLauncherImport`. It never carries secrets.
 - **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` (named `NNN-description.ts`) and list it in `migrations/index.ts`. The schema is at version 2; `002-buddy-voice-and-roaming.ts` is the pattern to copy (existing values win over the new defaults). Port each migration from the old app's `store.js` as exactly one file. `runner.ts` applies the migrations in order and re-validates after each one. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
 
 ### Reliability (Windows-specific)
 
 - **PowerShell:** every PowerShell call goes through `services/reliability/shellExec.ts` `runPowerShell()`. It uses `execFile` with a UTF-16LE base64 `-EncodedCommand`, never string-interpolates into a command line, and takes an injectable `execFileImpl` for tests.
 - **Logging:** results are recorded with `logReliabilityEvent`.
-- **Watchdog:** the app writes a heartbeat file every 15s. An independent scheduled task (`GrammieGuideWatchdog`) runs `resources/watchdog/watchdog.ps1`. Keep that script ASCII-only and saved as UTF-8 with BOM.
+- **Startup wiring:** `services/reliability/kioskServices.ts` (`startKioskServices()`, called from `index.ts`) turns everything on: volume ceiling every 30s (quiet unless it changes something), the Wi-Fi watch every 10s (`wifiWatch.ts`: restart the adapter after 60s offline, then a 5-minute cooldown), and, in the installed app only (`app.isPackaged` and not `GRAMMIEGUIDE_E2E`), registration of the scheduled tasks. Use `resourcesDir()` for anything under `resources/`: in the installed app it's `process.resourcesPath` (electron-builder `extraResources`), not inside the asar.
+- **Scheduled tasks:** all registration goes through `scheduledTasks.ts`. `GrammieGuide` starts the app at her logon with no execution time limit (Task Scheduler's 72h default would kill the kiosk). `GrammieGuideWatchdog` runs `watchdog.ps1` every minute with `-ExecutionPolicy Bypass` (the default policy blocks `-File`). Both try the highest run level and fall back to limited. They're re-registered on every start, but a task someone disabled (the rollback script does) is left disabled; only the admin "Re-register" button forces it back on.
+- **Watchdog:** the app writes a heartbeat file every 15s; the watchdog relaunches the app if it's over 90s stale. Ctrl+Shift+Q writes `quit-flag.txt` so a deliberate quit stays quit; the next start clears it. Keep `resources/watchdog/watchdog.ps1` ASCII-only and saved as UTF-8 with BOM (the same goes for `scripts/kiosk/*.ps1`, which must run on Windows PowerShell 5.1).
 - **Volume:** the volume ceiling uses the `loudness` native module, with a C# fallback (`resources/reliability/VolumeHelper.cs`; the compiled DLL is gitignored).
 - **Wi-Fi:** `wifiHealer.ts` handles adapter discovery and self-healing.
 

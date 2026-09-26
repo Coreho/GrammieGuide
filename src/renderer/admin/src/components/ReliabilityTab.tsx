@@ -28,6 +28,7 @@ export function ReliabilityTab() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <button onClick={() => run(() => window.admin.testVolume())}>Test volume enforcement</button>
         <button onClick={() => run(() => window.admin.testWifiDiscovery())}>Test Wi-Fi adapter discovery</button>
+        <button onClick={() => run(() => window.admin.checkSystemTasks())}>Re-register autostart + watchdog</button>
         <button onClick={refreshLog}>Refresh log</button>
       </div>
       {lastAction && (
