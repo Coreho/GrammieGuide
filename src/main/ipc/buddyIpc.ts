@@ -6,6 +6,9 @@ import { getAnthropicClient } from '../services/ai/anthropicClient'
 import { logActivity } from '../services/activityLog/activityLog'
 import { createTtsService } from '../services/speech/ttsService'
 import { listenOnce, canListen } from '../services/speech/sttService'
+import { buddyCommandSchema } from '@shared/buddy/commands'
+import { requireAdminUnlocked } from './requireAdminUnlocked'
+import { getLauncherWindow } from '../windows/windowManager'
 
 const tts = createTtsService()
 // The recognizer/mic check spawns PowerShell (~1s); the answer can't change
@@ -13,6 +16,15 @@ const tts = createTtsService()
 let canListenOnce: Promise<boolean> | null = null
 
 export function registerBuddyIpc(): void {
+  ipcMain.handle('buddy:command', (_e, req: unknown) => {
+    requireAdminUnlocked()
+    const command = buddyCommandSchema.safeParse(req)
+    const launcher = getLauncherWindow()
+    if (!command.success || !launcher || launcher.isDestroyed()) return { ok: false }
+    launcher.webContents.send('buddy:command', command.data)
+    logActivity('buddy-command')
+    return { ok: true }
+  })
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
     const { anthropicApiKey, model } = getConfig().buddy
     const result = await buddyChat(Array.isArray(req?.turns) ? req.turns : [], {

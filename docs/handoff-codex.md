@@ -1,5 +1,19 @@
 # Handoff for Codex
 
+## Implementation status — 2026-09-26
+
+The work below has been implemented on `feat/tiles-buddy-controls`. The prerequisite kiosk-install commit already existed as `de2894c` on `feat/kiosk-install`. The six unrelated screenshot deletions remain unstaged.
+
+- Tiles: add/edit/remove/reorder, icon choices, website/app/Weather types, and normal/wide sizes. Complete labels wrap; excess rows scroll without shrinking the 150px footer. Future music/games/news built-ins are not exposed prematurely.
+- Buddy: four-option Home menu; caregiver commands for all 24 actual GLB clips; optional read-aloud and saved quick messages. Commands are validated and admin-gated, ignored during chat, and allowed at night. Repeated clips restart and missing clips retain the 20s timeout.
+- Floor: full Stage width, text controls above his tap target, and chat position retuned to remain right of the panel.
+- Config: v4, with migrations 003 for tile sizes and 004 for quick messages. Existing secrets/settings and the settings-only importer are preserved.
+- Verification: lint, typecheck, build, 126 unit tests and all 16 E2E tests passed. Screenshots checked at large text sizes and with Buddy behind the text controls. Speech fallback wiring is tested with a simulated speech engine; physical audio and installed-kiosk app switching still need an on-device check. Nothing was deployed to the kiosk.
+
+The original instructions below are retained as context. Use README.md and CLAUDE.md for current behavior and schema details.
+
+---
+
 Read `CLAUDE.md` first. It covers the architecture, the IPC contract, config migrations, z-layers, and the Buddy sections. Verify every change with `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and then `npm run test:e2e`.
 
 ## State of the repo

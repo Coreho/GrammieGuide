@@ -47,6 +47,7 @@ test('the cat model loads with no errors and Buddy greets her', async () => {
 test('he joins the chat and says goodbye when it closes', async () => {
   const floor = page.locator('[data-buddy-activity]')
   await page.getByRole('button', { name: 'Talk to your companion' }).click()
+  await page.getByRole('button', { name: "Let's chat" }).click()
   await expect(floor).toHaveAttribute('data-buddy-activity', /^chat\./)
   await expect(page.getByPlaceholder('Say something...')).toBeVisible()
 
@@ -58,7 +59,9 @@ test('he joins the chat and says goodbye when it closes', async () => {
 test('admin: roaming and voice settings are saved', async () => {
   const newWindowPromise = app.waitForEvent('window')
   await app.evaluate(() => {
-    ;(globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }).__e2e__.createAdminWindow()
+    ;(
+      globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }
+    ).__e2e__.createAdminWindow()
   })
   const admin = await newWindowPromise
   await admin.waitForLoadState('domcontentloaded')
@@ -73,7 +76,9 @@ test('admin: roaming and voice settings are saved', async () => {
   await expect(readAloud).toBeChecked()
   await roaming.uncheck()
   await readAloud.uncheck()
-  await admin.locator('select', { has: admin.locator('option[value="en-US-GuyNeural"]') }).selectOption('en-US-GuyNeural')
+  await admin
+    .locator('select', { has: admin.locator('option[value="en-US-GuyNeural"]') })
+    .selectOption('en-US-GuyNeural')
 
   const buddy = await page.evaluate(() => window.launcher.getConfig().then((c) => c.buddy))
   expect(buddy).toMatchObject({ roaming: false, voiceEnabled: false, ttsVoice: 'en-US-GuyNeural' })

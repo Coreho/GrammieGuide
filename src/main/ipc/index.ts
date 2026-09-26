@@ -5,6 +5,7 @@ import { registerActivityIpc } from './activityIpc'
 import { registerWeatherIpc } from './weatherIpc'
 import { registerBrowserIpc } from './browserIpc'
 import { registerBuddyIpc } from './buddyIpc'
+import { registerTileIpc } from './tileIpc'
 
 /**
  * Composes every IPC domain into one registration call. Replaces the old
@@ -19,4 +20,5 @@ export function registerAllIpc(): void {
   registerWeatherIpc()
   registerBrowserIpc()
   registerBuddyIpc()
+  registerTileIpc()
 }

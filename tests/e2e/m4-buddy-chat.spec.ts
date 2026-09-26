@@ -34,6 +34,7 @@ test.afterAll(async () => {
 
 async function sayToBuddy(text: string): Promise<void> {
   await launcherPage.getByRole('button', { name: 'Talk to your companion' }).click()
+  await launcherPage.getByRole('button', { name: "Let's chat" }).click()
   await launcherPage.getByPlaceholder('Say something...').fill(text)
   await launcherPage.getByRole('button', { name: 'Send' }).click()
 }
@@ -47,7 +48,9 @@ test('with no API key, Buddy replies with the friendly not-set-up line', async (
 test('admin: API key is write-only and survives saving other Buddy settings', async () => {
   const newWindowPromise = app.waitForEvent('window')
   await app.evaluate(() => {
-    ;(globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }).__e2e__.createAdminWindow()
+    ;(
+      globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }
+    ).__e2e__.createAdminWindow()
   })
   const admin = await newWindowPromise
   await admin.waitForLoadState('domcontentloaded')

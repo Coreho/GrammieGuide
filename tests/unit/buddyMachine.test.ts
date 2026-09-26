@@ -51,6 +51,48 @@ function start(input: Partial<BuddyInput> = {}): Harness {
 const MIN = 60_000
 
 describe('buddy machine', () => {
+  it('obeys deliberate commands at night, then clears the clip and bubble', () => {
+    const { actor, activity, ctx } = start({ hour: 23 })
+    actor.send({ type: 'COMMAND', clip: 'dance', text: 'Hello friend', speak: true })
+    expect(activity()).toBe('commanded')
+    expect(ctx()).toMatchObject({ forcedClip: 'dance', bubble: 'Hello friend', commandSpeak: true })
+    actor.send({ type: 'CLIP_DONE' })
+    expect(activity()).toBe('resting')
+    expect(ctx()).toMatchObject({ forcedClip: null, bubble: null, commandSpeak: false })
+  })
+
+  it('restarts repeated commands and gives each its own timeout', () => {
+    const { actor, clock, activity, ctx } = start()
+    actor.send({ type: 'COMMAND', clip: 'wave' })
+    clock.increment(CLIP_TIMEOUT_MS - 1)
+    actor.send({ type: 'COMMAND', clip: 'wave' })
+    expect(ctx().commandSequence).toBe(2)
+    clock.increment(2)
+    expect(activity()).toBe('commanded')
+    clock.increment(CLIP_TIMEOUT_MS)
+    expect(activity()).toBe('resting')
+  })
+
+  it('ignores commands while chatting and allows chat to interrupt a command', () => {
+    const { actor, activity, ctx } = start()
+    actor.send({ type: 'COMMAND', text: 'Hello' })
+    actor.send({ type: 'CHAT_OPEN' })
+    actor.send({ type: 'COMMAND', clip: 'dance', text: 'Ignored', speak: true })
+    expect(activity()).toBe('chat.hello')
+    expect(ctx()).toMatchObject({
+      bubble: null,
+      forcedClip: null,
+      commandSpeak: false,
+      commandSequence: 1
+    })
+  })
+
+  it('records the actual position when a command interrupts a walk', () => {
+    const { actor, ctx } = start()
+    actor.send({ type: 'COMMAND', clip: 'heart' })
+    actor.send({ type: 'ARRIVED', at: 0.25 })
+    expect(ctx()).toMatchObject({ position: 0.25, target: 0.25 })
+  })
   it('greets with a time-of-day bubble, then settles into resting', () => {
     const { actor, activity, ctx } = start({ hour: 8 })
     expect(activity()).toBe('greeting')
@@ -118,7 +160,11 @@ describe('buddy machine', () => {
   })
 
   it('remarks when chattiness is on, shows the bubble for a while, then clears it', () => {
-    const { actor, clock, activity, ctx } = start({ roaming: false, chattiness: 'normal', random: seq(0.1) })
+    const { actor, clock, activity, ctx } = start({
+      roaming: false,
+      chattiness: 'normal',
+      random: seq(0.1)
+    })
     actor.send({ type: 'CLIP_DONE' })
     let seen = false
     for (let i = 0; i < 20 && !seen; i++) {
@@ -237,7 +283,14 @@ describe('pickStrollTarget', () => {
 describe('remarks', () => {
   it('buckets hours into times of day', () => {
     expect([5, 11, 12, 16, 17, 20, 21, 4].map(timeOfDay)).toEqual([
-      'morning', 'morning', 'afternoon', 'afternoon', 'evening', 'evening', 'night', 'night'
+      'morning',
+      'morning',
+      'afternoon',
+      'afternoon',
+      'evening',
+      'evening',
+      'night',
+      'night'
     ])
   })
 
@@ -254,7 +307,14 @@ describe('remarks', () => {
   it('can mention the weather when there is some', () => {
     const lines = new Set<string>()
     for (let r = 0; r < 1; r += 0.05) {
-      lines.add(pickRemark({ hour: 14, weather: { category: 'rain', temp: 61.6, unit: 'F' }, recent: [], random: () => r }))
+      lines.add(
+        pickRemark({
+          hour: 14,
+          weather: { category: 'rain', temp: 61.6, unit: 'F' },
+          recent: [],
+          random: () => r
+        })
+      )
     }
     expect([...lines]).toContain("It's 62 degrees outside right now.")
     expect([...lines].some((l) => /rainy/.test(l))).toBe(true)
@@ -272,7 +332,13 @@ describe('stuck clips', () => {
     const clock = new SimulatedClock()
     const actor = createActor(buddyMachine, {
       clock,
-      input: { roaming: false, chattiness: 'off', hour: 10, random: () => 0.5, now: () => clock.now() }
+      input: {
+        roaming: false,
+        chattiness: 'off',
+        hour: 10,
+        random: () => 0.5,
+        now: () => clock.now()
+      }
     })
     actor.start()
     expect(activityOf(actor.getSnapshot().value)).toBe('greeting')

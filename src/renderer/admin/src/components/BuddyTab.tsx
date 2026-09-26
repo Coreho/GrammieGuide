@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useConfigStore } from '../state/useConfigStore'
+import { BuddyCommands } from './BuddyCommands'
 
 // Edge neural voices. Aria first: it's the voice the old app used, so it's the one she knows.
 const VOICES: { id: string; label: string }[] = [
@@ -39,9 +40,14 @@ export function BuddyTab() {
 
   if (!config) return null
   const { buddy } = config
-  const models = MODELS.some((m) => m.id === buddy.model) ? MODELS : [...MODELS, { id: buddy.model, label: buddy.model }]
-  const voices = VOICES.some((v) => v.id === buddy.ttsVoice) ? VOICES : [...VOICES, { id: buddy.ttsVoice, label: buddy.ttsVoice }]
-  const saveBuddy = (patch: Partial<typeof buddy>): void => void save({ buddy: { ...buddy, ...patch } })
+  const models = MODELS.some((m) => m.id === buddy.model)
+    ? MODELS
+    : [...MODELS, { id: buddy.model, label: buddy.model }]
+  const voices = VOICES.some((v) => v.id === buddy.ttsVoice)
+    ? VOICES
+    : [...VOICES, { id: buddy.ttsVoice, label: buddy.ttsVoice }]
+  const saveBuddy = (patch: Partial<typeof buddy>): void =>
+    void save({ buddy: { ...buddy, ...patch } })
 
   const previewVoice = async (): Promise<void> => {
     setVoiceStatus('Playing…')
@@ -66,16 +72,18 @@ export function BuddyTab() {
     await window.admin.setApiKey(value)
     setHasKey(await window.admin.hasApiKey())
     setKeyDraft('')
-    setStatus(value ? 'API key saved.' : 'API key removed - Buddy will say chatting is not set up yet.')
+    setStatus(
+      value ? 'API key saved.' : 'API key removed - Buddy will say chatting is not set up yet.'
+    )
   }
 
   return (
     <div>
       <h2>Buddy (AI companion)</h2>
-
       <h3>Anthropic API key</h3>
       <p>
-        Status: {hasKey === null ? '…' : hasKey ? 'A key is set.' : 'No key set - Buddy cannot chat yet.'}
+        Status:{' '}
+        {hasKey === null ? '…' : hasKey ? 'A key is set.' : 'No key set - Buddy cannot chat yet.'}
       </p>
       <input
         type="password"
@@ -90,28 +98,36 @@ export function BuddyTab() {
       </button>{' '}
       {hasKey && <button onClick={() => saveKey('')}>Remove key</button>}
       {status && <p>{status}</p>}
-
       <h3>Model</h3>
-      <select value={buddy.model} onChange={(e) => save({ buddy: { ...buddy, model: e.target.value } })}>
+      <select
+        value={buddy.model}
+        onChange={(e) => save({ buddy: { ...buddy, model: e.target.value } })}
+      >
         {models.map((m) => (
           <option key={m.id} value={m.id}>
             {m.label}
           </option>
         ))}
       </select>
-
       <h3>On the Home screen</h3>
       <label>
-        <input type="checkbox" checked={buddy.roaming} onChange={(e) => saveBuddy({ roaming: e.target.checked })} />
+        <input
+          type="checkbox"
+          checked={buddy.roaming}
+          onChange={(e) => saveBuddy({ roaming: e.target.checked })}
+        />
         Buddy strolls along the bottom of the screen now and then
       </label>
       <p style={{ fontSize: '.85rem', color: '#666' }}>
         He never walks over the tiles. Between 9 PM and 6 AM he stays put either way.
       </p>
-
       <h3>Voice</h3>
       <label>
-        <input type="checkbox" checked={buddy.voiceEnabled} onChange={(e) => saveBuddy({ voiceEnabled: e.target.checked })} />
+        <input
+          type="checkbox"
+          checked={buddy.voiceEnabled}
+          onChange={(e) => saveBuddy({ voiceEnabled: e.target.checked })}
+        />
         Read Buddy&apos;s replies out loud
       </label>
       <br />
@@ -134,23 +150,25 @@ export function BuddyTab() {
       <button onClick={() => void previewVoice()}>Try this voice</button>
       {voiceStatus && <p>{voiceStatus}</p>}
       <p style={{ fontSize: '.85rem', color: '#666' }}>
-        She can also talk to Buddy instead of typing (the Talk button in the chat), using this computer&apos;s
-        microphone. The button only appears when a microphone is found.
+        She can also talk to Buddy instead of typing (the Talk button in the chat), using this
+        computer&apos;s microphone. The button only appears when a microphone is found.
       </p>
-
       <h3>Chattiness</h3>
       <p>
-        Whether Buddy ever speaks up on his own, in a speech bubble (never out loud). Off means Buddy only talks
-        when tapped.
+        Whether Buddy ever speaks up on his own, in a speech bubble (never out loud). Off means
+        Buddy only talks when tapped.
       </p>
       <select
         value={buddy.chattiness}
-        onChange={(e) => save({ buddy: { ...buddy, chattiness: e.target.value as typeof buddy.chattiness } })}
+        onChange={(e) =>
+          save({ buddy: { ...buddy, chattiness: e.target.value as typeof buddy.chattiness } })
+        }
       >
         <option value="off">Off (recommended)</option>
         <option value="low">Low</option>
         <option value="normal">Normal</option>
       </select>
+      <BuddyCommands />
     </div>
   )
 }

@@ -32,6 +32,8 @@ useGLTF.preload(buddyUrl, false, false)
 
 export type BuddyCatProps = {
   activity: BuddyActivity
+  forcedClip: ClipName | null
+  commandSequence: number
   /** World x he should be at; he walks there if he isn't. */
   targetX: number
   /** World x on first mount. */
@@ -84,7 +86,9 @@ export function BuddyCat(props: BuddyCatProps) {
       next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
       next.clampWhenFinished = once
       // Drowsier idles at night.
-      next.setEffectiveTimeScale(live.current.night && (name === 'idle_calm' || name === 'idle_soft') ? 0.8 : 1)
+      next.setEffectiveTimeScale(
+        live.current.night && (name === 'idle_calm' || name === 'idle_soft') ? 0.8 : 1
+      )
       next.setEffectiveWeight(1)
       next.fadeIn(FADE_S).play()
       if (prev && prev.action !== next) prev.action.fadeOut(FADE_S)
@@ -95,7 +99,13 @@ export function BuddyCat(props: BuddyCatProps) {
 
   const playForActivity = useCallback(() => {
     const activity = live.current.activity
-    const name = pickClip(activity, { random: Math.random, night: live.current.night, last: lastPicked.current })
+    const name =
+      live.current.forcedClip ??
+      pickClip(activity, {
+        random: Math.random,
+        night: live.current.night,
+        last: lastPicked.current
+      })
     lastPicked.current = name
     play(name, loopsFor(activity))
   }, [play])
@@ -104,7 +114,7 @@ export function BuddyCat(props: BuddyCatProps) {
   // arriving starts it.
   useEffect(() => {
     if (!moving.current) playForActivity()
-  }, [props.activity, playForActivity])
+  }, [props.activity, props.forcedClip, props.commandSequence, playForActivity])
 
   useEffect(() => {
     const onFinished = (e: { action: THREE.AnimationAction }): void => {
@@ -132,7 +142,14 @@ export function BuddyCat(props: BuddyCatProps) {
     const dx = p.targetX - g.position.x
     let wantYaw = p.restYaw
 
-    if (Math.abs(dx) > ARRIVE_EPS) {
+    if (p.activity === 'commanded') {
+      // A deliberate gesture stops him where he is, even halfway through a stroll.
+      if (moving.current) {
+        moving.current = false
+        p.onArrived(g.position.x)
+        playForActivity()
+      }
+    } else if (Math.abs(dx) > ARRIVE_EPS) {
       const walkClip: ClipName = p.hurry ? 'walk' : 'walk_casual'
       if (!moving.current || current.current?.name !== walkClip) play(walkClip, true)
       moving.current = true

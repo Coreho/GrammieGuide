@@ -2,17 +2,22 @@ import { Component, Suspense, useCallback, useLayoutEffect, useRef, type ReactNo
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { zLayers } from '@shared/zLayers'
-import { isNight, type BuddyActivity, type ChatPhase, type Chattiness } from '@shared/buddy/buddyMachine'
+import {
+  isNight,
+  type BuddyActivity,
+  type ChatPhase,
+  type Chattiness
+} from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import { CHIP_SHADOW } from '../clay'
 import { BuddyCat } from './CatModel'
 import { useBuddyBrain } from './useBuddyBrain'
 
 /**
- * Buddy's strip of floor along the bottom of Home, right of the text-size
- * control. Replaces M3's fixed 150x150 corner canvas: he now strolls the
- * whole strip, never over the tiles (the strip is the footer row itself),
- * and walks over beside the chat panel when she talks to him.
+ * Buddy's floor spans the full bottom of Home. The footer still reserves
+ * only 150px, and the text-size control sits above him when he passes it.
+ * He walks to the right of the chat panel when she talks to him.
  *
  * The canvas is taller than the footer so raised arms and his speech bubble
  * have room, and it never takes pointer events - taps on whatever is behind
@@ -36,6 +41,7 @@ const BUBBLE_MAX_W = 380
 const HEAD_Y = 1.55
 
 type FloorProps = {
+  command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
   onOpenChat: () => void
@@ -73,10 +79,22 @@ export function BuddyFloor(props: FloorProps) {
 
   const ctx = brain.context
   return (
-    <div style={{ position: 'relative', flex: 1, minWidth: 0, height: FOOTER_H }}>
+    <div
+      data-buddy-floor
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 32,
+        height: FOOTER_H,
+        pointerEvents: 'none'
+      }}
+    >
       <div
         ref={layerRef}
         data-buddy-activity={brain.activity}
+        data-buddy-clip={ctx?.forcedClip ?? undefined}
+        data-buddy-target={ctx?.target}
         style={{
           position: 'absolute',
           left: 0,
@@ -103,6 +121,8 @@ export function BuddyFloor(props: FloorProps) {
               <Suspense fallback={null}>
                 <FloorScene
                   activity={brain.activity}
+                  forcedClip={ctx.forcedClip}
+                  commandSequence={ctx.commandSequence}
                   target={ctx.target}
                   start={ctx.position}
                   night={isNight(props.hour)}
@@ -135,6 +155,7 @@ export function BuddyFloor(props: FloorProps) {
               fontWeight: 700,
               lineHeight: 1.25,
               textAlign: 'center',
+              overflowWrap: 'anywhere',
               transition: 'opacity .4s'
             }}
           >
@@ -167,6 +188,8 @@ export function BuddyFloor(props: FloorProps) {
 
 function FloorScene(props: {
   activity: BuddyActivity
+  forcedClip: ClipName | null
+  commandSequence: number
   target: number
   start: number
   night: boolean
@@ -204,6 +227,8 @@ function FloorScene(props: {
   return (
     <BuddyCat
       activity={props.activity}
+      forcedClip={props.forcedClip}
+      commandSequence={props.commandSequence}
       targetX={toWorld(props.target)}
       startX={toWorld(props.start)}
       // In chat he half-turns toward the panel on his left.

@@ -24,7 +24,11 @@ export function Tile({
   onActivate: (tile: TileType) => void
 }) {
   const wellSize = compact
-    ? { height: 'min(calc(112px - 24px * var(--font-scale, 1)), 100%)', aspectRatio: '1', borderRadius: 28 }
+    ? {
+        height: 'min(calc(112px - 24px * var(--font-scale, 1)), 100%)',
+        aspectRatio: '1',
+        borderRadius: 28
+      }
     : {
         width: 'calc(152px - 40px * var(--font-scale, 1))',
         height: 'calc(152px - 40px * var(--font-scale, 1))',
@@ -37,7 +41,8 @@ export function Tile({
       aria-label={tile.label}
       style={{
         minWidth: 0,
-        minHeight: 0,
+        minHeight: compact ? 150 : 220,
+        gridColumn: tile.size === 'wide' ? 'span 2' : undefined,
         display: 'flex',
         flexDirection: compact ? 'row' : 'column',
         alignItems: 'center',
@@ -71,7 +76,8 @@ export function Tile({
             ...wellSize,
             flex: 'none',
             color: 'var(--wi, var(--ai, #1F5A45))',
-            background: 'var(--well, linear-gradient(180deg, var(--a1,#A6EBD0), var(--a2,#7FD6B4)))',
+            background:
+              'var(--well, linear-gradient(180deg, var(--a1,#A6EBD0), var(--a2,#7FD6B4)))',
             boxShadow: WELL_SHADOW,
             display: 'flex',
             alignItems: 'center',
@@ -89,13 +95,8 @@ export function Tile({
           lineHeight: 1.1,
           minWidth: 0,
           maxWidth: '100%',
-          overflow: 'hidden',
-          // Wrap whole words onto a second line before ever truncating -
-          // a clipped "Pho..." is much harder to recognise than a wrapped label.
-          display: '-webkit-box',
-          WebkitBoxOrient: 'vertical',
-          WebkitLineClamp: 2,
-          overflowWrap: 'normal',
+          // Recognition depends on complete words; long labels grow their row.
+          overflowWrap: 'anywhere',
           wordBreak: 'normal'
         }}
       >

@@ -1,17 +1,22 @@
 import { z } from 'zod'
 import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
+import { quickMessageSchema } from './buddy/commands'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 4
+
+// Offer only built-ins with working launcher views. Future features add their keys here.
+export const BUILTIN_TILE_KEYS = ['weather'] as const
 
 export const tileSchema = z.object({
   id: z.string(),
   type: z.enum(['web', 'app', 'builtin']),
   label: z.string(),
+  size: z.enum(['normal', 'wide']).default('normal'),
   icon: z.string().optional(),
   url: z.string().optional(),
   appPath: z.string().optional(),
@@ -50,13 +55,19 @@ export const buddyConfigSchema = z.object({
   /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
   ttsVoice: z.string().default('en-US-AriaNeural'),
   /** Let him stroll along the bottom of the Home screen when nothing is happening. */
-  roaming: z.boolean().default(true)
+  roaming: z.boolean().default(true),
+  quickMessages: z.array(quickMessageSchema).max(50).default([])
 })
 
 export const displayConfigSchema = z.object({
   /** Index into shared/theme.ts's FONT_STEPS, not a raw scale - matches the
    *  on-screen A-/A+ control's discrete 5-step model exactly. */
-  fontStep: z.number().int().min(0).max(FONT_STEP_COUNT - 1).default(DEFAULT_FONT_STEP),
+  fontStep: z
+    .number()
+    .int()
+    .min(0)
+    .max(FONT_STEP_COUNT - 1)
+    .default(DEFAULT_FONT_STEP),
   theme: z.enum(THEME_NAMES).default('tilesBold'),
   ambientBackground: z.boolean().default(true),
   volumeCeiling: z.number().min(0).max(100).default(70)
@@ -138,7 +149,12 @@ export function defaultConfig(): Config {
       ttsVoice: 'en-US-AriaNeural',
       roaming: true
     },
-    display: { fontStep: DEFAULT_FONT_STEP, theme: 'tilesBold', ambientBackground: true, volumeCeiling: 70 },
+    display: {
+      fontStep: DEFAULT_FONT_STEP,
+      theme: 'tilesBold',
+      ambientBackground: true,
+      volumeCeiling: 70
+    },
     reliability: {}
   })
 }

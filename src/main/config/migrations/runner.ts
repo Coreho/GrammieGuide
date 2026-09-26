@@ -8,8 +8,8 @@ export type MigrationResult =
 /**
  * Replaces the old app's ~8 sequential, unconditional migration blocks in
  * store.js with one numbered file per schema version (see ./index.ts). Each
- * migration is a pure function, run in order, re-validated against the
- * current schema after every step. If anything fails validation, we back up
+ * migration is a pure function, run in order, then the final shape is validated
+ * against the current schema. If anything fails validation, we back up
  * the corrupt value and fall back to defaults rather than booting the kiosk
  * with a broken config - the old app has no equivalent safety net.
  */

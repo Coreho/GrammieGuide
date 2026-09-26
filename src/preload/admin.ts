@@ -7,6 +7,7 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  commandBuddy: (command: IpcRequest<'buddy:command'>) => invoke('buddy:command', command),
   getConfig: () => invoke('config:get'),
   setConfig: (patch: Partial<Config>) => invoke('config:set', patch),
 
