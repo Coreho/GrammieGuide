@@ -8,6 +8,8 @@ GrammieGuide is a dementia-friendly Windows kiosk launcher for an elderly user, 
 
 Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D Buddy, …) from an external plan doc (`i-kinda-wanna-overhaul-moonlit-prism.md`, not in this repo). The README's Status section tracks which milestones are done.
 
+Specs for the next wave of V2 features (scam shield, presence-aware Home, music tile, photo games, news tile with reader mode) live in `docs/specs/`. Read `docs/specs/00-overview.md` first: it holds the shared infrastructure (media protocol, media library, tile sizes, z-layers, migration rules) the individual specs assume.
+
 `@ghostery/adblocker-electron`, `msedge-tts` and `xstate` are installed, but nothing in `src/` imports them yet. They are there for work that is still planned (such as speech and Buddy's behavior state machine), so don't assume they are wired up.
 
 ## Commands
