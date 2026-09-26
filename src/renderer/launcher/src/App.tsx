@@ -11,6 +11,7 @@ import { WeatherOverlay } from './components/WeatherOverlay'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
+import type { ChatPhase } from '@shared/buddy/buddyMachine'
 
 declare global {
   interface Window {
@@ -39,6 +40,7 @@ export default function App() {
   const [showWeather, setShowWeather] = useState(false)
   const [showConfusion, setShowConfusion] = useState(false)
   const [showBuddyChat, setShowBuddyChat] = useState(false)
+  const [buddyChatPhase, setBuddyChatPhase] = useState<ChatPhase>('idle')
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -158,6 +160,25 @@ export default function App() {
             onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
             onBuddyTap={() => setShowBuddyChat(true)}
+            buddy={{
+              chatOpen: showBuddyChat,
+              chatPhase: buddyChatPhase,
+              roaming: config.buddy.roaming,
+              chattiness: config.buddy.chattiness,
+              hour: now.getHours(),
+              weather: weather ? { category: weather.category, temp: weather.temp, unit: weather.unit } : null
+            }}
+          />
+        )}
+        {/* Inside the stage, so Buddy (on the footer floor) can stand in front of its backdrop. */}
+        {view === 'home' && showBuddyChat && (
+          <BuddyChatPanel
+            voiceEnabled={config.buddy.voiceEnabled}
+            onPhaseChange={setBuddyChatPhase}
+            onClose={() => {
+              setShowBuddyChat(false)
+              setBuddyChatPhase('idle')
+            }}
           />
         )}
         {toast && <Toast message={toast} />}
@@ -173,7 +194,6 @@ export default function App() {
         />
       )}
       {showConfusion && <ConfusionOverlay onClose={() => setShowConfusion(false)} />}
-      {showBuddyChat && <BuddyChatPanel onClose={() => setShowBuddyChat(false)} />}
     </div>
   )
 }

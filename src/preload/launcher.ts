@@ -29,6 +29,9 @@ const launcherApi = {
   reportActivity: () => ipcRenderer.send('browserView:activity'),
 
   buddyChat: (turns: BuddyChatTurn[]) => invoke('buddy:chat', { turns }),
+  buddySpeak: (text: string) => invoke('buddy:speak', { text }),
+  buddyListen: () => invoke('buddy:listen'),
+  buddyCanListen: () => invoke('buddy:canListen'),
 
   onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) => on('browser:blocked', cb),
   onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb()),

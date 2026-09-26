@@ -1,3 +1,5 @@
+import { migration as migration002 } from './002-buddy-voice-and-roaming'
+
 export interface Migration {
   version: number
   /** Pure function: takes the previous (unvalidated) shape, returns the next shape. */
@@ -11,4 +13,4 @@ export interface Migration {
  * (ghost-tile cleanup, location->locations[], AI tile add/remove, etc.)
  * becomes exactly one file like this when it's ported forward.
  */
-export const migrations: Migration[] = []
+export const migrations: Migration[] = [migration002]

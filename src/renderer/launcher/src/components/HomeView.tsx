@@ -4,7 +4,18 @@ import { TileGrid } from './TileGrid'
 import { WeatherGlyph } from './WeatherGlyph'
 import { FontScaleControl } from './FontScaleControl'
 import { CHIP_SHADOW } from '../clay'
-import { BuddyCanvas } from '../buddy/BuddyCanvas'
+import { BuddyFloor } from '../buddy/BuddyFloor'
+import type { ChatPhase, Chattiness } from '@shared/buddy/buddyMachine'
+import type { RemarkWeather } from '@shared/buddy/remarks'
+
+export type HomeBuddyProps = {
+  chatOpen: boolean
+  chatPhase: ChatPhase
+  roaming: boolean
+  chattiness: Chattiness
+  hour: number
+  weather: RemarkWeather | null
+}
 
 export function HomeView({
   time,
@@ -15,7 +26,8 @@ export function HomeView({
   fontStep,
   onFontStepChange,
   onActivateTile,
-  onBuddyTap
+  onBuddyTap,
+  buddy
 }: {
   time: string
   ampm: string
@@ -26,6 +38,7 @@ export function HomeView({
   onFontStepChange: (step: number) => void
   onActivateTile: (tile: TileType) => void
   onBuddyTap: () => void
+  buddy: HomeBuddyProps
 }) {
   return (
     <>
@@ -83,14 +96,12 @@ export function HomeView({
       >
         <FontScaleControl step={fontStep} onChange={onFontStepChange} />
         {/*
-          Buddy idles in the footer's free corner rather than its own
-          full-width strip, which cost the tile grid ~180px and collapsed
-          two-row layouts. Roaming (avoid-rectangles around the grid) waits
-          for the final rigged cat model.
+          Buddy's floor is the rest of the footer row: he strolls it without
+          ever covering a tile. The row stays 150px tall (a taller strip cost
+          the tile grid ~180px and collapsed two-row layouts); his canvas
+          overhangs it upward instead, without taking any taps.
         */}
-        <div style={{ width: 150, height: 150, flex: 'none' }}>
-          <BuddyCanvas onTap={onBuddyTap} />
-        </div>
+        <BuddyFloor {...buddy} onOpenChat={onBuddyTap} />
       </footer>
     </>
   )

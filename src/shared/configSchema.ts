@@ -6,7 +6,7 @@ import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 export const tileSchema = z.object({
   id: z.string(),
@@ -43,7 +43,14 @@ export const buddyConfigSchema = z.object({
   anthropicApiKey: z.string().optional(),
   model: z.string().default('claude-haiku-4-5'),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
-  cloudTtsEnabled: z.boolean().default(true)
+  /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
+  cloudTtsEnabled: z.boolean().default(true),
+  /** Read his chat replies aloud. Unprompted remarks stay silent either way. */
+  voiceEnabled: z.boolean().default(true),
+  /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
+  ttsVoice: z.string().default('en-US-AriaNeural'),
+  /** Let him stroll along the bottom of the Home screen when nothing is happening. */
+  roaming: z.boolean().default(true)
 })
 
 export const displayConfigSchema = z.object({
@@ -123,7 +130,14 @@ export function defaultConfig(): Config {
       inactivityTimeoutMinutes: 3,
       rapidTap: { count: 20, windowMs: 4000, clusterRadiusPx: 80, cooldownMs: 15000 }
     },
-    buddy: { model: 'claude-haiku-4-5', chattiness: 'off', cloudTtsEnabled: true },
+    buddy: {
+      model: 'claude-haiku-4-5',
+      chattiness: 'off',
+      cloudTtsEnabled: true,
+      voiceEnabled: true,
+      ttsVoice: 'en-US-AriaNeural',
+      roaming: true
+    },
     display: { fontStep: DEFAULT_FONT_STEP, theme: 'tilesBold', ambientBackground: true, volumeCeiling: 70 },
     reliability: {}
   })

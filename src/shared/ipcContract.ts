@@ -58,6 +58,20 @@ export type BuddyChatResult =
   | { ok: true; reply: string }
   | { ok: false; reason: 'no-key' | 'unavailable' | 'declined'; reply: string }
 
+/** Base64 MP3 of Buddy's line, or why there's none (the renderer then uses the Windows voice). */
+export type BuddySpeakResult =
+  | { ok: true; audioBase64: string; mime: 'audio/mpeg' }
+  | { ok: false; reason: 'disabled' | 'empty' | 'unavailable' }
+
+/**
+ * What the microphone heard. Like BuddyChatResult, failures carry no
+ * technical text for the renderer to show - the panel has its own calm line
+ * for each reason.
+ */
+export type BuddyListenResult =
+  | { ok: true; text: string }
+  | { ok: false; reason: 'nothing-heard' | 'no-mic' | 'unavailable' }
+
 export interface IpcApi {
   'config:get': { request: void; response: PublicConfig }
   'config:set': { request: Partial<Config>; response: PublicConfig }
@@ -79,6 +93,12 @@ export interface IpcApi {
   'admin:setApiKey': { request: { apiKey: string }; response: { ok: boolean } }
 
   'buddy:chat': { request: { turns: BuddyChatTurn[] }; response: BuddyChatResult }
+  /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */
+  'buddy:speak': { request: { text: string; voice?: string }; response: BuddySpeakResult }
+  /** One spoken phrase through Windows' offline recognizer; returns once she pauses. */
+  'buddy:listen': { request: void; response: BuddyListenResult }
+  /** Whether there's a recognizer and a microphone at all, so the panel can hide its mic button. */
+  'buddy:canListen': { request: void; response: boolean }
 
   'display:setFontStep': { request: { step: number }; response: PublicConfig }
 
