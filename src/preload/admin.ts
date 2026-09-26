@@ -17,6 +17,8 @@ const adminApi = {
   isUnlocked: () => invoke('admin:isUnlocked'),
   hasApiKey: () => invoke('admin:hasApiKey'),
   setApiKey: (apiKey: string) => invoke('admin:setApiKey', { apiKey }),
+  /** "Try this voice": same synthesis Buddy uses, so what the caregiver hears is what she'll hear. */
+  previewVoice: (text: string, voice: string) => invoke('buddy:speak', { text, voice }),
 
   getActivityLog: (limit?: number) => invoke('activity:get', { limit }),
   getReliabilityLog: (limit?: number) => invoke('reliability:getLog', { limit }),

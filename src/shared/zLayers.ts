@@ -15,6 +15,8 @@ export const zLayers = {
   weatherOverlay: 200,
   confusionOverlay: 300,
   buddyChat: 350,
+  /** Buddy's floor while the chat panel is open: above its dimmed backdrop, so she sees him listen and talk. */
+  buddyInChat: 360,
   helpOverlay: 400,
   incomingCall: 500,
   activeCall: 510,

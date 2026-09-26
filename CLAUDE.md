@@ -8,7 +8,7 @@ GrammieGuide is a dementia-friendly Windows kiosk launcher for an elderly user, 
 
 Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D Buddy, …) from an external plan doc (`i-kinda-wanna-overhaul-moonlit-prism.md`, not in this repo). The README's Status section tracks which milestones are done.
 
-`@ghostery/adblocker-electron`, `msedge-tts` and `xstate` are installed, but nothing in `src/` imports them yet. They are there for work that is still planned (such as speech and Buddy's behavior state machine), so don't assume they are wired up.
+`@ghostery/adblocker-electron` is installed, but nothing in `src/` imports it yet; it is there for planned work, so don't assume it is wired up. (`msedge-tts` and `xstate` are now used by Buddy's voice and behavior machine.)
 
 ## Commands
 
@@ -19,6 +19,7 @@ Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D 
 - `npm test`: Vitest unit tests (`tests/unit/**/*.test.ts`, node environment)
 - Single test file: `npx vitest run tests/unit/urlPolicy.test.ts`, or filter by test name with `-t "<name>"`
 - `npm run test:e2e`: Playwright against the **built** app (`electron .` launches `out/main/index.js`). Run `npm run build` first. It uses a fresh temp `--user-data-dir` and sets `GRAMMIEGUIDE_E2E=1`, which exposes `globalThis.__e2e__.createAdminWindow` because Playwright can't send the Ctrl+Shift+A shortcut to a kiosk window.
+- `sh scripts/blender/buildBuddy.sh`: rebuilds Buddy's model (`src/renderer/launcher/src/buddy/assets/buddy.glb`) from the Meshy downloads in the gitignored `CatModel/meshy/`. Needs Blender 5.2 (override the path with `BLENDER=`); takes about 70s. See "Buddy's model" below.
 - `npx tsx scripts/debugReliability.ts`: manual real-hardware check of the Wi-Fi, volume and watchdog code. It is safe to re-run and cleans up after itself.
 - `npm run package`: Windows installer via electron-builder
 
@@ -46,7 +47,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 - **Schema:** `src/shared/configSchema.ts` defines a zod schema, versioned by `CURRENT_SCHEMA_VERSION`. It is persisted through electron-store in `src/main/config/store.ts`.
 - **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `setConfig` merges only one level deep, so `config:set` runs patches through `mergeAdminPatch()`, which always carries the current secrets forward. Secrets change only through `admin:setPin` / `admin:setApiKey`.
-- **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` (named `NNN-description.ts`, e.g. `002-weather-locations-array.ts`) and list it in `migrations/index.ts`. The schema is still at version 1 and the list is empty, so there's no existing migration to copy. Port each migration from the old app's `store.js` as exactly one file. `runner.ts` applies the migrations in order and re-validates after each one. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
+- **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` (named `NNN-description.ts`) and list it in `migrations/index.ts`. The schema is at version 2; `002-buddy-voice-and-roaming.ts` is the pattern to copy (existing values win over the new defaults). Port each migration from the old app's `store.js` as exactly one file. `runner.ts` applies the migrations in order and re-validates after each one. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
 
 ### Reliability (Windows-specific)
 
@@ -62,6 +63,19 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 - **History:** the renderer keeps the on-screen history and sends it every turn; the service sanitizes it (`toApiMessages`).
 - **Replies:** every result carries a `reply` that is safe to show her, including on failure. Technical detail goes to the activity log, and chat content is never logged. The activity log (`services/activityLog/activityLog.ts`) keeps only the last 1000 events in memory and is not saved to disk.
 - **Model:** the default is Haiku 4.5, which rejects `effort`; other models get `effort: 'low'`.
+
+### Buddy on Home
+
+- **Behavior:** `src/shared/buddy/buddyMachine.ts` is an xstate machine (greeting, resting, fidgeting, strolling, remarking, chat.*, farewell), pure and tested with a `SimulatedClock`. Positions are fractions of his floor (0..1), never pixels. Night (9 PM-6 AM) means no strolls or remarks. Every one-shot state has a 20s `clipTimeout` so a missing clip can't freeze him. Remark lines live in `remarks.ts`: never a question she must answer, never a claim that might be false.
+- **Rendering:** `renderer/launcher/src/buddy/BuddyFloor.tsx` owns the footer strip right of the text-size control: an orthographic canvas that overhangs the 150px footer row upward and takes no pointer events, plus an invisible tap button and speech bubble moved per frame. `useBuddyBrain.ts` runs the actor (created in an effect because of StrictMode). `CatModel.tsx` maps activities to clips (`clips.ts`), crossfades them, and slides him at the walk clip's stride speed; whether a clip loops is decided by the activity (`loopsFor`), not the clip. Tapping him opens chat; tapping him during chat is a pet.
+- **Chat panel:** rendered inside the Stage (not over the window) so his floor can sit above its backdrop at `zLayers.buddyInChat`. It reports a `ChatPhase` (idle/hearing/thinking/speaking) that drives his chat states.
+- **Voice:** `buddy:speak` → `services/speech/ttsService.ts` (Edge neural voices via `msedge-tts`, XML-escaped, 10s timeout). On any `ok:false` the renderer (`buddy/speech.ts`) falls back to `speechSynthesis`. Only chat lines are spoken; unprompted remarks are bubble-only.
+- **Listening:** `buddy:listen` → `services/speech/sttService.ts`, Windows' offline System.Speech dictation through `runPowerShell`, one phrase per call. `buddy:canListen` gates the Talk button. Log that she spoke, never what she said.
+- **CSP:** the launcher allows `blob:` for img/media/connect (GLB textures, voice audio). `useGLTF` must be called with Draco and Meshopt off: one fetches from a CDN, the other compiles WebAssembly, which `script-src 'self'` blocks.
+
+### Buddy's model
+
+`scripts/blender/fixCatRig.py` (run by `buildBuddy.sh`) turns Meshy's humanoid auto-rig into something that fits a round cat: it lowers the hip/knee joints along their original bone directions (so clip rotations still mean the same thing), re-weights legs and belly with bone heat against a joint-to-joint copy of the skeleton, pushes hanging arms out of the belly, re-grounds each clip to Meshy's own foot-height profile, makes the material matte, and exports every clip into one GLB. Clips come from Meshy's animation library (`meshy animate create --rig-task-id 01a0dcaf-4f10-746b-86fa-75e22623504f --action-id N -o CatModel/meshy/anims/<name>`); clip names in `buildBuddy.sh` must match `clips.ts`. The rig task expires on Meshy's side; after that, new clips need a re-rig.
 
 ### Embedded browser
 
