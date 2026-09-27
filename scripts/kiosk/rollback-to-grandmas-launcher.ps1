@@ -1,4 +1,4 @@
-<#
+﻿<#
 Puts Grandma's Launcher back in charge of this kiosk (the undo for
 switch-to-grammieguide.ps1).
 
@@ -42,6 +42,19 @@ foreach ($name in @('Grandmas Launcher', 'Grandmas Launcher Watchdog')) {
   $found = $true
   if ($task.State -eq 'Disabled') { Step "Turning old task back on: $name" { Enable-ScheduledTask -TaskName $name | Out-Null } }
 }
+
+# A leftover startup entry the switch turned off (only those it recorded, so
+# one someone turned off in Task Manager on purpose stays off).
+$approvedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+$recordKey = 'HKCU:\Software\GrammieGuide'
+$recordName = 'OldLauncherStartupEntries'
+$recorded = @((Get-ItemProperty -Path $recordKey -Name $recordName -ErrorAction SilentlyContinue).$recordName) | Where-Object { $_ }
+foreach ($name in $recorded) {
+  Step "Turning old startup entry back on: $name" {
+    Set-ItemProperty -Path $approvedKey -Name $name -Value ([byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)) -Type Binary
+  }
+}
+if ($recorded) { Step 'Clearing the record of startup entries the switch turned off' { Remove-ItemProperty -Path $recordKey -Name $recordName } }
 
 if ($found -and -not (Get-Process -Name "Grandma's Launcher" -ErrorAction SilentlyContinue)) {
   Step "Starting Grandma's Launcher" { Start-ScheduledTask -TaskName 'Grandmas Launcher' }

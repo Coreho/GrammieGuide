@@ -8,8 +8,10 @@ import {
 } from '../../src/main/services/reliability/scheduledTasks'
 import {
   decideWifi,
+  isOnline,
   INITIAL_WIFI_STATE,
   OFFLINE_BEFORE_RESTART_MS,
+  PROBES,
   RESTART_COOLDOWN_MS,
   type WifiWatchState
 } from '../../src/main/services/reliability/wifiWatch'
@@ -87,6 +89,23 @@ describe('Wi-Fi healing decisions', () => {
     expect(d).toMatchObject({ transition: 'restored', restart: false, state: { online: true, offlineSince: null } })
     const again = decideWifi(d.state, false, t0 + 6000)
     expect(again.state.offlineSince).toBe(t0 + 6000)
+  })
+})
+
+describe('Wi-Fi connectivity probe', () => {
+  it('a network that blocks both public resolvers still counts as online if its own DNS works', async () => {
+    const onlyByName = async (host: string): Promise<boolean> => !/^\d/.test(host)
+    expect(await isOnline(onlyByName)).toBe(true)
+  })
+
+  it('counts as offline only when every probe fails', async () => {
+    const tried: string[] = []
+    const none = async (host: string): Promise<boolean> => {
+      tried.push(host)
+      return false
+    }
+    expect(await isOnline(none)).toBe(false)
+    expect(tried).toEqual(PROBES.map((p) => p.host))
   })
 })
 

@@ -36,13 +36,21 @@ Copy the installer and the `kiosk` folder from the USB stick to the Desktop.
    ```
 
    The script:
-   - turns off the old launcher's watchdog and its start-at-login task (it
-     disables them; nothing is deleted);
-   - closes the old launcher;
-   - runs the GrammieGuide installer.
+   - turns off the old launcher's watchdog and closes the old launcher;
+   - runs the GrammieGuide installer;
+   - waits (up to 3 minutes) for GrammieGuide to set up its own
+     start-at-login;
+   - only then turns off the old launcher's start-at-login task, and any
+     leftover old startup entry (as if switched off in Task Manager).
+     Nothing is deleted.
+
+   If the installer is cancelled or fails, or GrammieGuide doesn't set up
+   its start-at-login in time, the script stops without switching: the old
+   watchdog goes back on and the old launcher reopens, so she never signs in
+   to neither.
 3. Click through the installer. At the end GrammieGuide opens. Say **Yes** to
    the Windows prompt: on this first run it sets up its own start-at-login
-   task and its watchdog.
+   task and its watchdog, and the script then finishes the switch.
 
 ## 3. Set up GrammieGuide
 
@@ -70,7 +78,7 @@ Press **Ctrl+Shift+A** to open the caregiver panel.
 | Watchdog recovers it | Task Manager → end **GrammieGuide** | It reopens within about 3 minutes |
 | A deliberate quit stays quit | Press **Ctrl+Shift+Q** | It stays closed. Reopen it from the Start menu (that re-arms the watchdog) |
 | Volume limit | Turn the volume up past the limit | Back down within 30 seconds |
-| Buddy | Tap the cat | Chat opens and he walks over. **Talk** shows if a microphone is found |
+| Buddy | Tap the cat, then **Let's chat** | A menu of four choices opens; after **Let's chat** the chat opens and he walks over. **Talk** shows if a microphone is found |
 | Wi-Fi healing (optional) | Unplug the router for 2 minutes | The **Activity** tab shows `network-lost`, then `wifi-restart-triggered` |
 
 If the Reliability log shows "limited run level", grandma's account isn't an
@@ -86,7 +94,7 @@ powershell -ExecutionPolicy Bypass -File .\rollback-to-grandmas-launcher.ps1
 ```
 
 This turns GrammieGuide's tasks off, closes it, turns the old launcher's
-tasks back on, and starts it. GrammieGuide stays installed. It won't
+tasks (and any startup entry the switch turned off) back on, and starts it. GrammieGuide stays installed. It won't
 re-enable its own tasks even if someone opens it later, so the two never both
 start at login. To go forward again, run `switch-to-grammieguide.ps1` without
 `-Installer`.

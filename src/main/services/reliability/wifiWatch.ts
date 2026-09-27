@@ -9,7 +9,7 @@ import { connect } from 'net'
  * Two changes from the old loop: a restart is followed by a 5 minute
  * cooldown (the old one restarted the adapter every 10s for as long as the
  * router was down, which also kept dropping any link that was coming back),
- * and connectivity is a TCP connect to two public resolvers rather than
+ * and connectivity is a TCP connect to a few probes (PROBES) rather than
  * dns.resolve('8.8.8.8'), which "resolves" an IP address and so said little.
  */
 
@@ -48,6 +48,24 @@ export function decideWifi(prev: WifiWatchState, online: boolean, now: number): 
   }
 }
 
+export type Probe = { host: string; port: number }
+
+/**
+ * The two public resolvers need no DNS, so they still answer when only DNS is
+ * broken. But a network can block both (some block outside DNS servers) while
+ * the internet works, and restarting a working adapter every five minutes
+ * would be all the healing did. So the third probe goes by name, through the
+ * network's own DNS, to the host behind Windows' own "No internet" indicator:
+ * if that fails too, Windows would call her offline as well.
+ */
+export const PROBES: readonly Probe[] = [
+  { host: '1.1.1.1', port: 443 },
+  { host: '8.8.8.8', port: 53 },
+  { host: 'www.msftconnecttest.com', port: 80 }
+]
+
+const PROBE_TIMEOUT_MS = 3000
+
 function canConnect(host: string, port: number, timeoutMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = connect({ host, port })
@@ -61,8 +79,8 @@ function canConnect(host: string, port: number, timeoutMs: number): Promise<bool
   })
 }
 
-/** Online if either public DNS resolver answers a TCP connect within 3s. */
-export async function isOnline(): Promise<boolean> {
-  const results = await Promise.all([canConnect('1.1.1.1', 443, 3000), canConnect('8.8.8.8', 53, 3000)])
+/** Online if any probe answers a TCP connect within 3s. */
+export async function isOnline(connectImpl: typeof canConnect = canConnect): Promise<boolean> {
+  const results = await Promise.all(PROBES.map((p) => connectImpl(p.host, p.port, PROBE_TIMEOUT_MS)))
   return results.some(Boolean)
 }

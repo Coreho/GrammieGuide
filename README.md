@@ -45,6 +45,8 @@ powershell -ExecutionPolicy Bypass -File scripts\kiosk\switch-to-grammieguide.ps
 
 Then set a PIN, run **Tiles → Import settings from Grandma's Launcher**, set up her tiles fresh, and add the Buddy API key. `scripts\kiosk\rollback-to-grandmas-launcher.ps1` goes back to the old launcher, which is never uninstalled.
 
+The switch keeps the old launcher's start-at-login on until GrammieGuide has set up its own. If the installer is cancelled or fails, the script stops, turns the old watchdog back on and reopens the old launcher, so she never signs in to neither. It also switches off any leftover startup entry from early builds of the old launcher (as Task Manager does); rollback turns back on only the entries the switch turned off.
+
 ## Setup
 
 `npm ci`. If `node_modules/electron/dist` is missing afterwards (npm 11 can skip install scripts), run `node node_modules/electron/install.js`.
