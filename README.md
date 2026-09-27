@@ -41,3 +41,5 @@ The model (`src/renderer/launcher/src/buddy/assets/buddy.glb`) is generated. The
 - `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first)
 - `npm run package` - Windows installer via electron-builder
 - `sh scripts/blender/buildBuddy.sh` - rebuild Buddy's model from the Meshy downloads (needs Blender)
+
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Coreho/GrammieGuide?utm_source=oss&utm_medium=github&utm_campaign=Coreho%2FGrammieGuide&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
