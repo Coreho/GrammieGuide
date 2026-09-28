@@ -10,6 +10,8 @@ import {
   type Chattiness
 } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
+import type { BuddyCommand } from '@shared/buddy/commands'
+import { speak, stopSpeaking } from './speech'
 
 type BrainInput = {
   roaming: boolean
@@ -18,6 +20,7 @@ type BrainInput = {
   weather: RemarkWeather | null
   chatOpen: boolean
   chatPhase: ChatPhase
+  command: (BuddyCommand & { sequence: number }) | null
 }
 
 /**
@@ -39,8 +42,23 @@ export function useBuddyBrain(input: BrainInput): {
     const { roaming, chattiness, hour, weather } = initial.current
     const a = createActor(buddyMachine, { input: { roaming, chattiness, hour, weather } })
     a.start()
+    let sequence = 0
+    const speech = a.subscribe((state) => {
+      const commanded = state.matches('commanded')
+      if (commanded && sequence !== state.context.commandSequence) {
+        sequence = state.context.commandSequence
+        stopSpeaking()
+        if (state.context.commandSpeak && state.context.bubble) void speak(state.context.bubble)
+      }
+    })
+    const offCommand = window.launcher.onBuddyCommand((command) =>
+      a.send({ type: 'COMMAND', ...command })
+    )
     setActor(a)
     return () => {
+      offCommand()
+      speech.unsubscribe()
+      stopSpeaking()
       a.stop()
     }
   }, [])
@@ -61,17 +79,27 @@ export function useBuddyBrain(input: BrainInput): {
   const weatherUnit = weather?.unit
 
   useEffect(() => {
-    const w = weatherCategory && weatherTemp !== null && weatherUnit ? { category: weatherCategory, temp: weatherTemp, unit: weatherUnit } : null
+    const w =
+      weatherCategory && weatherTemp !== null && weatherUnit
+        ? { category: weatherCategory, temp: weatherTemp, unit: weatherUnit }
+        : null
     actor?.send({ type: 'SETTINGS', roaming, chattiness, hour, weather: w })
   }, [actor, roaming, chattiness, hour, weatherCategory, weatherTemp, weatherUnit])
 
   useEffect(() => {
+    // A spoken command may outlast its gesture. Let the sentence finish,
+    // unless she starts a conversation or another command takes over.
+    if (chatOpen) stopSpeaking()
     actor?.send({ type: chatOpen ? 'CHAT_OPEN' : 'CHAT_CLOSE' })
   }, [actor, chatOpen])
 
   useEffect(() => {
     actor?.send({ type: 'CHAT_PHASE', phase: chatPhase })
   }, [actor, chatPhase])
+
+  useEffect(() => {
+    if (input.command) actor?.send({ type: 'COMMAND', ...input.command })
+  }, [actor, input.command])
 
   const send = useCallback((event: BuddyEvent) => actor?.send(event), [actor])
 

@@ -19,9 +19,12 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 }
 
 const launcherApi = {
+  openAppTile: (id: string) => invoke('tile:openApp', { id }),
+  onBuddyCommand: (cb: (command: IpcEvents['buddy:command']) => void) => on('buddy:command', cb),
   getConfig: () => invoke('config:get'),
   setFontStep: (step: number) => invoke('display:setFontStep', { step }),
-  getWeather: (label: string, units: 'imperial' | 'metric') => invoke('weather:get', { label, units }),
+  getWeather: (label: string, units: 'imperial' | 'metric') =>
+    invoke('weather:get', { label, units }),
 
   openBrowser: (url: string) => invoke('browser:open', { url }),
   goHome: () => invoke('browser:goHome'),
@@ -33,7 +36,8 @@ const launcherApi = {
   buddyListen: () => invoke('buddy:listen'),
   buddyCanListen: () => invoke('buddy:canListen'),
 
-  onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) => on('browser:blocked', cb),
+  onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) =>
+    on('browser:blocked', cb),
   onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb()),
   onConfigChanged: (cb: (config: IpcEvents['config:changed']) => void) => on('config:changed', cb)
 }

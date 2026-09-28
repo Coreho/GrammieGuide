@@ -1,4 +1,5 @@
 import type { Config, PublicConfig } from './configSchema'
+import type { BuddyCommand } from './buddy/commands'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -69,10 +70,24 @@ export type BuddySpeakResult =
  * for each reason.
  */
 export type BuddyListenResult =
-  | { ok: true; text: string }
-  | { ok: false; reason: 'nothing-heard' | 'no-mic' | 'unavailable' }
+  { ok: true; text: string } | { ok: false; reason: 'nothing-heard' | 'no-mic' | 'unavailable' }
+
+/**
+ * What "Import settings from Grandma's Launcher" would bring over, shown to
+ * the caregiver before applying. Settings only: tiles are set up fresh.
+ */
+export type OldLauncherImportPreview =
+  | { found: false }
+  | {
+      found: true
+      /** Human-readable settings that would change. */
+      settings: string[]
+      notImported: string[]
+    }
 
 export interface IpcApi {
+  'tile:openApp': { request: { id: string }; response: { ok: boolean } }
+  'buddy:command': { request: BuddyCommand; response: { ok: boolean } }
   'config:get': { request: void; response: PublicConfig }
   'config:set': { request: Partial<Config>; response: PublicConfig }
 
@@ -84,13 +99,18 @@ export interface IpcApi {
   'activity:get': { request: { limit?: number }; response: ActivityEvent[] }
 
   'admin:isPinSet': { request: void; response: boolean }
-  'admin:setPin': { request: { newPin: string; currentPin?: string }; response: { ok: boolean; reason?: string } }
+  'admin:setPin': {
+    request: { newPin: string; currentPin?: string }
+    response: { ok: boolean; reason?: string }
+  }
   'admin:unlock': { request: { pin: string }; response: { ok: boolean; reason?: string } }
   'admin:lock': { request: void; response: void }
   'admin:isUnlocked': { request: void; response: boolean }
   'admin:hasApiKey': { request: void; response: boolean }
   /** Empty string clears the key. Write-only: the key is never read back to any renderer. */
   'admin:setApiKey': { request: { apiKey: string }; response: { ok: boolean } }
+  'admin:previewOldLauncherImport': { request: void; response: OldLauncherImportPreview }
+  'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
   'buddy:chat': { request: { turns: BuddyChatTurn[] }; response: BuddyChatResult }
   /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */
@@ -102,7 +122,10 @@ export interface IpcApi {
 
   'display:setFontStep': { request: { step: number }; response: PublicConfig }
 
-  'weather:get': { request: { label: string; units: 'imperial' | 'metric' }; response: WeatherSnapshot | null }
+  'weather:get': {
+    request: { label: string; units: 'imperial' | 'metric' }
+    response: WeatherSnapshot | null
+  }
 
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
@@ -118,6 +141,7 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'buddy:command': BuddyCommand
   'browser:blocked': { url: string }
   'browser:can-go-back-changed': { canGoBack: boolean }
   'browser:idle-timeout': Record<string, never>

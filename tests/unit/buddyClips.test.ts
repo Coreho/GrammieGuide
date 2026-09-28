@@ -3,8 +3,19 @@ import { pickClip, loopsFor, restingLoop } from '../../src/renderer/launcher/src
 import type { BuddyActivity } from '../../src/shared/buddy/buddyMachine'
 
 const ALL: BuddyActivity[] = [
-  'greeting', 'resting', 'fidgeting', 'strolling', 'remarking', 'farewell',
-  'chat.hello', 'chat.attending', 'chat.hearing', 'chat.thinking', 'chat.talking', 'chat.petted'
+  'commanded',
+  'greeting',
+  'resting',
+  'fidgeting',
+  'strolling',
+  'remarking',
+  'farewell',
+  'chat.hello',
+  'chat.attending',
+  'chat.hearing',
+  'chat.thinking',
+  'chat.talking',
+  'chat.petted'
 ]
 
 describe('buddy clips', () => {
@@ -13,7 +24,16 @@ describe('buddy clips', () => {
   })
 
   it('one-shot activities never loop, so they always report back', () => {
-    for (const activity of ['greeting', 'fidgeting', 'remarking', 'farewell', 'chat.hello', 'chat.talking', 'chat.petted'] as const) {
+    for (const activity of [
+      'commanded',
+      'greeting',
+      'fidgeting',
+      'remarking',
+      'farewell',
+      'chat.hello',
+      'chat.talking',
+      'chat.petted'
+    ] as const) {
       expect(loopsFor(activity)).toBe(false)
     }
     expect(loopsFor('resting')).toBe(true)
@@ -22,13 +42,17 @@ describe('buddy clips', () => {
 
   it('does not repeat the last fidget when there is another choice', () => {
     for (let r = 0; r < 1; r += 0.01) {
-      expect(pickClip('fidgeting', { random: () => r, last: 'look_around' })).not.toBe('look_around')
+      expect(pickClip('fidgeting', { random: () => r, last: 'look_around' })).not.toBe(
+        'look_around'
+      )
     }
   })
 
   it('keeps night fidgets quiet', () => {
     for (let r = 0; r < 1; r += 0.01) {
-      expect(['idle_soft', 'look_around']).toContain(pickClip('fidgeting', { random: () => r, night: true }))
+      expect(['idle_soft', 'look_around']).toContain(
+        pickClip('fidgeting', { random: () => r, night: true })
+      )
     }
   })
 

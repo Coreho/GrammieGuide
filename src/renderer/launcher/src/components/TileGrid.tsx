@@ -13,27 +13,45 @@ export function columnsFor(count: number): number {
   return 4
 }
 
-export function TileGrid({ tiles, onActivate }: { tiles: TileType[]; onActivate: (tile: TileType) => void }) {
-  const columns = columnsFor(tiles.length)
-  const compact = tiles.length > columns
+export function TileGrid({
+  tiles,
+  onActivate
+}: {
+  tiles: TileType[]
+  onActivate: (tile: TileType) => void
+}) {
+  const cells = tiles.reduce((count, tile) => count + (tile.size === 'wide' ? 2 : 1), 0)
+  const columns = columnsFor(cells)
+  const compact = cells > columns
   // Four narrow columns can't fit icon + label side by side at large text
   // sizes ("We...", "Pho..."); the words matter more than the icon, so drop it.
   const dense = compact && columns === 4
 
   return (
     <main
+      aria-label="Home tiles"
       style={{
         flex: 1,
         minHeight: 0,
         display: 'grid',
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-        gridAutoRows: 'minmax(0, 1fr)',
+        // Intrinsic row height preserves every label; excess rows scroll within
+        // the tile area instead of stealing the footer's reserved space.
+        gridAutoRows: 'minmax(max-content, 1fr)',
+        overflowY: 'auto',
         gap: compact ? 24 : 32,
         padding: '4px 4px 12px'
       }}
     >
       {tiles.map((tile, i) => (
-        <Tile key={tile.id} tile={tile} index={i} compact={compact} dense={dense} onActivate={onActivate} />
+        <Tile
+          key={tile.id}
+          tile={tile}
+          index={i}
+          compact={compact}
+          dense={dense && tile.size !== 'wide'}
+          onActivate={onActivate}
+        />
       ))}
       {tiles.length === 0 && (
         <p style={{ fontSize: 'calc(28px * var(--font-scale, 1))', color: 'var(--ink2,#4A4945)' }}>

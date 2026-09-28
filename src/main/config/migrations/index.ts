@@ -1,4 +1,6 @@
 import { migration as migration002 } from './002-buddy-voice-and-roaming'
+import { migration as migration003 } from './003-tile-sizes'
+import { migration as migration004 } from './004-buddy-quick-messages'
 
 export interface Migration {
   version: number
@@ -13,4 +15,4 @@ export interface Migration {
  * (ghost-tile cleanup, location->locations[], AI tile add/remove, etc.)
  * becomes exactly one file like this when it's ported forward.
  */
-export const migrations: Migration[] = [migration002]
+export const migrations: Migration[] = [migration002, migration003, migration004]

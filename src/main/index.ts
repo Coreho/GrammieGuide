@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { loadConfig, getConfig } from './config/store'
 import { startHeartbeat, stopHeartbeat } from './services/reliability/watchdog'
+import { startKioskServices, stopKioskServices } from './services/reliability/kioskServices'
 import { registerAllIpc } from './ipc'
 import {
   createLauncherWindow,
@@ -40,6 +41,7 @@ app.whenReady().then(() => {
   initEmbeddedBrowser(win)
   startInactivityWatch()
   startHeartbeat(join(app.getPath('userData'), 'heartbeat.txt'))
+  startKioskServices()
 
   // Playwright can't send a real Ctrl+Shift+A keypress to a kiosk-locked
   // window, so E2E tests need a way to open the admin window directly.
@@ -51,6 +53,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   stopHeartbeat()
+  stopKioskServices()
   if (inactivityTimer) clearInterval(inactivityTimer)
   unregisterAllShortcuts()
   if (process.platform !== 'darwin') app.quit()

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent
+} from 'react'
 import type { Tile as TileType, PublicConfig } from '@shared/configSchema'
 import type { WeatherSnapshot } from '@shared/ipcContract'
 import { RapidTapTracker } from '@shared/confusionDetector'
@@ -12,6 +18,8 @@ import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
+import type { BuddyCommand } from '@shared/buddy/commands'
+import { BuddyMenu } from './buddy/BuddyMenu'
 
 declare global {
   interface Window {
@@ -21,7 +29,19 @@ declare global {
 
 type View = 'home' | 'browser'
 const WEATHER_REFRESH_MS = 15 * 60 * 1000
-const THEME_ONLY_KEYS = ['tile1', 'tile2', 'tile3', 'tile4', 'tInk', 'tInk1', 'tInk2', 'tInk3', 'tInk4', 'wi', 'well']
+const THEME_ONLY_KEYS = [
+  'tile1',
+  'tile2',
+  'tile3',
+  'tile4',
+  'tInk',
+  'tInk1',
+  'tInk2',
+  'tInk3',
+  'tInk4',
+  'wi',
+  'well'
+]
 
 function timeParts(now: Date): { time: string; ampm: string; date: string } {
   const h = now.getHours()
@@ -40,6 +60,10 @@ export default function App() {
   const [showWeather, setShowWeather] = useState(false)
   const [showConfusion, setShowConfusion] = useState(false)
   const [showBuddyChat, setShowBuddyChat] = useState(false)
+  const [showBuddyMenu, setShowBuddyMenu] = useState(false)
+  const [buddyCommand, setBuddyCommand] = useState<(BuddyCommand & { sequence: number }) | null>(
+    null
+  )
   const [buddyChatPhase, setBuddyChatPhase] = useState<ChatPhase>('idle')
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -114,6 +138,7 @@ export default function App() {
   }
 
   async function activateTile(tile: TileType): Promise<void> {
+    setBuddyCommand(null)
     flashToast(`Opening ${tile.label}...`)
     if (tile.type === 'web' && tile.url) {
       const result = await window.launcher.openBrowser(tile.url)
@@ -122,6 +147,10 @@ export default function App() {
     }
     if (tile.type === 'builtin' && tile.builtinKey === 'weather') {
       setShowWeather(true)
+    }
+    if (tile.type === 'app') {
+      const result = await window.launcher.openAppTile(tile.id)
+      if (!result.ok) flashToast("Let's try something else for now.")
     }
   }
 
@@ -159,14 +188,33 @@ export default function App() {
             fontStep={config.display.fontStep}
             onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
-            onBuddyTap={() => setShowBuddyChat(true)}
+            onBuddyTap={() => setShowBuddyMenu(true)}
             buddy={{
+              command: buddyCommand,
               chatOpen: showBuddyChat,
               chatPhase: buddyChatPhase,
               roaming: config.buddy.roaming,
               chattiness: config.buddy.chattiness,
               hour: now.getHours(),
-              weather: weather ? { category: weather.category, temp: weather.temp, unit: weather.unit } : null
+              weather: weather
+                ? { category: weather.category, temp: weather.temp, unit: weather.unit }
+                : null
+            }}
+          />
+        )}
+        {view === 'home' && showBuddyMenu && (
+          <BuddyMenu
+            onClose={() => setShowBuddyMenu(false)}
+            onChat={() => {
+              setShowBuddyMenu(false)
+              setShowBuddyChat(true)
+            }}
+            onCommand={(command) => {
+              setShowBuddyMenu(false)
+              setBuddyCommand((previous) => ({
+                ...command,
+                sequence: (previous?.sequence ?? 0) + 1
+              }))
             }}
           />
         )}

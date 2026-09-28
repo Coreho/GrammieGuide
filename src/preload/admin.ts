@@ -7,6 +7,7 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  commandBuddy: (command: IpcRequest<'buddy:command'>) => invoke('buddy:command', command),
   getConfig: () => invoke('config:get'),
   setConfig: (patch: Partial<Config>) => invoke('config:set', patch),
 
@@ -19,11 +20,14 @@ const adminApi = {
   setApiKey: (apiKey: string) => invoke('admin:setApiKey', { apiKey }),
   /** "Try this voice": same synthesis Buddy uses, so what the caregiver hears is what she'll hear. */
   previewVoice: (text: string, voice: string) => invoke('buddy:speak', { text, voice }),
+  previewOldLauncherImport: () => invoke('admin:previewOldLauncherImport'),
+  applyOldLauncherImport: () => invoke('admin:applyOldLauncherImport'),
 
   getActivityLog: (limit?: number) => invoke('activity:get', { limit }),
   getReliabilityLog: (limit?: number) => invoke('reliability:getLog', { limit }),
   testVolume: () => invoke('reliability:testVolume'),
-  testWifiDiscovery: () => invoke('reliability:testWifiDiscovery')
+  testWifiDiscovery: () => invoke('reliability:testWifiDiscovery'),
+  checkSystemTasks: () => invoke('reliability:testWatchdogRegistration')
 }
 
 contextBridge.exposeInMainWorld('admin', adminApi)

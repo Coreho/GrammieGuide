@@ -10,11 +10,13 @@ export const zLayers = {
   homeBackground: 0,
   homeContent: 10,
   buddyCanvas: 20,
+  fontControl: 25,
   navBar: 30,
   tilePicker: 100,
   weatherOverlay: 200,
   confusionOverlay: 300,
   buddyChat: 350,
+  buddyMenu: 355,
   /** Buddy's floor while the chat panel is open: above its dimmed backdrop, so she sees him listen and talk. */
   buddyInChat: 360,
   helpOverlay: 400,

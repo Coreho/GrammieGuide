@@ -1,5 +1,6 @@
 import { setup, assign } from 'xstate'
 import { farewellLine, greetingFor, pickRemark, type RemarkWeather } from './remarks'
+import type { BuddyCommand, ClipName } from './commands'
 
 /**
  * Buddy's behavior: what he's doing right now, as a state machine. Pure
@@ -33,19 +34,29 @@ export type BuddyContext = {
   target: number
   chatPhase: ChatPhase
   bubble: string | null
+  forcedClip: ClipName | null
+  commandSequence: number
+  commandSpeak: boolean
   recentRemarks: string[]
   nextStrollAt: number
   nextRemarkAt: number
 }
 
 export type BuddyEvent =
+  | ({ type: 'COMMAND' } & BuddyCommand)
   | { type: 'CLIP_DONE' }
   | { type: 'ARRIVED'; at: number }
   | { type: 'CHAT_OPEN' }
   | { type: 'CHAT_CLOSE' }
   | { type: 'CHAT_PHASE'; phase: ChatPhase }
   | { type: 'PET' }
-  | { type: 'SETTINGS'; roaming: boolean; chattiness: Chattiness; hour: number; weather: RemarkWeather | null }
+  | {
+      type: 'SETTINGS'
+      roaming: boolean
+      chattiness: Chattiness
+      hour: number
+      weather: RemarkWeather | null
+    }
 
 export type BuddyInput = {
   random?: () => number
@@ -59,7 +70,7 @@ export type BuddyInput = {
 }
 
 /** Where he stands while the chat panel is open: right of the panel, in view. */
-export const CHAT_SPOT = 0.82
+export const CHAT_SPOT = 0.78
 export const FLOOR_MIN = 0.06
 export const FLOOR_MAX = 0.94
 
@@ -105,9 +116,13 @@ export const buddyMachine = setup({
   types: {} as { context: BuddyContext; events: BuddyEvent; input: BuddyInput },
   guards: {
     remarkDue: ({ context }) =>
-      context.chattiness !== 'off' && !isNight(context.hour) && context.now() >= context.nextRemarkAt,
-    strollDue: ({ context }) => context.roaming && !isNight(context.hour) && context.now() >= context.nextStrollAt,
-    phaseChanged: ({ context, event }) => event.type === 'CHAT_PHASE' && event.phase !== context.chatPhase,
+      context.chattiness !== 'off' &&
+      !isNight(context.hour) &&
+      context.now() >= context.nextRemarkAt,
+    strollDue: ({ context }) =>
+      context.roaming && !isNight(context.hour) && context.now() >= context.nextStrollAt,
+    phaseChanged: ({ context, event }) =>
+      event.type === 'CHAT_PHASE' && event.phase !== context.chatPhase,
     hearing: ({ context }) => context.chatPhase === 'hearing',
     thinking: ({ context }) => context.chatPhase === 'thinking',
     speaking: ({ context }) => context.chatPhase === 'speaking'
@@ -115,7 +130,9 @@ export const buddyMachine = setup({
   delays: {
     // A plain idle stretch before he does something small. Longer at night.
     idleTick: ({ context }) =>
-      isNight(context.hour) ? between(context.random, 40 * SECOND, 80 * SECOND) : between(context.random, 12 * SECOND, 25 * SECOND),
+      isNight(context.hour)
+        ? between(context.random, 40 * SECOND, 80 * SECOND)
+        : between(context.random, 12 * SECOND, 25 * SECOND),
     remarkShown: REMARK_MS,
     // Longest one-shot clip is ~13s. If CLIP_DONE never comes (a clip missing
     // from the model, a renderer hiccup), move on rather than freeze.
@@ -132,11 +149,18 @@ export const buddyMachine = setup({
         weather: event.weather,
         // A newly switched-on chattiness starts its own clock rather than
         // firing at once because the old "never" was long overdue.
-        nextRemarkAt: chattinessChanged ? context.now() + remarkGap(event.chattiness, context.random) : context.nextRemarkAt
+        nextRemarkAt: chattinessChanged
+          ? context.now() + remarkGap(event.chattiness, context.random)
+          : context.nextRemarkAt
       }
     }),
-    setPosition: assign({ position: ({ context, event }) => (event.type === 'ARRIVED' ? event.at : context.position) }),
-    setPhase: assign({ chatPhase: ({ context, event }) => (event.type === 'CHAT_PHASE' ? event.phase : context.chatPhase) }),
+    setPosition: assign({
+      position: ({ context, event }) => (event.type === 'ARRIVED' ? event.at : context.position)
+    }),
+    setPhase: assign({
+      chatPhase: ({ context, event }) =>
+        event.type === 'CHAT_PHASE' ? event.phase : context.chatPhase
+    }),
     clearBubble: assign({ bubble: null })
   }
 }).createMachine({
@@ -156,6 +180,9 @@ export const buddyMachine = setup({
       target: position,
       chatPhase: 'idle',
       bubble: null,
+      forcedClip: null,
+      commandSequence: 0,
+      commandSpeak: false,
       recentRemarks: [],
       nextStrollAt: now() + strollGap(random),
       nextRemarkAt: now() + remarkGap(input.chattiness, random)
@@ -166,9 +193,28 @@ export const buddyMachine = setup({
     SETTINGS: { actions: 'applySettings' },
     ARRIVED: { actions: 'setPosition' },
     CHAT_PHASE: { actions: 'setPhase' },
-    CHAT_OPEN: { target: '.chat' }
+    CHAT_OPEN: { target: '.chat' },
+    COMMAND: { target: '.commanded', reenter: true }
   },
   states: {
+    commanded: {
+      entry: assign(({ context, event }) =>
+        event.type === 'COMMAND'
+          ? {
+              bubble: event.text ?? null,
+              forcedClip: event.clip ?? 'talk',
+              commandSpeak: Boolean(event.speak && event.text),
+              commandSequence: context.commandSequence + 1
+            }
+          : {}
+      ),
+      exit: assign({ bubble: null, forcedClip: null, commandSpeak: false }),
+      on: {
+        CLIP_DONE: 'resting',
+        ARRIVED: { actions: assign(({ event }) => ({ position: event.at, target: event.at })) }
+      },
+      after: { clipTimeout: 'resting' }
+    },
     greeting: {
       entry: assign({ bubble: ({ context }) => greetingFor(context.hour, context.random) }),
       exit: 'clearBubble',
@@ -194,11 +240,16 @@ export const buddyMachine = setup({
     },
 
     strolling: {
-      entry: assign({ target: ({ context }) => pickStrollTarget(context.position, context.random) }),
+      entry: assign({
+        target: ({ context }) => pickStrollTarget(context.position, context.random)
+      }),
       on: {
         ARRIVED: {
           target: 'resting',
-          actions: ['setPosition', assign({ nextStrollAt: ({ context }) => context.now() + strollGap(context.random) })]
+          actions: [
+            'setPosition',
+            assign({ nextStrollAt: ({ context }) => context.now() + strollGap(context.random) })
+          ]
         }
       }
     },
@@ -227,6 +278,7 @@ export const buddyMachine = setup({
       on: {
         // Already chatting: another open is a no-op, not a restart.
         CHAT_OPEN: {},
+        COMMAND: {},
         CHAT_PHASE: { guard: 'phaseChanged', actions: 'setPhase', target: '.routing' },
         PET: '.petted',
         CHAT_CLOSE: {
@@ -234,7 +286,11 @@ export const buddyMachine = setup({
           actions: assign({
             chatPhase: 'idle',
             // Don't pipe up again right after a conversation.
-            nextRemarkAt: ({ context }) => Math.max(context.nextRemarkAt, context.now() + remarkGap(context.chattiness, context.random))
+            nextRemarkAt: ({ context }) =>
+              Math.max(
+                context.nextRemarkAt,
+                context.now() + remarkGap(context.chattiness, context.random)
+              )
           })
         }
       },
@@ -266,6 +322,7 @@ export const buddyMachine = setup({
 })
 
 export type BuddyActivity =
+  | 'commanded'
   | 'greeting'
   | 'resting'
   | 'fidgeting'
