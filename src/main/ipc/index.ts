@@ -5,6 +5,7 @@ import { registerActivityIpc } from './activityIpc'
 import { registerWeatherIpc } from './weatherIpc'
 import { registerBrowserIpc } from './browserIpc'
 import { registerBuddyIpc } from './buddyIpc'
+import { registerNewsIpc } from './newsIpc'
 import { registerTileIpc } from './tileIpc'
 
 /**
@@ -21,4 +22,5 @@ export function registerAllIpc(): void {
   registerBrowserIpc()
   registerBuddyIpc()
   registerTileIpc()
+  registerNewsIpc()
 }

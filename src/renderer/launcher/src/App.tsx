@@ -13,7 +13,6 @@ import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { NavBar } from './components/NavBar'
-import { WeatherOverlay } from './components/WeatherOverlay'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
@@ -21,6 +20,7 @@ import type { ChatPhase } from '@shared/buddy/buddyMachine'
 import type { BuddyCommand } from '@shared/buddy/commands'
 import { BuddyMenu, type BuddyMenuAnchor } from './buddy/BuddyMenu'
 import { pickTapReaction, type TapReaction } from '@shared/buddy/tapReactions'
+import { builtinFor } from './tiles/builtins'
 
 declare global {
   interface Window {
@@ -58,7 +58,8 @@ function timeParts(now: Date): { time: string; ampm: string; date: string } {
 export default function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null)
   const [view, setView] = useState<View>('home')
-  const [showWeather, setShowWeather] = useState(false)
+  /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
+  const [openBuiltin, setOpenBuiltin] = useState<TileType | null>(null)
   const [showConfusion, setShowConfusion] = useState(false)
   const [showBuddyChat, setShowBuddyChat] = useState(false)
   const [buddyMenuAnchor, setBuddyMenuAnchor] = useState<BuddyMenuAnchor | null>(null)
@@ -125,7 +126,7 @@ export default function App() {
   }, [])
 
   const buddyMenuAvailable =
-    Boolean(config) && view === 'home' && !showWeather && !showConfusion && !showBuddyChat
+    Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
 
   useEffect(() => {
     if (!buddyMenuAvailable) closeBuddyMenu()
@@ -187,8 +188,9 @@ export default function App() {
       if (result.ok) setView('browser')
       return
     }
-    if (tile.type === 'builtin' && tile.builtinKey === 'weather') {
-      setShowWeather(true)
+    if (builtinFor(tile)) {
+      setOpenBuiltin(tile)
+      return
     }
     if (tile.type === 'app') {
       const result = await window.launcher.openAppTile(tile.id)
@@ -216,6 +218,7 @@ export default function App() {
   }
 
   const { time, ampm, date } = timeParts(now)
+  const OpenBuiltinView = openBuiltin ? builtinFor(openBuiltin)?.View : undefined
 
   return (
     <div ref={themeRef} onPointerDown={handlePointerDown} style={{ position: 'fixed', inset: 0 }}>
@@ -285,11 +288,15 @@ export default function App() {
 
       {view === 'browser' && <NavBar onHome={goHome} onBack={goBack} />}
 
-      {showWeather && (
-        <WeatherOverlay
-          locationLabel={config.weather.locations[0]?.label ?? null}
-          units={config.weather.units}
-          onClose={() => setShowWeather(false)}
+      {OpenBuiltinView && openBuiltin && (
+        <OpenBuiltinView
+          tile={openBuiltin}
+          config={config}
+          onClose={() => setOpenBuiltin(null)}
+          onBrowsing={() => {
+            setOpenBuiltin(null)
+            setView('browser')
+          }}
         />
       )}
       {showConfusion && <ConfusionOverlay onClose={() => setShowConfusion(false)} />}

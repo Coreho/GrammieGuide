@@ -81,6 +81,12 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 `scripts/blender/fixCatRig.py` (run by `buildBuddy.sh`) turns Meshy's humanoid auto-rig into something that fits a round cat: it lowers the hip/knee joints along their original bone directions (so clip rotations still mean the same thing), re-weights legs and belly with bone heat against a joint-to-joint copy of the skeleton, pushes hanging arms out of the belly, re-grounds each clip to Meshy's own foot-height profile, makes the material matte, and exports every clip into one GLB. Clips come from Meshy's animation library (`meshy animate create --rig-task-id 01a0dcaf-4f10-746b-86fa-75e22623504f --action-id N -o CatModel/meshy/anims/<name>`); clip names in `buildBuddy.sh` must match `clips.ts`. The rig task expires on Meshy's side; after that, new clips need a re-rig.
 
+### Built-in tiles and News
+
+- **Registry:** each built-in tile kind is one entry in `renderer/launcher/src/tiles/builtins.tsx` (its well icon and the view it opens), keyed by `BUILTIN_TILE_KEYS` in `configSchema.ts`. `App.tsx` holds whichever built-in view is open (`openBuiltin`), so a new kind adds an entry there, not another branch in App.
+- **News:** a `builtin` tile with `builtinKey: 'news'`, its feed in `feedUrl` and optional site in `url`. `feedUrl` is optional in the schema, so version-4 configs stay valid without a migration. Fetching is main-only (`services/news/newsService.ts`): 10s timeout, 2 MB cap, 15-minute cache per tile, and the last good stories (marked stale) if a refresh fails. Thumbnails are fetched in main (raster types only, 300 KB cap) and sent as `data:` URLs, so the launcher CSP doesn't loosen. `shared/news/parseFeed.ts` is a dependency-free RSS/Atom reader that outputs plain text only and fails closed on DTDs or broken markup. Never render feed content as HTML.
+- **IPC:** `news:get` and `news:open` take a tile id (and story id), never a URL: main fetches only the saved feed and opens only the saved site or a story it served. Story browsing is opened with `privateNavigation`, so the logs record `news-story-opened` but not the article address.
+
 ### Embedded browser
 
 Web tiles open in a `WebContentsView` (not the deprecated `BrowserView`) overlaid below a 72px nav bar (`services/browser/embeddedBrowser.ts`). `urlPolicy.ts` holds the protocol allow-list. Navigation guards and popup blocking stop the user from escaping the kiosk, and blocked navigations emit `browser:blocked`. The browser closes after `confusion.inactivityTimeoutMinutes` of idle time.

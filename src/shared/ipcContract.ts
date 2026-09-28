@@ -1,4 +1,5 @@
 import type { Config, PublicConfig } from './configSchema'
+import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
 
 /**
@@ -86,6 +87,10 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  // News takes a tile id, never a URL: main fetches only the feed the caregiver
+  // saved, and opens only that site or a story it served (see newsIpc.ts).
+  'news:get': { request: { tileId: string }; response: NewsResult }
+  'news:open': { request: { tileId: string; storyId?: string }; response: { ok: boolean } }
   'tile:openApp': { request: { id: string }; response: { ok: boolean } }
   'buddy:command': { request: BuddyCommand; response: { ok: boolean } }
   'config:get': { request: void; response: PublicConfig }

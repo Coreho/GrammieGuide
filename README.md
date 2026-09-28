@@ -18,7 +18,9 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Home tiles
 
-In **admin → Tiles**, add websites, installed apps (full Windows paths), or the built-in Weather view. Pick an icon and normal or wide size. Edit, remove and move-up/down controls update Home immediately. Wide tiles span two columns. Labels wrap without truncation; extra rows scroll within the tile area while the footer stays 150px tall. Music, games and news built-ins remain future work.
+In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather or News). Pick an icon and normal or wide size. Edit, remove and move-up/down controls update Home immediately. Wide tiles span two columns. Labels wrap without truncation; extra rows scroll within the tile area while the footer stays 150px tall.
+
+Built-in tiles each have their own view. **News** is wide by default. Tapping it shows today's stories as long cards (headline, a two-line summary, how long ago, and a small picture when the feed has one) so she can see what's there before choosing. Tapping a story opens it in the kiosk browser. The caregiver sets the feed address (NPR's top stories by default) and, optionally, the news website. If the feed can't be read, she sees "The news isn't ready right now." and a button to open that website instead, never an error. The top headline is deliberately not shown on the tile itself, so Home never displays upsetting news she didn't ask for. Music, games and photos built-ins remain future work.
 
 Config migrations 003 (tile sizes) and 004 (saved Buddy messages) preserve existing settings.
 

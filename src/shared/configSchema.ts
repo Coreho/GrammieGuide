@@ -10,7 +10,7 @@ import { quickMessageSchema } from './buddy/commands'
 export const CURRENT_SCHEMA_VERSION = 4
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
-export const BUILTIN_TILE_KEYS = ['weather'] as const
+export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
 
 export const tileSchema = z.object({
   id: z.string(),
@@ -19,6 +19,8 @@ export const tileSchema = z.object({
   size: z.enum(['normal', 'wide']).default('normal'),
   icon: z.string().optional(),
   url: z.string().optional(),
+  /** Optional so existing tiles keep their version-4 shape; News validates it before fetching. */
+  feedUrl: z.string().optional(),
   appPath: z.string().optional(),
   builtinKey: z.string().optional()
 })

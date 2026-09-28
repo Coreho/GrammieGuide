@@ -19,6 +19,9 @@ let view: WebContentsView | null = null
 let hostWindow: BrowserWindow | null = null
 let lastActivityAt = Date.now()
 let activityListenerRegistered = false
+// A News story is her reading, not a caregiver-chosen site: while one is open,
+// the logs say what happened but not where (the old app logged every URL).
+let privateNavigation = false
 
 export function initEmbeddedBrowser(win: BrowserWindow): void {
   hostWindow = win
@@ -38,10 +41,13 @@ function layout(): void {
   view.setBounds({ x: 0, y: NAV_BAR_HEIGHT, width, height: Math.max(0, height - NAV_BAR_HEIGHT) })
 }
 
-export function openUrl(url: string): { ok: boolean; reason?: string } {
+export function openUrl(
+  url: string,
+  options: { privateNavigation?: boolean } = {}
+): { ok: boolean; reason?: string } {
   if (!hostWindow) return { ok: false, reason: 'no host window' }
   if (!isAllowedUrl(url)) {
-    logActivity('browser-open-rejected', url)
+    logActivity('browser-open-rejected', options.privateNavigation ? undefined : url)
     return { ok: false, reason: 'only http/https URLs are allowed' }
   }
 
@@ -60,21 +66,26 @@ export function openUrl(url: string): { ok: boolean; reason?: string } {
     view.webContents.on('will-navigate', (event, targetUrl) => {
       if (!isAllowedUrl(targetUrl)) {
         event.preventDefault()
-        logActivity('browser-navigation-blocked', targetUrl)
-        logReliabilityEvent({ op: 'browser-escape-guard', ok: true, detail: `blocked: ${targetUrl}` })
+        logActivity('browser-navigation-blocked', privateNavigation ? undefined : targetUrl)
+        logReliabilityEvent({
+          op: 'browser-escape-guard',
+          ok: true,
+          detail: privateNavigation ? 'blocked navigation' : `blocked: ${targetUrl}`
+        })
         hostWindow?.webContents.send('browser:blocked', { url: targetUrl })
       }
     })
 
     view.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
-      logActivity('browser-popup-blocked', targetUrl)
+      logActivity('browser-popup-blocked', privateNavigation ? undefined : targetUrl)
       return { action: 'deny' }
     })
   }
 
+  privateNavigation = Boolean(options.privateNavigation)
   view.webContents.loadURL(url)
   lastActivityAt = Date.now()
-  logActivity('browser-open', url)
+  logActivity('browser-open', privateNavigation ? undefined : url)
   return { ok: true }
 }
 
