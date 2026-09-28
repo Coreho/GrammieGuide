@@ -19,7 +19,8 @@ import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
 import type { BuddyCommand } from '@shared/buddy/commands'
-import { BuddyMenu } from './buddy/BuddyMenu'
+import { BuddyMenu, type BuddyMenuAnchor } from './buddy/BuddyMenu'
+import { pickTapReaction, type TapReaction } from '@shared/buddy/tapReactions'
 
 declare global {
   interface Window {
@@ -60,7 +61,9 @@ export default function App() {
   const [showWeather, setShowWeather] = useState(false)
   const [showConfusion, setShowConfusion] = useState(false)
   const [showBuddyChat, setShowBuddyChat] = useState(false)
-  const [showBuddyMenu, setShowBuddyMenu] = useState(false)
+  const [buddyMenuAnchor, setBuddyMenuAnchor] = useState<BuddyMenuAnchor | null>(null)
+  const lastTapReaction = useRef<TapReaction | null>(null)
+  const closeBuddyMenu = useCallback(() => setBuddyMenuAnchor(null), [])
   const [buddyCommand, setBuddyCommand] = useState<(BuddyCommand & { sequence: number }) | null>(
     null
   )
@@ -121,8 +124,47 @@ export default function App() {
     return offIdle
   }, [])
 
+  const buddyMenuAvailable =
+    Boolean(config) && view === 'home' && !showWeather && !showConfusion && !showBuddyChat
+
+  useEffect(() => {
+    if (!buddyMenuAvailable) closeBuddyMenu()
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (
+        !event.ctrlKey ||
+        !event.shiftKey ||
+        event.altKey ||
+        event.metaKey ||
+        event.key.toLowerCase() !== 'b'
+      )
+        return
+      event.preventDefault()
+      if (event.repeat || !buddyMenuAvailable) return
+      const stage = stageRef.current
+      const hit = stage?.querySelector<HTMLElement>('[data-buddy-tap]')
+      if (!stage || !hit) return
+      const stageBox = stage.getBoundingClientRect()
+      const hitBox = hit.getBoundingClientRect()
+      const scale = stageBox.width / stage.offsetWidth
+      // The Stage is scaled. Snapshot the moving hit target in Stage coordinates,
+      // so the menu opens above him and stays still while the caregiver chooses.
+      setBuddyMenuAnchor((previous) =>
+        previous
+          ? null
+          : {
+              x: (hitBox.x + hitBox.width / 2 - stageBox.x) / scale,
+              y: (hitBox.y - stageBox.y) / scale
+            }
+      )
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [buddyMenuAvailable, closeBuddyMenu])
+
   const handlePointerDown = useCallback((e: ReactPointerEvent) => {
     window.launcher.reportActivity()
+    // Repeated pats are deliberate interaction, not a sign she is lost.
+    if ((e.target as HTMLElement).closest('[data-buddy-tap]')) return
     const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
     if (triggered) {
       window.launcher.goHome()
@@ -188,7 +230,15 @@ export default function App() {
             fontStep={config.display.fontStep}
             onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
-            onBuddyTap={() => setShowBuddyMenu(true)}
+            onBuddyTap={() => {
+              const reaction = pickTapReaction(lastTapReaction.current)
+              lastTapReaction.current = reaction
+              setBuddyCommand((previous) => ({
+                ...reaction,
+                speak: config.buddy.voiceEnabled,
+                sequence: (previous?.sequence ?? 0) + 1
+              }))
+            }}
             buddy={{
               command: buddyCommand,
               chatOpen: showBuddyChat,
@@ -202,15 +252,16 @@ export default function App() {
             }}
           />
         )}
-        {view === 'home' && showBuddyMenu && (
+        {buddyMenuAvailable && buddyMenuAnchor && (
           <BuddyMenu
-            onClose={() => setShowBuddyMenu(false)}
+            anchor={buddyMenuAnchor}
+            onClose={closeBuddyMenu}
             onChat={() => {
-              setShowBuddyMenu(false)
+              closeBuddyMenu()
               setShowBuddyChat(true)
             }}
             onCommand={(command) => {
-              setShowBuddyMenu(false)
+              closeBuddyMenu()
               setBuddyCommand((previous) => ({
                 ...command,
                 sequence: (previous?.sequence ?? 0) + 1

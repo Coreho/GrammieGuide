@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-09-26_
+_Last updated: 2026-09-27_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -27,9 +27,11 @@ Config migrations 003 (tile sizes) and 004 (saved Buddy messages) preserve exist
 Buddy is the cat in sunglasses at the bottom right of Home.
 
 - **On his own** he idles, fidgets now and then, and strolls across the full footer (never over the tiles). The text-size controls stay usable when he passes behind them. From 9 PM to 6 AM he stays put and keeps quiet. With chattiness turned on he occasionally says something in a speech bubble (never out loud).
-- **Tap him** for four large choices: **Let's chat**, **Dance**, **Wave**, or **Say something nice**. Tap outside the menu or its close button to dismiss it. Choosing chat brings him beside the panel, where he waves, listens while she talks or types, scratches his head while thinking, and gestures while he answers. The **Talk** button lets her speak instead of type; it only appears when a microphone is found. Tapping him during a chat gets a happy reaction. Closing the chat gets a goodbye.
+- **Tap him** for a short friendly bubble and a matching happy gesture, without repeating the previous tap's line or animation. He reads it aloud when the caregiver's read-aloud setting is on. Taps work at night, and repeated taps restart the reaction without stacking speech. During chat, tapping him stays a pet.
+- **Caregiver menu:** press **Ctrl+Shift+B** on Home for **Let's chat**, **Dance**, **Wave**, **Say something nice**, or **Take a walk**. The small translucent card opens above where Buddy is standing and stays on screen near the edges. Press the shortcut again, Esc, or click outside to close it. Arrow keys and Tab move between commands; Enter chooses one. It stays closed in the browser and over chat, weather or confusion overlays. **Take a walk** sends him at least a third of the floor away, even at night or with roaming off, then he rests.
+- **Chat:** choose **Let's chat** from the caregiver menu. He joins the panel, waves, listens while she talks or types, scratches his head while thinking, and gestures while answering. The **Talk** button lets her speak instead of type; it only appears when a microphone is found. Closing the chat gets a goodbye.
 - **Caregiver settings** (admin, Buddy tab): API key and model, chattiness, whether he strolls, whether replies are read aloud, online vs Windows voice, and which voice (with a "Try this voice" button).
-- **Command Buddy** (admin, Buddy tab): play any of his 24 animation clips, send a short message with a gesture and optional read-aloud, and save/remove quick messages. Commands work on Home, including at night, and are ignored while she is chatting. Each gesture plays once, with a 20-second recovery timeout. Read-aloud uses the existing online voice with Windows fallback. Message content is never written to the activity log.
+- **Command Buddy** (admin, Buddy tab): play any of his 24 animation clips, ask him to take a walk, send a short message with a gesture and optional read-aloud, and save/remove quick messages. Commands work on Home, including at night, and are ignored while she is chatting. Each gesture plays once, with a 20-second recovery timeout. Read-aloud uses the existing online voice with Windows fallback. Message content is never written to the activity log.
 
 ### Rebuilding his model
 

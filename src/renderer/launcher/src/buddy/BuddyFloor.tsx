@@ -44,7 +44,7 @@ type FloorProps = {
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
-  onOpenChat: () => void
+  onTap: () => void
   roaming: boolean
   chattiness: Chattiness
   hour: number
@@ -52,7 +52,9 @@ type FloorProps = {
 }
 
 export function BuddyFloor(props: FloorProps) {
-  const brain = useBuddyBrain(props)
+  const position = useRef<number | undefined>(undefined)
+  const getPosition = useCallback(() => position.current, [])
+  const brain = useBuddyBrain({ ...props, getPosition })
   const hitRef = useRef<HTMLButtonElement>(null)
   const bubbleRef = useRef<HTMLDivElement>(null)
   const layerRef = useRef<HTMLDivElement>(null)
@@ -74,7 +76,7 @@ export function BuddyFloor(props: FloorProps) {
 
   const handleTap = (): void => {
     if (props.chatOpen) brain.send({ type: 'PET' })
-    else props.onOpenChat()
+    else props.onTap()
   }
 
   const ctx = brain.context
@@ -129,6 +131,9 @@ export function BuddyFloor(props: FloorProps) {
                   chatOpen={props.chatOpen}
                   onClipDone={() => brain.send({ type: 'CLIP_DONE' })}
                   onArrived={(at) => brain.send({ type: 'ARRIVED', at })}
+                  onPosition={(at) => {
+                    position.current = at
+                  }}
                   onScreen={onScreen}
                 />
               </Suspense>
@@ -165,7 +170,8 @@ export function BuddyFloor(props: FloorProps) {
 
         <button
           ref={hitRef}
-          aria-label="Talk to your companion"
+          data-buddy-tap
+          aria-label="Say hello to Buddy"
           onClick={handleTap}
           style={{
             position: 'absolute',
@@ -196,6 +202,7 @@ function FloorScene(props: {
   chatOpen: boolean
   onClipDone: () => void
   onArrived: (at: number) => void
+  onPosition: (at: number) => void
   onScreen: (px: { x: number; headBottom: number }) => void
 }) {
   const { size, camera } = useThree()
@@ -239,6 +246,7 @@ function FloorScene(props: {
       onArrived={(wx) => props.onArrived(toFraction(wx))}
       onPosition={(wx) => {
         x.current = wx
+        props.onPosition(toFraction(wx))
       }}
     />
   )

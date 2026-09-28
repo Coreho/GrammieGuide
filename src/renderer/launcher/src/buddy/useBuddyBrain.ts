@@ -14,6 +14,7 @@ import type { BuddyCommand } from '@shared/buddy/commands'
 import { speak, stopSpeaking } from './speech'
 
 type BrainInput = {
+  getPosition: () => number | undefined
   roaming: boolean
   chattiness: Chattiness
   hour: number
@@ -44,15 +45,14 @@ export function useBuddyBrain(input: BrainInput): {
     a.start()
     let sequence = 0
     const speech = a.subscribe((state) => {
-      const commanded = state.matches('commanded')
-      if (commanded && sequence !== state.context.commandSequence) {
+      if (sequence !== state.context.commandSequence) {
         sequence = state.context.commandSequence
         stopSpeaking()
         if (state.context.commandSpeak && state.context.bubble) void speak(state.context.bubble)
       }
     })
     const offCommand = window.launcher.onBuddyCommand((command) =>
-      a.send({ type: 'COMMAND', ...command })
+      a.send({ type: 'COMMAND', ...command, at: initial.current.getPosition() })
     )
     setActor(a)
     return () => {
@@ -98,7 +98,8 @@ export function useBuddyBrain(input: BrainInput): {
   }, [actor, chatPhase])
 
   useEffect(() => {
-    if (input.command) actor?.send({ type: 'COMMAND', ...input.command })
+    if (input.command)
+      actor?.send({ type: 'COMMAND', ...input.command, at: initial.current.getPosition() })
   }, [actor, input.command])
 
   const send = useCallback((event: BuddyEvent) => actor?.send(event), [actor])

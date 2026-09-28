@@ -31,11 +31,19 @@ export type ClipName = (typeof BUDDY_CLIPS)[number]
 
 export const buddyCommandSchema = z
   .object({
+    walk: z.boolean().optional(),
     clip: z.enum(BUDDY_CLIPS).optional(),
     text: z.string().trim().min(1).max(300).optional(),
     speak: z.boolean().optional()
   })
-  .refine((command) => command.clip || command.text, 'Choose a gesture or a message.')
+  .refine(
+    (command) => command.walk || command.clip || command.text,
+    'Choose a walk, gesture or message.'
+  )
+  .refine(
+    (command) => !command.walk || (!command.clip && !command.text && !command.speak),
+    'Send a walk separately from a gesture or message.'
+  )
 export type BuddyCommand = z.infer<typeof buddyCommandSchema>
 
 export const quickMessageSchema = z.object({

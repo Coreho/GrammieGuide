@@ -50,7 +50,7 @@ export const buddyConfigSchema = z.object({
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
   /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
   cloudTtsEnabled: z.boolean().default(true),
-  /** Read his chat replies aloud. Unprompted remarks stay silent either way. */
+  /** Read chat replies and tap reactions aloud. Unprompted remarks stay silent either way. */
   voiceEnabled: z.boolean().default(true),
   /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
   ttsVoice: z.string().default('en-US-AriaNeural'),

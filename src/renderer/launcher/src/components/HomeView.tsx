@@ -148,7 +148,7 @@ export function HomeView({
           The floor spans the Stage while the footer reserves exactly 150px.
           The text-size control stays above his tap target when he passes it.
         */}
-        <BuddyFloor {...buddy} onOpenChat={onBuddyTap} />
+        <BuddyFloor {...buddy} onTap={onBuddyTap} />
       </footer>
     </>
   )

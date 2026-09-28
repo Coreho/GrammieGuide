@@ -13,10 +13,16 @@ describe('Buddy commands', () => {
       { text: '   ' },
       { text: 'x'.repeat(301) },
       { speak: true },
+      { walk: false },
+      { walk: 'yes' },
+      { walk: true, clip: 'dance' },
+      { walk: true, text: 'Hello' },
+      { walk: true, speak: true },
       { clip: 'wave', speak: 'yes' }
     ]) {
       expect(buddyCommandSchema.safeParse(input).success).toBe(false)
     }
+    expect(buddyCommandSchema.parse({ walk: true })).toEqual({ walk: true })
     expect(buddyCommandSchema.parse({ text: ' Hi ', clip: 'wave', speak: true })).toEqual({
       text: 'Hi',
       clip: 'wave',

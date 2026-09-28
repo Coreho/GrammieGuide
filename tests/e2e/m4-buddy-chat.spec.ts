@@ -33,8 +33,9 @@ test.afterAll(async () => {
 })
 
 async function sayToBuddy(text: string): Promise<void> {
-  await launcherPage.getByRole('button', { name: 'Talk to your companion' }).click()
-  await launcherPage.getByRole('button', { name: "Let's chat" }).click()
+  await expect(launcherPage.getByRole('button', { name: 'Say hello to Buddy' })).toBeVisible()
+  await launcherPage.keyboard.press('Control+Shift+B')
+  await launcherPage.getByRole('menuitem', { name: "Let's chat" }).click()
   await launcherPage.getByPlaceholder('Say something...').fill(text)
   await launcherPage.getByRole('button', { name: 'Send' }).click()
 }

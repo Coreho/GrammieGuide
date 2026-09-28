@@ -51,6 +51,51 @@ function start(input: Partial<BuddyInput> = {}): Harness {
 const MIN = 60_000
 
 describe('buddy machine', () => {
+  it.each([0.06, 0.5, 0.94])(
+    'takes a deliberate walk from %s at night with roaming off',
+    (position) => {
+      const { actor, activity, ctx, clock } = start({ position, hour: 23, roaming: false })
+      actor.send({ type: 'COMMAND', walk: true })
+      expect(activity()).toBe('strolling')
+      const target = ctx().target
+      expect(Math.abs(target - position)).toBeGreaterThanOrEqual(1 / 3)
+      expect(target).toBeGreaterThanOrEqual(FLOOR_MIN)
+      expect(target).toBeLessThanOrEqual(FLOOR_MAX)
+      expect(ctx().commandSequence).toBe(1)
+      // Walking is a looping clip: only arrival, not CLIP_DONE, ends the stroll.
+      actor.send({ type: 'CLIP_DONE' })
+      expect(activity()).toBe('strolling')
+      actor.send({ type: 'ARRIVED', at: target })
+      expect(activity()).toBe('resting')
+      expect(ctx()).toMatchObject({ position: target, target })
+      clock.increment(80_000)
+      expect(activity()).not.toBe('strolling')
+    }
+  )
+
+  it('retargets a repeated walk from his live position and can be interrupted by a tap', () => {
+    const { actor, activity, ctx } = start({ position: 0.78 })
+    actor.send({ type: 'COMMAND', walk: true })
+    actor.send({ type: 'COMMAND', walk: true, at: 0.4 })
+    expect(activity()).toBe('strolling')
+    expect(Math.abs(ctx().target - 0.4)).toBeGreaterThanOrEqual(1 / 3)
+    expect(ctx().commandSequence).toBe(2)
+    actor.send({ type: 'COMMAND', clip: 'wave', text: 'Hello, friend!', at: 0.45 })
+    expect(activity()).toBe('commanded')
+    expect(ctx()).toMatchObject({ position: 0.45, target: 0.45, forcedClip: 'wave' })
+  })
+
+  it('clears a spoken gesture on walking and ignores walks during chat', () => {
+    const { actor, activity, ctx } = start()
+    actor.send({ type: 'COMMAND', clip: 'heart', text: 'Hello', speak: true })
+    actor.send({ type: 'COMMAND', walk: true })
+    expect(ctx()).toMatchObject({ bubble: null, forcedClip: null, commandSpeak: false })
+    actor.send({ type: 'CHAT_OPEN' })
+    actor.send({ type: 'COMMAND', walk: true, at: 0.2 })
+    expect(activity()).toBe('chat.hello')
+    expect(ctx()).toMatchObject({ target: CHAT_SPOT, commandSequence: 2 })
+  })
+
   it('obeys deliberate commands at night, then clears the clip and bubble', () => {
     const { actor, activity, ctx } = start({ hour: 23 })
     actor.send({ type: 'COMMAND', clip: 'dance', text: 'Hello friend', speak: true })
