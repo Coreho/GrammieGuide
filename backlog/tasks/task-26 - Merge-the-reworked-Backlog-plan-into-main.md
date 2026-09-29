@@ -1,9 +1,11 @@
 ---
 id: TASK-26
 title: Merge the reworked Backlog plan into main
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-09-29 08:27'
+updated_date: '2026-09-29 08:38'
 labels: []
 dependencies: []
 priority: high
@@ -22,3 +24,11 @@ The reworked plan (six themed milestones, TASK-11 to TASK-25, the on-hold drafts
 - [ ] #2 The pull request is merged only after the owner approves it
 - [ ] #3 After merging, local main is updated with git pull and `backlog task list` on main shows the reworked plan
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Push chore/backlog-rework and open a PR against main
+2. Merge it on GitHub (owner approved in chat on 2026-09-29)
+3. Pull main locally and confirm `backlog task list` shows the reworked plan
+<!-- SECTION:PLAN:END -->
