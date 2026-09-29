@@ -4,11 +4,12 @@ title: News reader mode
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:18'
-updated_date: '2026-09-29 05:51'
+updated_date: '2026-09-29 08:19'
 labels: []
 milestone: m-10
 dependencies:
   - TASK-01
+  - TASK-03
 documentation:
   - docs/specs/05-news-tile-reader-mode.md
 priority: low
@@ -19,6 +20,8 @@ ordinal: 4000
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
 News stories currently open as the full website in the kiosk browser, with the site's layout, ads, pop-ups and autoplay video. Reader mode shows the article itself (title, text and pictures) in the clay style at her font size. Web tile pages that look like articles can use it too.
+
+**Prerequisite:** the News tile, story list and feed parser this builds on come from PR #4 (`feat/buddy-menu-news-tile`), which is not merged into `main` yet. Start this only after PR #4 is merged. It also waits for ad blocking (TASK-03), because "Show page" and the extraction-failure fallback show the real site.
 
 Spec 05's "Reader extraction" section describes the approach. The rest of spec 05 (a multi-source shelf with screenshot previews) was replaced by the shipped design, one feed per News tile with stories as long cards, and is not part of this task. Feeds are parsed by the dependency-free `shared/news/parseFeed.ts`, not `fast-xml-parser`. Speech-out now exists (`buddy:speak`), so the spec's placeholder Read aloud button can work instead of staying disabled. Story opens are private navigation: log the tile, never the article address.
 <!-- SECTION:DESCRIPTION:END -->

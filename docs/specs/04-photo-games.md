@@ -115,8 +115,9 @@ type Photo = {
 ```
 
 - `src/main/services/photos/photoLibrary.ts` handles import: decode with
-  `nativeImage.createFromPath`, `resize({ width: 1600 })` when the long
-  edge exceeds 1600, `toJPEG(85)`, write; thumbnail the same way at 320.
+  `nativeImage.createFromPath`, resize the longer edge to 1600 when it
+  exceeds 1600 (`{ width: 1600 }` for landscape, `{ height: 1600 }` for
+  portrait), `toJPEG(85)`, write; thumbnail the same way at 320.
   EXIF orientation is honored by `nativeImage` on Windows for JPEG; HEIC
   files that fail to decode are reported as failed imports rather than
   crashing the batch.

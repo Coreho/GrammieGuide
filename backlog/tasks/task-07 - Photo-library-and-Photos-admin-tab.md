@@ -4,7 +4,7 @@ title: Photo library with captions and recorded narration
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:19'
-updated_date: '2026-09-29 05:52'
+updated_date: '2026-09-29 08:19'
 labels: []
 milestone: m-8
 dependencies:
@@ -31,3 +31,12 @@ Family photos are something for her to enjoy: large pictures with a caption the 
 - [ ] #5 The launcher can list only photos marked to show; listing all, editing and removing are admin-only
 - [ ] #6 Tests cover import, narration storage and the admin-only boundaries
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-09-29 08:19
+---
+The spec 04 recipe `resize({ width: 1600 })` is wrong for portrait photos: a 3:4 portrait would stay about 2133px tall. Resize by whichever edge is longer, for the 320px thumbnail as well. (Greptile review of PR #5.)
+---
+<!-- COMMENTS:END -->

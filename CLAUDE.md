@@ -8,7 +8,7 @@ GrammieGuide is a dementia-friendly Windows kiosk launcher for an elderly user, 
 
 Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D Buddy, …) from an external plan doc (`i-kinda-wanna-overhaul-moonlit-prism.md`, not in this repo). The README's Status section tracks which milestones are done.
 
-Planned work lives in Backlog.md (`backlog task list --plain`), grouped into milestones such as Predictable Home, Contact family and Protected browsing. The older V2 feature specs in `docs/specs/` (read `00-overview.md` first) are background for some tasks. They predate M4 and the News tile, and their scam scoring, photo games and presence features are on hold as drafts. Where a task and its spec disagree, the task wins.
+Planned work lives in Backlog.md (`backlog task list --plain`; the CLI is not an npm dependency, so install it once with `npm i -g backlog.md`), grouped into milestones such as Predictable Home, Contact family and Protected browsing. The older V2 feature specs in `docs/specs/` (read `00-overview.md` first) are background for some tasks. They predate M4 and the News tile, and their scam scoring, photo games and presence features are on hold as drafts. Where a task and its spec disagree, the task wins.
 
 `@ghostery/adblocker-electron` is installed, but nothing in `src/` imports it yet; it is there for planned work, so don't assume it is wired up. (`msedge-tts` and `xstate` are now used by Buddy's voice and behavior machine.)
 
