@@ -10,13 +10,11 @@ function TileIcon({ tile }: { tile: TileType }) {
 
 export function Tile({
   tile,
-  index,
   compact = false,
   dense = false,
   onActivate
 }: {
   tile: TileType
-  index: number
   /** Icon beside the label instead of above it - used when tiles share the height across rows. */
   compact?: boolean
   /** Label only, no icon - for the narrowest (4-column, multi-row) layout. */
@@ -52,8 +50,8 @@ export function Tile({
         border: 'none',
         borderRadius: 40,
         cursor: 'pointer',
-        color: tileInk(index),
-        background: tileBackground(index),
+        color: tileInk(tile.colorIndex),
+        background: tileBackground(tile.colorIndex),
         boxShadow: TILE_SHADOW,
         transition: 'transform .12s, box-shadow .12s'
       }}
