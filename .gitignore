@@ -14,3 +14,6 @@ playwright/.cache
 # Meshy downloads and Blender intermediates (~150 MB). Regenerate buddy.glb with
 # scripts/blender/buildBuddy.sh; only the finished GLB in src/ is committed.
 CatModel/meshy/
+
+# Codex's local copy of CLAUDE.md; CLAUDE.md is the one kept in the repo.
+AGENTS.md
