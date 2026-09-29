@@ -8,6 +8,8 @@ GrammieGuide is a dementia-friendly Windows kiosk launcher for an elderly user, 
 
 Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D Buddy, …) from an external plan doc (`i-kinda-wanna-overhaul-moonlit-prism.md`, not in this repo). The README's Status section tracks which milestones are done.
 
+Specs for the V2 features (scam shield, presence-aware Home, music tile, photo games, news reader mode) are in `docs/specs/`; read `00-overview.md` first. They predate M4 and the News tile, so each feature's Backlog task (milestone "V2 features") notes what has changed since. Where a task and its spec disagree, the task wins.
+
 `@ghostery/adblocker-electron` is installed, but nothing in `src/` imports it yet; it is there for planned work, so don't assume it is wired up. (`msedge-tts` and `xstate` are now used by Buddy's voice and behavior machine.)
 
 ## Commands
@@ -95,3 +97,27 @@ Web tiles open in a `WebContentsView` (not the deprecated `BrowserView`) overlai
 ## Style
 
 Prettier (`.prettierrc.yaml`) and `.editorconfig` define the formatting. Code comments explain *why*, often by contrasting with the old app. Match that density when adding non-obvious logic.
+
+<!-- BACKLOG.MD GUIDELINES START -->
+<!-- backlog.md-instructions-version: 1.53.0 -->
+<CRITICAL_INSTRUCTION>
+
+## Backlog.md Workflow
+
+This project uses Backlog.md for task and project management.
+
+**At the beginning of each conversation in this project, run `backlog instructions overview` before answering or taking action. Re-read it only if you have not read it yet in the current conversation.**
+
+Use the overview to decide whether to search, read, create, or update Backlog tasks.
+
+Before task lifecycle actions, read the matching detailed guide:
+- `backlog instructions task-creation` before creating or splitting tasks
+- `backlog instructions task-execution` before planning, changing status or assignee, adding a plan or implementation notes, or implementing task work
+- `backlog instructions task-finalization` before checking acceptance criteria, writing final summaries, or moving tasks to terminal statuses
+
+Use `backlog <command> --help` before running unfamiliar commands. Help shows options, fields, and examples.
+
+Do not edit Backlog task, draft, document, decision, or milestone markdown files directly. Use the `backlog` CLI so metadata, relationships, and history stay consistent.
+
+</CRITICAL_INSTRUCTION>
+<!-- BACKLOG.MD GUIDELINES END -->
