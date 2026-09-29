@@ -43,7 +43,7 @@ export type BuddyContext = {
 }
 
 export type BuddyEvent =
-  | ({ type: 'COMMAND' } & BuddyCommand)
+  | ({ type: 'COMMAND'; at?: number } & BuddyCommand)
   | { type: 'CLIP_DONE' }
   | { type: 'ARRIVED'; at: number }
   | { type: 'CHAT_OPEN' }
@@ -102,11 +102,11 @@ function strollGap(random: () => number): number {
 }
 
 /** A new spot at least a body-width or two away, so a stroll is a real stroll. */
-export function pickStrollTarget(from: number, random: () => number): number {
+export function pickStrollTarget(from: number, random: () => number, distance = 0.18): number {
   const span = FLOOR_MAX - FLOOR_MIN
   for (let i = 0; i < 8; i++) {
     const to = FLOOR_MIN + random() * span
-    if (Math.abs(to - from) >= 0.18) return to
+    if (Math.abs(to - from) >= distance) return to
   }
   // Nowhere far enough by chance: head for whichever end is farther.
   return from - FLOOR_MIN > FLOOR_MAX - from ? FLOOR_MIN : FLOOR_MAX
@@ -161,7 +161,13 @@ export const buddyMachine = setup({
       chatPhase: ({ context, event }) =>
         event.type === 'CHAT_PHASE' ? event.phase : context.chatPhase
     }),
-    clearBubble: assign({ bubble: null })
+    clearBubble: assign({ bubble: null }),
+    startCommand: assign(({ context, event }) => {
+      if (event.type !== 'COMMAND') return {}
+      // The renderer supplies his live position, including halfway through a stroll.
+      const position = event.at ?? context.position
+      return { position, target: position, commandSequence: context.commandSequence + 1 }
+    })
   }
 }).createMachine({
   id: 'buddy',
@@ -194,17 +200,24 @@ export const buddyMachine = setup({
     ARRIVED: { actions: 'setPosition' },
     CHAT_PHASE: { actions: 'setPhase' },
     CHAT_OPEN: { target: '.chat' },
-    COMMAND: { target: '.commanded', reenter: true }
+    COMMAND: [
+      {
+        guard: ({ event }) => event.walk === true,
+        target: '.strolling',
+        reenter: true,
+        actions: 'startCommand'
+      },
+      { target: '.commanded', reenter: true, actions: 'startCommand' }
+    ]
   },
   states: {
     commanded: {
-      entry: assign(({ context, event }) =>
+      entry: assign(({ event }) =>
         event.type === 'COMMAND'
           ? {
               bubble: event.text ?? null,
               forcedClip: event.clip ?? 'talk',
-              commandSpeak: Boolean(event.speak && event.text),
-              commandSequence: context.commandSequence + 1
+              commandSpeak: Boolean(event.speak && event.text)
             }
           : {}
       ),
@@ -241,7 +254,13 @@ export const buddyMachine = setup({
 
     strolling: {
       entry: assign({
-        target: ({ context }) => pickStrollTarget(context.position, context.random)
+        // Deliberate walks bypass the idle guards, even at night or with roaming off.
+        target: ({ context, event }) =>
+          pickStrollTarget(
+            context.position,
+            context.random,
+            event.type === 'COMMAND' ? 1 / 3 : 0.18
+          )
       }),
       on: {
         ARRIVED: {

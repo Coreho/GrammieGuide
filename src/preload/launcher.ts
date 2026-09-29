@@ -21,6 +21,8 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 const launcherApi = {
   openAppTile: (id: string) => invoke('tile:openApp', { id }),
   onBuddyCommand: (cb: (command: IpcEvents['buddy:command']) => void) => on('buddy:command', cb),
+  getNews: (tileId: string) => invoke('news:get', { tileId }),
+  openNews: (tileId: string, storyId?: string) => invoke('news:open', { tileId, storyId }),
   getConfig: () => invoke('config:get'),
   setFontStep: (step: number) => invoke('display:setFontStep', { step }),
   getWeather: (label: string, units: 'imperial' | 'metric') =>

@@ -10,7 +10,7 @@ import {
 } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
-import { CHIP_SHADOW } from '../clay'
+import { CHIP_SHADOW, CLAY_UP } from '../clay'
 import { BuddyCat } from './CatModel'
 import { useBuddyBrain } from './useBuddyBrain'
 
@@ -21,8 +21,8 @@ import { useBuddyBrain } from './useBuddyBrain'
  *
  * The canvas is taller than the footer so raised arms and his speech bubble
  * have room, and it never takes pointer events - taps on whatever is behind
- * it go through. The only tappable thing is an invisible button that
- * follows him around, updated per frame without React re-renders.
+ * it go through. His invisible tap button and the chat invitation in his
+ * bubble follow him around, updated per frame without React re-renders.
  */
 
 /** Canvas height; the footer row itself stays 150px so the tile grid keeps its space. */
@@ -41,10 +41,12 @@ const BUBBLE_MAX_W = 380
 const HEAD_Y = 1.55
 
 type FloorProps = {
+  chatInvitation: 'visible' | 'fading' | null
+  onChat: () => void
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
-  onOpenChat: () => void
+  onTap: () => void
   roaming: boolean
   chattiness: Chattiness
   hour: number
@@ -52,7 +54,9 @@ type FloorProps = {
 }
 
 export function BuddyFloor(props: FloorProps) {
-  const brain = useBuddyBrain(props)
+  const position = useRef<number | undefined>(undefined)
+  const getPosition = useCallback(() => position.current, [])
+  const brain = useBuddyBrain({ ...props, getPosition })
   const hitRef = useRef<HTMLButtonElement>(null)
   const bubbleRef = useRef<HTMLDivElement>(null)
   const layerRef = useRef<HTMLDivElement>(null)
@@ -74,7 +78,7 @@ export function BuddyFloor(props: FloorProps) {
 
   const handleTap = (): void => {
     if (props.chatOpen) brain.send({ type: 'PET' })
-    else props.onOpenChat()
+    else props.onTap()
   }
 
   const ctx = brain.context
@@ -129,6 +133,9 @@ export function BuddyFloor(props: FloorProps) {
                   chatOpen={props.chatOpen}
                   onClipDone={() => brain.send({ type: 'CLIP_DONE' })}
                   onArrived={(at) => brain.send({ type: 'ARRIVED', at })}
+                  onPosition={(at) => {
+                    position.current = at
+                  }}
                   onScreen={onScreen}
                 />
               </Suspense>
@@ -136,10 +143,9 @@ export function BuddyFloor(props: FloorProps) {
           </ModelErrorBoundary>
         )}
 
-        {ctx?.bubble && (
+        {(ctx?.bubble || props.chatInvitation) && (
           <div
             ref={bubbleRef}
-            role="status"
             style={{
               position: 'absolute',
               left: 0,
@@ -159,13 +165,43 @@ export function BuddyFloor(props: FloorProps) {
               transition: 'opacity .4s'
             }}
           >
-            {ctx.bubble}
+            {ctx?.bubble && <div role="status">{ctx.bubble}</div>}
+            {props.chatInvitation && (
+              <button
+                type="button"
+                data-buddy-chat-invite
+                onClick={props.onChat}
+                disabled={props.chatInvitation === 'fading'}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  minHeight: 64,
+                  marginTop: ctx?.bubble ? 14 : 0,
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: 40,
+                  background: 'linear-gradient(180deg, var(--s1,#FBFAF7), var(--s2,#ECEAE5))',
+                  boxShadow: CLAY_UP,
+                  color: 'var(--ink,#2E2E2C)',
+                  fontFamily: 'inherit',
+                  fontSize: 'calc(28px * var(--font-scale, 1))',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  pointerEvents: props.chatInvitation === 'visible' ? 'auto' : 'none',
+                  opacity: props.chatInvitation === 'visible' ? 1 : 0,
+                  transition: 'opacity .4s'
+                }}
+              >
+                💬 Let's chat
+              </button>
+            )}
           </div>
         )}
 
         <button
           ref={hitRef}
-          aria-label="Talk to your companion"
+          data-buddy-tap
+          aria-label="Say hello to Buddy"
           onClick={handleTap}
           style={{
             position: 'absolute',
@@ -196,6 +232,7 @@ function FloorScene(props: {
   chatOpen: boolean
   onClipDone: () => void
   onArrived: (at: number) => void
+  onPosition: (at: number) => void
   onScreen: (px: { x: number; headBottom: number }) => void
 }) {
   const { size, camera } = useThree()
@@ -239,6 +276,7 @@ function FloorScene(props: {
       onArrived={(wx) => props.onArrived(toFraction(wx))}
       onPosition={(wx) => {
         x.current = wx
+        props.onPosition(toFraction(wx))
       }}
     />
   )

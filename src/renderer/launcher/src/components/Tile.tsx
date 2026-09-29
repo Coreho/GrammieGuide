@@ -1,11 +1,11 @@
 import type { Tile as TileType } from '@shared/configSchema'
 import { TILE_SHADOW, TILE_SHADOW_ACTIVE, WELL_SHADOW, tileBackground, tileInk } from '../clay'
-import { SunCompassIcon, LinkIcon } from '../icons'
+import { LinkIcon } from '../icons'
+import { builtinFor } from '../tiles/builtins'
 
 function TileIcon({ tile }: { tile: TileType }) {
   if (tile.icon) return <span style={{ fontSize: 32 }}>{tile.icon}</span>
-  if (tile.builtinKey === 'weather') return <SunCompassIcon />
-  return <LinkIcon />
+  return builtinFor(tile)?.icon() ?? <LinkIcon />
 }
 
 export function Tile({

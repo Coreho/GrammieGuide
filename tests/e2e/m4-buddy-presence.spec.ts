@@ -46,8 +46,9 @@ test('the cat model loads with no errors and Buddy greets her', async () => {
 
 test('he joins the chat and says goodbye when it closes', async () => {
   const floor = page.locator('[data-buddy-activity]')
-  await page.getByRole('button', { name: 'Talk to your companion' }).click()
-  await page.getByRole('button', { name: "Let's chat" }).click()
+  await expect(page.getByRole('button', { name: 'Say hello to Buddy' })).toBeVisible()
+  await page.keyboard.press('Control+Shift+B')
+  await page.getByRole('menuitem', { name: "Let's chat" }).click()
   await expect(floor).toHaveAttribute('data-buddy-activity', /^chat\./)
   await expect(page.getByPlaceholder('Say something...')).toBeVisible()
 

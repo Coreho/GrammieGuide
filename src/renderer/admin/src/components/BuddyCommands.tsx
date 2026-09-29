@@ -55,6 +55,7 @@ export function BuddyCommands() {
         aria-label="Animations"
         style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
       >
+        <button onClick={() => void send({ walk: true })}>Take a walk</button>
         {BUDDY_CLIPS.map((name) => (
           <button key={name} onClick={() => void send({ clip: name })}>
             {name.replaceAll('_', ' ')}

@@ -13,13 +13,14 @@ import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { NavBar } from './components/NavBar'
-import { WeatherOverlay } from './components/WeatherOverlay'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
 import type { BuddyCommand } from '@shared/buddy/commands'
-import { BuddyMenu } from './buddy/BuddyMenu'
+import { BuddyMenu, type BuddyMenuAnchor } from './buddy/BuddyMenu'
+import { pickTapReaction, type TapReaction } from '@shared/buddy/tapReactions'
+import { builtinFor } from './tiles/builtins'
 
 declare global {
   interface Window {
@@ -57,10 +58,20 @@ function timeParts(now: Date): { time: string; ampm: string; date: string } {
 export default function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null)
   const [view, setView] = useState<View>('home')
-  const [showWeather, setShowWeather] = useState(false)
+  /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
+  const [openBuiltin, setOpenBuiltin] = useState<TileType | null>(null)
   const [showConfusion, setShowConfusion] = useState(false)
   const [showBuddyChat, setShowBuddyChat] = useState(false)
-  const [showBuddyMenu, setShowBuddyMenu] = useState(false)
+  const [buddyMenuAnchor, setBuddyMenuAnchor] = useState<BuddyMenuAnchor | null>(null)
+  const [chatInvitation, setChatInvitation] = useState<'visible' | 'fading' | null>(null)
+  const invitationTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const clearChatInvitation = useCallback(() => {
+    invitationTimers.current.forEach(clearTimeout)
+    invitationTimers.current = []
+    setChatInvitation(null)
+  }, [])
+  const lastTapReaction = useRef<TapReaction | null>(null)
+  const closeBuddyMenu = useCallback(() => setBuddyMenuAnchor(null), [])
   const [buddyCommand, setBuddyCommand] = useState<(BuddyCommand & { sequence: number }) | null>(
     null
   )
@@ -121,8 +132,59 @@ export default function App() {
     return offIdle
   }, [])
 
+  const buddyMenuAvailable =
+    Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
+
+  useEffect(() => {
+    if (!buddyMenuAvailable) closeBuddyMenu()
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (
+        !event.ctrlKey ||
+        !event.shiftKey ||
+        event.altKey ||
+        event.metaKey ||
+        event.key.toLowerCase() !== 'b'
+      )
+        return
+      event.preventDefault()
+      if (event.repeat || !buddyMenuAvailable) return
+      const stage = stageRef.current
+      const hit = stage?.querySelector<HTMLElement>('[data-buddy-tap]')
+      if (!stage || !hit) return
+      const stageBox = stage.getBoundingClientRect()
+      const hitBox = hit.getBoundingClientRect()
+      const scale = stageBox.width / stage.offsetWidth
+      // The Stage is scaled. Snapshot the moving hit target in Stage coordinates,
+      // so the menu opens above him and stays still while the caregiver chooses.
+      setBuddyMenuAnchor((previous) =>
+        previous
+          ? null
+          : {
+              x: (hitBox.x + hitBox.width / 2 - stageBox.x) / scale,
+              y: (hitBox.y - stageBox.y) / scale
+            }
+      )
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [buddyMenuAvailable, closeBuddyMenu])
+
+  useEffect(() => {
+    if (!buddyMenuAvailable || buddyMenuAnchor) clearChatInvitation()
+  }, [buddyMenuAvailable, buddyMenuAnchor, clearChatInvitation])
+
+  useEffect(() => {
+    const offCommand = window.launcher.onBuddyCommand(clearChatInvitation)
+    return () => {
+      offCommand()
+      invitationTimers.current.forEach(clearTimeout)
+    }
+  }, [clearChatInvitation])
+
   const handlePointerDown = useCallback((e: ReactPointerEvent) => {
     window.launcher.reportActivity()
+    // Repeated pats are deliberate interaction, not a sign she is lost.
+    if ((e.target as HTMLElement).closest('[data-buddy-tap], [data-buddy-chat-invite]')) return
     const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
     if (triggered) {
       window.launcher.goHome()
@@ -139,14 +201,16 @@ export default function App() {
 
   async function activateTile(tile: TileType): Promise<void> {
     setBuddyCommand(null)
+    clearChatInvitation()
     flashToast(`Opening ${tile.label}...`)
     if (tile.type === 'web' && tile.url) {
       const result = await window.launcher.openBrowser(tile.url)
       if (result.ok) setView('browser')
       return
     }
-    if (tile.type === 'builtin' && tile.builtinKey === 'weather') {
-      setShowWeather(true)
+    if (builtinFor(tile)) {
+      setOpenBuiltin(tile)
+      return
     }
     if (tile.type === 'app') {
       const result = await window.launcher.openAppTile(tile.id)
@@ -174,6 +238,7 @@ export default function App() {
   }
 
   const { time, ampm, date } = timeParts(now)
+  const OpenBuiltinView = openBuiltin ? builtinFor(openBuiltin)?.View : undefined
 
   return (
     <div ref={themeRef} onPointerDown={handlePointerDown} style={{ position: 'fixed', inset: 0 }}>
@@ -188,8 +253,29 @@ export default function App() {
             fontStep={config.display.fontStep}
             onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
-            onBuddyTap={() => setShowBuddyMenu(true)}
+            onBuddyTap={() => {
+              if (!buddyMenuAvailable || buddyMenuAnchor) return
+              clearChatInvitation()
+              setChatInvitation('visible')
+              // Her invitation outlives a short gesture; another pat starts a fresh eight seconds.
+              invitationTimers.current = [
+                setTimeout(() => setChatInvitation('fading'), 8_000),
+                setTimeout(() => setChatInvitation(null), 8_400)
+              ]
+              const reaction = pickTapReaction(lastTapReaction.current)
+              lastTapReaction.current = reaction
+              setBuddyCommand((previous) => ({
+                ...reaction,
+                speak: config.buddy.voiceEnabled,
+                sequence: (previous?.sequence ?? 0) + 1
+              }))
+            }}
             buddy={{
+              chatInvitation: buddyMenuAvailable && !buddyMenuAnchor ? chatInvitation : null,
+              onChat: () => {
+                clearChatInvitation()
+                setShowBuddyChat(true)
+              },
               command: buddyCommand,
               chatOpen: showBuddyChat,
               chatPhase: buddyChatPhase,
@@ -202,15 +288,16 @@ export default function App() {
             }}
           />
         )}
-        {view === 'home' && showBuddyMenu && (
+        {buddyMenuAvailable && buddyMenuAnchor && (
           <BuddyMenu
-            onClose={() => setShowBuddyMenu(false)}
+            anchor={buddyMenuAnchor}
+            onClose={closeBuddyMenu}
             onChat={() => {
-              setShowBuddyMenu(false)
+              closeBuddyMenu()
               setShowBuddyChat(true)
             }}
             onCommand={(command) => {
-              setShowBuddyMenu(false)
+              closeBuddyMenu()
               setBuddyCommand((previous) => ({
                 ...command,
                 sequence: (previous?.sequence ?? 0) + 1
@@ -234,11 +321,15 @@ export default function App() {
 
       {view === 'browser' && <NavBar onHome={goHome} onBack={goBack} />}
 
-      {showWeather && (
-        <WeatherOverlay
-          locationLabel={config.weather.locations[0]?.label ?? null}
-          units={config.weather.units}
-          onClose={() => setShowWeather(false)}
+      {OpenBuiltinView && openBuiltin && (
+        <OpenBuiltinView
+          tile={openBuiltin}
+          config={config}
+          onClose={() => setOpenBuiltin(null)}
+          onBrowsing={() => {
+            setOpenBuiltin(null)
+            setView('browser')
+          }}
         />
       )}
       {showConfusion && <ConfusionOverlay onClose={() => setShowConfusion(false)} />}

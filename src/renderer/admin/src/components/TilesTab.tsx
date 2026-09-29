@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { httpUrl } from '@shared/news/httpUrl'
+import { DEFAULT_NEWS_FEED, DEFAULT_NEWS_SITE } from '@shared/news/types'
 import { BUILTIN_TILE_KEYS, type Tile } from '@shared/configSchema'
 import type { OldLauncherImportPreview } from '@shared/ipcContract'
 import { useConfigStore } from '../state/useConfigStore'
@@ -53,6 +55,21 @@ export function TilesTab() {
       setError('Enter a label.')
       return
     }
+    const isNews = tile.type === 'builtin' && tile.builtinKey === 'news'
+    if (isNews) {
+      const feed = httpUrl(tile.feedUrl)
+      if (!feed) {
+        setError('Enter a complete http:// or https:// feed address.')
+        return
+      }
+      const site = tile.url?.trim() ? httpUrl(tile.url) : undefined
+      if (site === null) {
+        setError('Enter a complete http:// or https:// news website address, or leave it blank.')
+        return
+      }
+      tile.feedUrl = feed
+      tile.url = site
+    }
     if (tile.type === 'web') {
       try {
         const url = new URL(tile.url?.trim() ?? '')
@@ -68,7 +85,8 @@ export function TilesTab() {
       return
     }
     tile.appPath = tile.type === 'app' ? tile.appPath?.trim() : undefined
-    tile.url = tile.type === 'web' ? tile.url : undefined
+    tile.url = tile.type === 'web' || isNews ? tile.url : undefined
+    tile.feedUrl = isNews ? tile.feedUrl : undefined
     tile.builtinKey = tile.type === 'builtin' ? (tile.builtinKey ?? 'weather') : undefined
     const tiles = editing
       ? config.tiles.map((t) => (t.id === tile.id ? tile : t))
@@ -166,6 +184,7 @@ export function TilesTab() {
             <div style={{ fontSize: '.85rem', margin: '6px 0', overflowWrap: 'anywhere' }}>
               {tile.type} · {tile.size}
               {tile.url ? ` · ${tile.url}` : ''}
+              {tile.feedUrl ? ` · Feed: ${tile.feedUrl}` : ''}
               {tile.appPath ? ` · ${tile.appPath}` : ''}
             </div>
             <button
@@ -266,15 +285,52 @@ export function TilesTab() {
               Built-in feature{' '}
               <select
                 value={draft.builtinKey ?? 'weather'}
-                onChange={(e) => setDraft({ ...draft, builtinKey: e.target.value })}
+                onChange={(e) => {
+                  const builtinKey = e.target.value
+                  setDraft({
+                    ...draft,
+                    builtinKey,
+                    ...(builtinKey === 'news'
+                      ? {
+                          label: draft.label || 'News',
+                          size: 'wide' as const,
+                          // No emoji: Home draws its newspaper line icon, like Weather's.
+                          icon: undefined,
+                          feedUrl: DEFAULT_NEWS_FEED,
+                          url: DEFAULT_NEWS_SITE
+                        }
+                      : {})
+                  })
+                }}
               >
                 {BUILTIN_TILE_KEYS.map((key) => (
                   <option key={key} value={key}>
-                    Weather
+                    {key === 'news' ? 'News' : 'Weather'}
                   </option>
                 ))}
               </select>
             </label>
+          )}
+          {draft.type === 'builtin' && draft.builtinKey === 'news' && (
+            <>
+              <label>
+                Feed address{' '}
+                <input
+                  required
+                  placeholder="https://..."
+                  value={draft.feedUrl ?? ''}
+                  onChange={(e) => setDraft({ ...draft, feedUrl: e.target.value })}
+                />
+              </label>
+              <label>
+                News website{' '}
+                <input
+                  placeholder="https://... (optional)"
+                  value={draft.url ?? ''}
+                  onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+                />
+              </label>
+            </>
           )}
           <label>
             Tile size{' '}
