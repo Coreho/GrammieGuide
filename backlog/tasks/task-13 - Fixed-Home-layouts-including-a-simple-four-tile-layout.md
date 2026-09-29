@@ -4,6 +4,7 @@ title: 'Fixed Home layouts, including a simple four-tile layout'
 status: To Do
 assignee: []
 created_date: '2026-09-29 05:53'
+updated_date: '2026-09-29 09:25'
 labels: []
 milestone: m-6
 dependencies: []
@@ -25,4 +26,12 @@ Home lays tiles out automatically: the column count follows the number of tiles,
 - [ ] #4 Wide tiles take two slots
 - [ ] #5 A config migration places existing tiles into a layout in their current order
 - [ ] #6 Tests cover slot placement and that changing one tile never moves another
+- [ ] #7 Each layout has a stated tile capacity and a label length limit, and admin prevents or clearly warns about going past them
+- [ ] #8 Upgrading never loses a tile: tiles that do not fit the chosen layout are kept and listed in admin
+- [ ] #9 The layouts leave room for the contact button and the now-playing chip
 <!-- AC:END -->
+
+## Definition of Done
+<!-- DOD:BEGIN -->
+- [ ] #1 Checked on the real device at every text size
+<!-- DOD:END -->
