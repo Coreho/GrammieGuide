@@ -1,11 +1,11 @@
 ---
-id: TASK-02
+id: DRAFT-01
 title: 'Scam shield: detect and block scam pages'
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:18'
+updated_date: '2026-09-29 05:52'
 labels: []
-milestone: m-5
 dependencies:
   - TASK-01
 documentation:
@@ -37,3 +37,12 @@ Spec 01 has the signals, weights, thresholds, overlay wording and privacy rules.
 <!-- DOD:BEGIN -->
 - [ ] #1 Real-hardware check: five of her usual sites, ten minutes each at strict sensitivity, with zero false blocks
 <!-- DOD:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-09-29 05:52
+---
+On hold (2026-09-29). Reworked plan favors "protected browsing": approved sites, no downloads or permission prompts, and ad blocking (TASK-01, TASK-03, and the approved-sites task) remove most scam exposure more reliably. Heuristic scoring can block good pages, miss scams, and promise more than it delivers. Revisit if she still meets scam pages on approved sites.
+---
+<!-- COMMENTS:END -->

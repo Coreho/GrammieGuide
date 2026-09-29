@@ -4,12 +4,14 @@ title: Block ads and trackers in the embedded browser
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:18'
+updated_date: '2026-09-29 05:51'
 labels: []
-milestone: m-5
+milestone: m-10
 dependencies:
   - TASK-01
 documentation:
   - docs/specs/05-news-tile-reader-mode.md
+priority: medium
 ordinal: 3000
 ---
 

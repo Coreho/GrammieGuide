@@ -1,11 +1,11 @@
 ---
-id: TASK-10
+id: DRAFT-03
 title: Presence-aware Home
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:20'
+updated_date: '2026-09-29 05:52'
 labels: []
-milestone: m-5
 dependencies:
   - TASK-01
 documentation:
@@ -37,3 +37,12 @@ Spec 02 has the details. Since it was written, `xstate` has come into use (Buddy
 <!-- DOD:BEGIN -->
 - [ ] #1 Real-device check of the camera path with her webcam
 <!-- DOD:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-09-29 05:52
+---
+On hold (2026-09-29). Turns on a camera in her home, and the "not seen" alert risks reading inactivity as distress, which the reworked plan avoids. Not needed for the current priorities.
+---
+<!-- COMMENTS:END -->

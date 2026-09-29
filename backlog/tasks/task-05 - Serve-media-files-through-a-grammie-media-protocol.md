@@ -4,18 +4,20 @@ title: 'Serve media files through a grammie-media:// protocol'
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:19'
+updated_date: '2026-09-29 05:51'
 labels: []
-milestone: m-5
+milestone: m-8
 dependencies: []
 documentation:
   - docs/specs/00-overview.md
+priority: medium
 ordinal: 5000
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Music and photos will live under `userData`, but renderers must never get `file://` access (the sandbox and `webSecurity` stay on everywhere). A custom protocol serves only named files from known library folders. This is shared infrastructure item 1 in the overview, and both Music and Photo games depend on it. News thumbnails already reach the launcher as `data:` URLs from main, so the spec's `news-cache` library may not be needed.
+Music, photos, photo tile images and contact photos will live under `userData`, but renderers must never get `file://` access (the sandbox and `webSecurity` stay on everywhere). A custom protocol serves only named files from known library folders. This is shared infrastructure item 1 in the specs overview. News thumbnails already reach the launcher as `data:` URLs from main, so the spec's `news-cache` library is not needed.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

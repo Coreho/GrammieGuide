@@ -4,11 +4,13 @@ title: Media library store for imported files
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:19'
+updated_date: '2026-09-29 05:51'
 labels: []
-milestone: m-5
+milestone: m-8
 dependencies: []
 documentation:
   - docs/specs/00-overview.md
+priority: medium
 ordinal: 6000
 ---
 
