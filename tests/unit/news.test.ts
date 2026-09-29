@@ -5,6 +5,7 @@ import { friendlyAge } from '../../src/shared/news/friendlyAge'
 import {
   createNewsService,
   FEED_MAX_BYTES,
+  IMAGE_MAX_BYTES,
   NEWS_CACHE_MS,
   type NewsService
 } from '../../src/main/services/news/newsService'
@@ -148,10 +149,12 @@ describe('news service', () => {
     service: NewsService
     fetchImpl: Mock
     log: Mock
+    lookupImpl: Mock
     advance: (ms: number) => number
   } {
     let clock = Date.parse('2026-09-27T15:00:00Z')
     const log = vi.fn()
+    const lookupImpl = vi.fn(async () => [{ address: '8.8.8.8', family: 4 }])
     const fetchImpl = vi.fn(async (url: string | URL | Request) => {
       if (String(url).startsWith('https://img.test/rose')) {
         return new Response(new Uint8Array([1, 2, 3]), {
@@ -166,11 +169,223 @@ describe('news service', () => {
     const service = createNewsService({
       getTile: (id) => (tile?.id === id ? tile : undefined),
       fetchImpl: fetchImpl as unknown as typeof fetch,
+      lookupImpl,
       now: () => clock,
       log
     })
-    return { service, fetchImpl, log, advance: (ms: number) => (clock += ms) }
+    return { service, fetchImpl, log, lookupImpl, advance: (ms: number) => (clock += ms) }
   }
+
+  function imageFeed(imageUrl: string): string {
+    return `<rss><channel><item><title>News</title><link>https://news.test/story</link>
+      <enclosure type="image/jpeg" url="${imageUrl}"/></item></channel></rss>`
+  }
+
+  it.each([
+    'http://127.0.0.1/a',
+    'http://10.0.0.1/a',
+    'http://[::1]/a',
+    'http://[::ffff:192.168.1.1]/a',
+    'http://localhost/a',
+    'http://localhost./a',
+    'http://printer/a',
+    'http://printer./a',
+    'http://printer.localhost/a',
+    'http://2130706433/a'
+  ])('never connects to an internal thumbnail at %s', async (imageUrl) => {
+    const { service, fetchImpl, lookupImpl, log } = setup()
+    fetchImpl.mockResolvedValue(new Response(imageFeed(imageUrl)))
+    const result = await service.get('news-1')
+    expect(result).toMatchObject({ ok: true, stories: [{ title: 'News' }] })
+    if (result.ok) expect(result.stories[0]!.thumbnail).toBeUndefined()
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(lookupImpl).not.toHaveBeenCalled()
+    expect(JSON.stringify(log.mock.calls)).not.toContain(imageUrl)
+  })
+
+  it.each([
+    { answers: [] },
+    { answers: [{ address: '127.0.0.1', family: 4 }] },
+    {
+      answers: [
+        { address: '8.8.8.8', family: 4 },
+        { address: 'fd00::1', family: 6 }
+      ]
+    }
+  ])('rejects empty or mixed non-public DNS answers: %j', async ({ answers }) => {
+    const { service, fetchImpl, lookupImpl } = setup()
+    lookupImpl.mockResolvedValue(answers)
+    fetchImpl.mockResolvedValue(new Response(imageFeed('https://img.test/a')))
+    const result = await service.get('news-1')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.stories[0]!.thumbnail).toBeUndefined()
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(lookupImpl).toHaveBeenCalledWith('img.test', { all: true })
+  })
+
+  it('keeps the caregiver-selected loopback feed unrestricted', async () => {
+    const { service, fetchImpl, lookupImpl } = setup({
+      ...newsTile,
+      feedUrl: 'http://127.0.0.1/feed'
+    })
+    fetchImpl.mockResolvedValue(new Response(ATOM))
+    expect((await service.get('news-1')).ok).toBe(true)
+    expect(lookupImpl).not.toHaveBeenCalled()
+  })
+
+  it.each(['http://192.168.1.1/a', 'https://internal.test/a', 'file:///secret'])(
+    'rechecks redirect destinations before connecting: %s',
+    async (location) => {
+      const { service, fetchImpl, lookupImpl } = setup()
+      lookupImpl.mockImplementation(async (host: string) => [
+        { address: host === 'img.test' ? '8.8.8.8' : '10.0.0.1', family: 4 }
+      ])
+      fetchImpl.mockResolvedValueOnce(new Response(imageFeed('https://img.test/a')))
+      fetchImpl.mockResolvedValueOnce(new Response(null, { status: 302, headers: { location } }))
+      const result = await service.get('news-1')
+      if (result.ok) expect(result.stories[0]!.thumbnail).toBeUndefined()
+      expect(result.ok).toBe(true)
+      expect(fetchImpl).toHaveBeenCalledTimes(2)
+      expect(fetchImpl.mock.calls[1]![1]).toMatchObject({ redirect: 'manual' })
+    }
+  )
+
+  it('resolves the same hostname again after a relative redirect', async () => {
+    const { service, fetchImpl, lookupImpl } = setup()
+    lookupImpl.mockResolvedValueOnce([{ address: '8.8.8.8', family: 4 }])
+    lookupImpl.mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }])
+    fetchImpl.mockResolvedValueOnce(new Response(imageFeed('https://img.test/a')))
+    fetchImpl.mockResolvedValueOnce(
+      new Response(null, {
+        status: 307,
+        headers: { location: '/b' }
+      })
+    )
+    const result = await service.get('news-1')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.stories[0]!.thumbnail).toBeUndefined()
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(lookupImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('omits an image on DNS failure without logging the failed address', async () => {
+    const { service, fetchImpl, lookupImpl, log } = setup()
+    lookupImpl.mockRejectedValue(new Error('DNS failed for https://img.test/private'))
+    fetchImpl.mockResolvedValue(new Response(imageFeed('https://img.test/private')))
+    expect(await service.get('news-1')).toMatchObject({ ok: true })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(log).toHaveBeenCalledWith('news-thumbnail', 'Error')
+    expect(JSON.stringify(log.mock.calls)).not.toContain('img.test')
+  })
+
+  it('keeps the thumbnail byte cap even without Content-Length', async () => {
+    const { service, fetchImpl } = setup()
+    fetchImpl.mockResolvedValueOnce(new Response(imageFeed('https://img.test/a')))
+    fetchImpl.mockResolvedValueOnce(
+      new Response(new Uint8Array(IMAGE_MAX_BYTES + 1), {
+        headers: { 'content-type': 'image/png' }
+      })
+    )
+    const result = await service.get('news-1')
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.stories[0]!.thumbnail).toBeUndefined()
+  })
+
+  it.each([3, 4])('allows three redirect hops but not four (%s)', async (hops) => {
+    const { service, fetchImpl, lookupImpl } = setup()
+    fetchImpl.mockResolvedValueOnce(new Response(imageFeed('https://img.test/0')))
+    for (let i = 1; i <= hops; i++) {
+      fetchImpl.mockResolvedValueOnce(
+        new Response(null, { status: 302, headers: { location: `/${i}` } })
+      )
+    }
+    fetchImpl.mockResolvedValue(
+      new Response(new Uint8Array([1]), {
+        headers: { 'content-type': 'image/png' }
+      })
+    )
+    const result = await service.get('news-1')
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.stories[0]!.thumbnail).toBe(
+        hops === 3 ? 'data:image/png;base64,AQ==' : undefined
+      )
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(5)
+    expect(lookupImpl).toHaveBeenCalledTimes(4)
+  })
+
+  it('bounds DNS waiting by the image deadline and keeps errors URL-free', async () => {
+    vi.useFakeTimers()
+    try {
+      const { service, fetchImpl, lookupImpl, log } = setup()
+      lookupImpl.mockImplementation(() => new Promise(() => undefined))
+      fetchImpl.mockResolvedValue(new Response(imageFeed('https://img.test/a')))
+      const pending = service.get('news-1')
+      await vi.advanceTimersByTimeAsync(3_001)
+      expect(await pending).toMatchObject({ ok: true })
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledWith('news-thumbnail', 'Thumbnail lookup timed out')
+      expect(JSON.stringify(log.mock.calls)).not.toContain('img.test')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    ['<?xml version="1.0" encoding="windows-1252"?>', 'application/rss+xml'],
+    ['', 'application/rss+xml; charset="windows-1252"'],
+    ['<?xml version="1.0" encoding="utf-8"?>', 'application/rss+xml; charset=windows-1252']
+  ])('decodes legacy feed bytes from XML or HTTP charset', async (declaration, contentType) => {
+    const { service, fetchImpl } = setup()
+    const xml = `${declaration}<rss><channel><item><title>\x93Caf\xe9\x94</title>
+      <link>https://news.test/story</link></item></channel></rss>`
+    fetchImpl.mockResolvedValue(
+      new Response(Buffer.from(xml, 'latin1'), {
+        headers: { 'content-type': contentType }
+      })
+    )
+    expect(await service.get('news-1')).toMatchObject({
+      ok: true,
+      stories: [{ title: '“Café”' }]
+    })
+  })
+
+  it.each(['utf-8', 'utf-16le', 'utf-16be'])(
+    'prefers a %s BOM over charset and XML',
+    async (encoding) => {
+      const { service, fetchImpl } = setup()
+      const xml =
+        '<?xml version="1.0" encoding="windows-1252"?><rss><channel><item>' +
+        '<title>Café</title><link>https://news.test/story</link></item></channel></rss>'
+      const bytes =
+        encoding === 'utf-8' ? Buffer.from('\ufeff' + xml) : Buffer.from('\ufeff' + xml, 'utf16le')
+      if (encoding === 'utf-16be') bytes.swap16()
+      fetchImpl.mockResolvedValue(
+        new Response(bytes, {
+          headers: { 'content-type': 'application/rss+xml; charset=iso-8859-1' }
+        })
+      )
+      expect(await service.get('news-1')).toMatchObject({ ok: true, stories: [{ title: 'Café' }] })
+    }
+  )
+
+  it.each([
+    ['<?xml version="1.0" encoding="unknown-label"?>', 'application/rss+xml'],
+    ['', 'application/rss+xml; charset=unknown-label'],
+    ['', 'application/rss+xml']
+  ])('falls back to UTF-8 for unknown or absent labels', async (declaration, contentType) => {
+    const { service, fetchImpl } = setup()
+    fetchImpl.mockResolvedValue(
+      new Response(
+        declaration +
+          '<rss><channel><item><title>Café</title>' +
+          '<link>https://news.test/story</link></item></channel></rss>',
+        { headers: { 'content-type': contentType } }
+      )
+    )
+    expect(await service.get('news-1')).toMatchObject({ ok: true, stories: [{ title: 'Café' }] })
+  })
 
   it('fetches the saved feed once, inlines raster thumbnails, and serves the cache', async () => {
     const { service, fetchImpl } = setup()

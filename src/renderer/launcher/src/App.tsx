@@ -63,6 +63,13 @@ export default function App() {
   const [showConfusion, setShowConfusion] = useState(false)
   const [showBuddyChat, setShowBuddyChat] = useState(false)
   const [buddyMenuAnchor, setBuddyMenuAnchor] = useState<BuddyMenuAnchor | null>(null)
+  const [chatInvitation, setChatInvitation] = useState<'visible' | 'fading' | null>(null)
+  const invitationTimers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const clearChatInvitation = useCallback(() => {
+    invitationTimers.current.forEach(clearTimeout)
+    invitationTimers.current = []
+    setChatInvitation(null)
+  }, [])
   const lastTapReaction = useRef<TapReaction | null>(null)
   const closeBuddyMenu = useCallback(() => setBuddyMenuAnchor(null), [])
   const [buddyCommand, setBuddyCommand] = useState<(BuddyCommand & { sequence: number }) | null>(
@@ -162,10 +169,22 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [buddyMenuAvailable, closeBuddyMenu])
 
+  useEffect(() => {
+    if (!buddyMenuAvailable || buddyMenuAnchor) clearChatInvitation()
+  }, [buddyMenuAvailable, buddyMenuAnchor, clearChatInvitation])
+
+  useEffect(() => {
+    const offCommand = window.launcher.onBuddyCommand(clearChatInvitation)
+    return () => {
+      offCommand()
+      invitationTimers.current.forEach(clearTimeout)
+    }
+  }, [clearChatInvitation])
+
   const handlePointerDown = useCallback((e: ReactPointerEvent) => {
     window.launcher.reportActivity()
     // Repeated pats are deliberate interaction, not a sign she is lost.
-    if ((e.target as HTMLElement).closest('[data-buddy-tap]')) return
+    if ((e.target as HTMLElement).closest('[data-buddy-tap], [data-buddy-chat-invite]')) return
     const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
     if (triggered) {
       window.launcher.goHome()
@@ -182,6 +201,7 @@ export default function App() {
 
   async function activateTile(tile: TileType): Promise<void> {
     setBuddyCommand(null)
+    clearChatInvitation()
     flashToast(`Opening ${tile.label}...`)
     if (tile.type === 'web' && tile.url) {
       const result = await window.launcher.openBrowser(tile.url)
@@ -234,6 +254,14 @@ export default function App() {
             onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
             onBuddyTap={() => {
+              if (!buddyMenuAvailable || buddyMenuAnchor) return
+              clearChatInvitation()
+              setChatInvitation('visible')
+              // Her invitation outlives a short gesture; another pat starts a fresh eight seconds.
+              invitationTimers.current = [
+                setTimeout(() => setChatInvitation('fading'), 8_000),
+                setTimeout(() => setChatInvitation(null), 8_400)
+              ]
               const reaction = pickTapReaction(lastTapReaction.current)
               lastTapReaction.current = reaction
               setBuddyCommand((previous) => ({
@@ -243,6 +271,11 @@ export default function App() {
               }))
             }}
             buddy={{
+              chatInvitation: buddyMenuAvailable && !buddyMenuAnchor ? chatInvitation : null,
+              onChat: () => {
+                clearChatInvitation()
+                setShowBuddyChat(true)
+              },
               command: buddyCommand,
               chatOpen: showBuddyChat,
               chatPhase: buddyChatPhase,

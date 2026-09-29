@@ -11,6 +11,8 @@ import type { BuddyCommand } from '@shared/buddy/commands'
 import { zLayers } from '@shared/zLayers'
 
 export type HomeBuddyProps = {
+  chatInvitation: 'visible' | 'fading' | null
+  onChat: () => void
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase

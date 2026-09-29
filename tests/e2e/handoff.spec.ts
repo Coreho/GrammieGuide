@@ -169,6 +169,50 @@ test('Home menu uses the shortcut, restores focus, and performs commands', async
   await page.getByRole('button', { name: 'Close chat' }).click()
 })
 
+test('a tap invites her to chat, and closing chat leaves the invitation dismissed', async () => {
+  const buddy = page.getByRole('button', { name: 'Say hello to Buddy' })
+  const invitation = page.getByRole('button', { name: "💬 Let's chat", exact: true })
+  await expect(invitation).toHaveCount(0)
+  await buddy.click()
+  await expect(invitation).toBeVisible()
+  await expect(invitation).toHaveCSS('min-height', '64px')
+  await invitation.click()
+  await expect(page.getByPlaceholder('Say something...')).toBeVisible()
+  await expect(invitation).toHaveCount(0)
+  await expect(page.locator('[data-buddy-activity]')).toHaveAttribute(
+    'data-buddy-activity',
+    /^chat\./
+  )
+  await expect(page.getByRole('heading', { name: "Let's take a breath" })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Close chat' }).click()
+  await expect(page.getByPlaceholder('Say something...')).toHaveCount(0)
+  await expect(invitation).toHaveCount(0)
+})
+
+test('the tap invitation restarts its timer, fades, and clears for the menu and leaving Home', async () => {
+  const buddy = page.getByRole('button', { name: 'Say hello to Buddy' })
+  const invitation = page.getByRole('button', { name: "💬 Let's chat", exact: true })
+  await buddy.click()
+  await expect(invitation).toBeVisible()
+  await page.waitForTimeout(5_000)
+  await buddy.click()
+  await page.waitForTimeout(4_000)
+  await expect(invitation).toBeVisible()
+  await expect(invitation).toHaveCount(0, { timeout: 6_000 })
+  await buddy.click()
+  await page.keyboard.press('Control+Shift+B')
+  await expect(page.getByRole('menu', { name: 'Buddy menu' })).toBeVisible()
+  await expect(invitation).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(invitation).toHaveCount(0)
+  await buddy.click()
+  await page.getByRole('button', { name: 'Family photos', exact: true }).click()
+  await expect(page.getByRole('button', { name: '🏠 Home' })).toBeVisible()
+  await expect(invitation).toHaveCount(0)
+  await page.getByRole('button', { name: '🏠 Home' }).click()
+  await expect(invitation).toHaveCount(0)
+})
+
 test('taps react without a menu, respect read-aloud, and replace rapid reactions', async () => {
   const originalBuddy = await admin.evaluate(() => window.admin.getConfig().then((c) => c.buddy))
   await admin.evaluate(async () => {

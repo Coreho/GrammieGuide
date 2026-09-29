@@ -10,7 +10,7 @@ import {
 } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
-import { CHIP_SHADOW } from '../clay'
+import { CHIP_SHADOW, CLAY_UP } from '../clay'
 import { BuddyCat } from './CatModel'
 import { useBuddyBrain } from './useBuddyBrain'
 
@@ -21,8 +21,8 @@ import { useBuddyBrain } from './useBuddyBrain'
  *
  * The canvas is taller than the footer so raised arms and his speech bubble
  * have room, and it never takes pointer events - taps on whatever is behind
- * it go through. The only tappable thing is an invisible button that
- * follows him around, updated per frame without React re-renders.
+ * it go through. His invisible tap button and the chat invitation in his
+ * bubble follow him around, updated per frame without React re-renders.
  */
 
 /** Canvas height; the footer row itself stays 150px so the tile grid keeps its space. */
@@ -41,6 +41,8 @@ const BUBBLE_MAX_W = 380
 const HEAD_Y = 1.55
 
 type FloorProps = {
+  chatInvitation: 'visible' | 'fading' | null
+  onChat: () => void
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
@@ -141,10 +143,9 @@ export function BuddyFloor(props: FloorProps) {
           </ModelErrorBoundary>
         )}
 
-        {ctx?.bubble && (
+        {(ctx?.bubble || props.chatInvitation) && (
           <div
             ref={bubbleRef}
-            role="status"
             style={{
               position: 'absolute',
               left: 0,
@@ -164,7 +165,36 @@ export function BuddyFloor(props: FloorProps) {
               transition: 'opacity .4s'
             }}
           >
-            {ctx.bubble}
+            {ctx?.bubble && <div role="status">{ctx.bubble}</div>}
+            {props.chatInvitation && (
+              <button
+                type="button"
+                data-buddy-chat-invite
+                onClick={props.onChat}
+                disabled={props.chatInvitation === 'fading'}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  minHeight: 64,
+                  marginTop: ctx?.bubble ? 14 : 0,
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: 40,
+                  background: 'linear-gradient(180deg, var(--s1,#FBFAF7), var(--s2,#ECEAE5))',
+                  boxShadow: CLAY_UP,
+                  color: 'var(--ink,#2E2E2C)',
+                  fontFamily: 'inherit',
+                  fontSize: 'calc(28px * var(--font-scale, 1))',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  pointerEvents: props.chatInvitation === 'visible' ? 'auto' : 'none',
+                  opacity: props.chatInvitation === 'visible' ? 1 : 0,
+                  transition: 'opacity .4s'
+                }}
+              >
+                💬 Let's chat
+              </button>
+            )}
           </div>
         )}
 

@@ -1,3 +1,6 @@
+import { lookup } from 'node:dns/promises'
+import { isIP } from 'node:net'
+import { isPublicAddress } from './publicAddress'
 import type { Tile } from '@shared/configSchema'
 import { httpUrl } from '@shared/news/httpUrl'
 import { parseFeed } from '@shared/news/parseFeed'
@@ -12,9 +15,15 @@ const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif
 
 class NewsFetchError extends Error {}
 
+type Lookup = (
+  hostname: string,
+  options: { all: true }
+) => Promise<{ address: string; family: number }[]>
+
 type Dependencies = {
   getTile: (id: string) => Tile | undefined
   fetchImpl?: typeof fetch
+  lookupImpl?: Lookup
   now?: () => number
   log: (op: string, detail: string) => void
 }
@@ -25,23 +34,96 @@ type Entry = {
   pending?: Promise<NewsResult>
 }
 
+/** The caregiver chose the feed; its publisher chose the images, so only images need this guard. */
+async function checkThumbnailAddress(
+  url: string,
+  lookupImpl: Lookup,
+  signal: AbortSignal
+): Promise<void> {
+  const hostname = new URL(url).hostname
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.$/, '')
+    .toLowerCase()
+  if (isIP(hostname)) {
+    if (!isPublicAddress(hostname)) throw new NewsFetchError('Non-public thumbnail address')
+    return
+  }
+  if (hostname === 'localhost' || hostname.endsWith('.localhost') || !hostname.includes('.')) {
+    throw new NewsFetchError('Non-public thumbnail host')
+  }
+  // DNS itself is not abortable; stop waiting when the shared image deadline expires.
+  let onAbort: () => void = () => undefined
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(new NewsFetchError('Thumbnail lookup timed out'))
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) onAbort()
+  })
+  try {
+    const addresses = await Promise.race([lookupImpl(hostname, { all: true }), aborted])
+    if (!addresses.length || addresses.some(({ address }) => !isPublicAddress(address))) {
+      throw new NewsFetchError('Non-public thumbnail address')
+    }
+    // Fetch resolves again: this check does not pin the connection against DNS rebinding.
+  } finally {
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
+function decodeFeed(bytes: Uint8Array, charset: string | undefined): string {
+  const bom =
+    bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf
+      ? 'utf-8'
+      : bytes[0] === 0xff && bytes[1] === 0xfe
+        ? 'utf-16le'
+        : bytes[0] === 0xfe && bytes[1] === 0xff
+          ? 'utf-16be'
+          : undefined
+  const declaration = String.fromCharCode(...bytes.subarray(0, 200)).match(
+    /^\s*<\?xml\s[^?]*\bencoding\s*=\s*["']([^"']+)["']/i
+  )?.[1]
+  try {
+    return new TextDecoder(bom ?? charset ?? declaration ?? 'utf-8').decode(bytes)
+  } catch {
+    return new TextDecoder().decode(bytes)
+  }
+}
+
 /** Limits streamed/decompressed bytes too; Content-Length alone can lie or be absent. */
 async function download(
   url: string,
   fetchImpl: typeof fetch,
   maxBytes: number,
   timeoutMs: number,
-  image: boolean
-): Promise<{ bytes: Uint8Array; mime: string }> {
+  image: boolean,
+  lookupImpl: Lookup
+): Promise<{ bytes: Uint8Array; mime: string; charset: string | undefined }> {
   if (!httpUrl(url)) throw new NewsFetchError('Unsupported address')
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
   try {
-    const response = await fetchImpl(url, { signal: controller.signal, redirect: 'follow' })
+    let response: Response
+    let current = url
+    for (let hops = 0; ; hops++) {
+      if (!httpUrl(current)) throw new NewsFetchError('Unsupported redirect')
+      if (image) await checkThumbnailAddress(current, lookupImpl, controller.signal)
+      controller.signal.throwIfAborted()
+      response = await fetchImpl(current, {
+        signal: controller.signal,
+        redirect: image ? 'manual' : 'follow'
+      })
+      if (!image || ![301, 302, 303, 307, 308].includes(response.status)) break
+      const location = response.headers.get('location')
+      await response.body?.cancel()
+      if (hops >= 3 || !location) throw new NewsFetchError('Unsupported redirect')
+      current = new URL(location, current).href
+    }
     if (!response.ok) throw new NewsFetchError(`HTTP ${response.status}`)
     if (response.url && !httpUrl(response.url)) throw new NewsFetchError('Unsupported redirect')
-    const mime = (response.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase()
+    const contentType = response.headers.get('content-type') ?? ''
+    const mime = contentType.split(';')[0]!.trim().toLowerCase()
+    const charsetMatch = contentType.match(/;\s*charset\s*=\s*(?:"([^"]+)"|'([^']+)'|([^;\s]+))/i)
+    const charset = charsetMatch?.[1] ?? charsetMatch?.[2] ?? charsetMatch?.[3]
     // Raster formats only: SVG is a document, not a passive thumbnail.
     if (image && !IMAGE_TYPES.has(mime)) throw new NewsFetchError('Not a supported image')
     if (Number(response.headers.get('content-length')) > maxBytes) {
@@ -64,7 +146,7 @@ async function download(
       bytes.set(chunk, offset)
       offset += chunk.byteLength
     }
-    return { bytes, mime }
+    return { bytes, mime, charset }
   } finally {
     clearTimeout(timer)
     // Aborting also releases an unread body after a MIME/size rejection.
@@ -96,6 +178,7 @@ export type NewsService = {
 export function createNewsService({
   getTile,
   fetchImpl = fetch,
+  lookupImpl = lookup,
   now = Date.now,
   log
 }: Dependencies): NewsService {
@@ -108,15 +191,22 @@ export function createNewsService({
 
   async function refresh(entry: Entry): Promise<NewsResult> {
     try {
-      const feed = await download(entry.feed, fetchImpl, FEED_MAX_BYTES, 10_000, false)
-      const parsed = parseFeed(new TextDecoder().decode(feed.bytes)).slice(0, MAX_STORIES)
+      const feed = await download(entry.feed, fetchImpl, FEED_MAX_BYTES, 10_000, false, lookupImpl)
+      const parsed = parseFeed(decodeFeed(feed.bytes, feed.charset)).slice(0, MAX_STORIES)
       if (!parsed.length) throw new NewsFetchError('No readable stories')
       const stories: NewsStory[] = await Promise.all(
         parsed.map(async (story) => {
           const { imageUrl, ...preview } = story
           if (!imageUrl) return preview
           try {
-            const image = await download(imageUrl, fetchImpl, IMAGE_MAX_BYTES, 3_000, true)
+            const image = await download(
+              imageUrl,
+              fetchImpl,
+              IMAGE_MAX_BYTES,
+              3_000,
+              true,
+              lookupImpl
+            )
             return {
               ...preview,
               thumbnail: `data:${image.mime};base64,${Buffer.from(image.bytes).toString('base64')}`
