@@ -5,9 +5,13 @@
 > and 4 below) are done; the config schema is at version 4, so the next
 > migration is 005; `xstate` and speech in and out are in use; and News
 > shipped as one feed per tile, not the multi-source shelf in spec 5. The
-> suggested z-layer values also clash with layers added since. The Backlog
-> tasks in the "V2 features" milestone track what is left, and each notes
-> where it departs from its spec.
+> suggested z-layer values also clash with layers added since.
+>
+> The plan was reworked on the same day. Backlog tasks now track the work,
+> and each notes where it departs from its spec. Scam-shield scoring
+> (spec 1), photo games (spec 4) and presence (spec 2) are on hold as
+> Backlog drafts; photos are a viewer to enjoy rather than a game; and music
+> is local files only, with radio as a draft.
 
 These five features were chosen as genuinely new capabilities, not ports of
 anything in `grandmas-launcher`. Each has its own spec in this folder. This

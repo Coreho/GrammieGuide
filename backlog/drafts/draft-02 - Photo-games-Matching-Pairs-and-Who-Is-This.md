@@ -1,11 +1,11 @@
 ---
-id: TASK-08
+id: DRAFT-02
 title: 'Photo games: Matching Pairs and Who Is This?'
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:20'
+updated_date: '2026-09-29 05:52'
 labels: []
-milestone: m-5
 dependencies:
   - TASK-07
 documentation:
@@ -30,3 +30,12 @@ Two gentle games built from the family's own photos give her something pleasant 
 - [ ] #7 The activity log records started, finished and abandoned with hit and miss counts, which are never shown on the kiosk
 - [ ] #8 Unit tests cover deck building and adaptive ease with a seeded RNG, and an e2e test plays a full Matching Pairs round
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-09-29 05:52
+---
+On hold (2026-09-29). Even framed gently, "Who Is This?" is a test she can fail. Photos come first as something to enjoy (photo viewer task). Revisit only after seeing how she responds to photos.
+---
+<!-- COMMENTS:END -->

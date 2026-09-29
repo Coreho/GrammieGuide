@@ -1,3 +1,4 @@
+The Backlog.md CLI used below is not an npm dependency of this project; install it once with `npm i -g backlog.md`.
 
 <!-- BACKLOG.MD GUIDELINES START -->
 <!-- backlog.md-instructions-version: 1.53.0 -->
