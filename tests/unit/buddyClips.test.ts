@@ -19,6 +19,40 @@ const ALL: BuddyActivity[] = [
 ]
 
 describe('buddy clips', () => {
+  it('uses only the smaller gesture set in reduced motion, during day and night', () => {
+    const expected: Partial<Record<BuddyActivity, string>> = {
+      greeting: 'wave',
+      resting: 'idle_calm',
+      fidgeting: 'idle_calm',
+      remarking: 'idle_calm',
+      farewell: 'wave',
+      'chat.hello': 'wave',
+      'chat.attending': 'listen',
+      'chat.hearing': 'listen',
+      'chat.thinking': 'listen',
+      'chat.talking': 'talk',
+      'chat.petted': 'heart'
+    }
+    for (const night of [true, false]) {
+      for (const [activity, clip] of Object.entries(expected)) {
+        for (const random of [() => 0, () => 0.5, () => 0.99]) {
+          expect(pickClip(activity as BuddyActivity, { motion: 'reduced', night, random })).toBe(
+            clip
+          )
+        }
+      }
+    }
+  })
+
+  it('preserves the usual gesture pools for still and roam', () => {
+    for (const activity of ALL) {
+      for (const motion of ['still', 'roam'] as const) {
+        for (const random of [() => 0, () => 0.5, () => 0.99]) {
+          expect(pickClip(activity, { motion, random })).toBe(pickClip(activity, { random }))
+        }
+      }
+    }
+  })
   it('has a clip for every activity', () => {
     for (const activity of ALL) expect(pickClip(activity, { random: Math.random })).toBeTruthy()
   })

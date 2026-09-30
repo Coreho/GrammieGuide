@@ -1,4 +1,4 @@
-import type { BuddyActivity } from '@shared/buddy/buddyMachine'
+import type { BuddyActivity, BuddyMotion } from '@shared/buddy/buddyMachine'
 
 /**
  * Which animation clip goes with each thing Buddy does. The clips are baked
@@ -93,14 +93,27 @@ const NIGHT_FIDGETS: Weighted = [
   ['look_around', 1]
 ]
 
+// Keep familiar, small gestures; remarks can show their bubble without beckoning her.
+const REDUCED_CLIPS: Partial<Record<BuddyActivity, ClipName>> = {
+  greeting: 'wave',
+  fidgeting: 'idle_calm',
+  remarking: 'idle_calm',
+  farewell: 'wave',
+  'chat.hello': 'wave',
+  'chat.thinking': 'listen',
+  'chat.talking': 'talk',
+  'chat.petted': 'heart'
+}
+
 /**
  * Weighted pick for an activity, avoiding an immediate repeat of `last`
  * when the pool has anything else (two stretches in a row look robotic).
  */
 export function pickClip(
   activity: BuddyActivity,
-  opts: { random: () => number; night?: boolean; last?: ClipName | null }
+  opts: { random: () => number; night?: boolean; last?: ClipName | null; motion?: BuddyMotion }
 ): ClipName {
+  if (opts.motion === 'reduced' && REDUCED_CLIPS[activity]) return REDUCED_CLIPS[activity]!
   const base = activity === 'fidgeting' && opts.night ? NIGHT_FIDGETS : POOLS[activity]
   const pool = base.length > 1 && opts.last ? base.filter(([name]) => name !== opts.last) : base
   const total = pool.reduce((sum, [, w]) => sum + w, 0)

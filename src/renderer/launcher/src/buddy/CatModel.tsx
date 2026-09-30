@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import type { BuddyActivity } from '@shared/buddy/buddyMachine'
+import type { BuddyActivity, BuddyMotion } from '@shared/buddy/buddyMachine'
 import { WALK_SPEED, loopsFor, pickClip, restingLoop, type ClipName } from './clips'
 import buddyUrl from './assets/buddy.glb?url'
 
@@ -31,6 +31,7 @@ const TURN_RATE = 6
 useGLTF.preload(buddyUrl, false, false)
 
 export type BuddyCatProps = {
+  motion: BuddyMotion
   activity: BuddyActivity
   forcedClip: ClipName | null
   commandSequence: number
@@ -104,6 +105,7 @@ export function BuddyCat(props: BuddyCatProps) {
       pickClip(activity, {
         random: Math.random,
         night: live.current.night,
+        motion: live.current.motion,
         last: lastPicked.current
       })
     lastPicked.current = name
@@ -114,14 +116,14 @@ export function BuddyCat(props: BuddyCatProps) {
   // arriving starts it.
   useEffect(() => {
     if (!moving.current) playForActivity()
-  }, [props.activity, props.forcedClip, props.commandSequence, playForActivity])
+  }, [props.activity, props.forcedClip, props.commandSequence, props.motion, playForActivity])
 
   useEffect(() => {
     const onFinished = (e: { action: THREE.AnimationAction }): void => {
       if (e.action !== current.current?.action) return
       const activity = live.current.activity
       // He keeps gesturing for as long as he's speaking; the panel says when that stops.
-      if (activity === 'chat.talking') {
+      if (activity === 'chat.talking' && live.current.motion !== 'reduced') {
         playForActivity()
         return
       }

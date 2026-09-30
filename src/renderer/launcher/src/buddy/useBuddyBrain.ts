@@ -7,7 +7,8 @@ import {
   type BuddyContext,
   type BuddyEvent,
   type ChatPhase,
-  type Chattiness
+  type Chattiness,
+  type BuddyMotion
 } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand } from '@shared/buddy/commands'
@@ -15,7 +16,7 @@ import { speak, stopSpeaking } from './speech'
 
 type BrainInput = {
   getPosition: () => number | undefined
-  roaming: boolean
+  motion: BuddyMotion
   chattiness: Chattiness
   hour: number
   weather: RemarkWeather | null
@@ -40,8 +41,8 @@ export function useBuddyBrain(input: BrainInput): {
   const initial = useRef(input)
 
   useEffect(() => {
-    const { roaming, chattiness, hour, weather } = initial.current
-    const a = createActor(buddyMachine, { input: { roaming, chattiness, hour, weather } })
+    const { motion, chattiness, hour, weather } = initial.current
+    const a = createActor(buddyMachine, { input: { motion, chattiness, hour, weather } })
     a.start()
     let sequence = 0
     const speech = a.subscribe((state) => {
@@ -73,7 +74,7 @@ export function useBuddyBrain(input: BrainInput): {
   )
   const snapshot = useSyncExternalStore(subscribe, () => actor?.getSnapshot() ?? null)
 
-  const { roaming, chattiness, hour, weather, chatOpen, chatPhase } = input
+  const { motion, chattiness, hour, weather, chatOpen, chatPhase } = input
   const weatherCategory = weather?.category
   const weatherTemp = weather ? Math.round(weather.temp) : null
   const weatherUnit = weather?.unit
@@ -83,14 +84,22 @@ export function useBuddyBrain(input: BrainInput): {
       weatherCategory && weatherTemp !== null && weatherUnit
         ? { category: weatherCategory, temp: weatherTemp, unit: weatherUnit }
         : null
-    actor?.send({ type: 'SETTINGS', roaming, chattiness, hour, weather: w })
-  }, [actor, roaming, chattiness, hour, weatherCategory, weatherTemp, weatherUnit])
+    actor?.send({
+      type: 'SETTINGS',
+      motion,
+      chattiness,
+      hour,
+      weather: w,
+      at: initial.current.getPosition()
+    })
+  }, [actor, motion, chattiness, hour, weatherCategory, weatherTemp, weatherUnit])
 
   useEffect(() => {
     // A spoken command may outlast its gesture. Let the sentence finish,
     // unless she starts a conversation or another command takes over.
     if (chatOpen) stopSpeaking()
-    actor?.send({ type: chatOpen ? 'CHAT_OPEN' : 'CHAT_CLOSE' })
+    if (chatOpen) actor?.send({ type: 'CHAT_OPEN', at: initial.current.getPosition() })
+    else actor?.send({ type: 'CHAT_CLOSE' })
   }, [actor, chatOpen])
 
   useEffect(() => {

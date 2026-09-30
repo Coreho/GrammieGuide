@@ -62,7 +62,8 @@ describe('migration 002 (Buddy voice + roaming)', () => {
       cloudTtsEnabled: false,
       voiceEnabled: true,
       ttsVoice: 'en-US-AriaNeural',
-      roaming: true,
+      motion: 'roam',
+      tapAction: 'reaction',
       quickMessages: []
     })
     expect(result.config.tiles).toEqual(
@@ -77,7 +78,7 @@ describe('migration 002 (Buddy voice + roaming)', () => {
       buddy: { ...v1.buddy, roaming: false, ttsVoice: 'en-US-GuyNeural' }
     })
     expect(result.ok).toBe(true)
-    expect(result.config.buddy.roaming).toBe(false)
+    expect(result.config.buddy.motion).toBe('still')
     expect(result.config.buddy.ttsVoice).toBe('en-US-GuyNeural')
   })
 })

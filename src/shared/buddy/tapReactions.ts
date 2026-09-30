@@ -1,4 +1,5 @@
 import type { ClipName } from './commands'
+import type { BuddyMotion } from './buddyMachine'
 
 export type TapReaction = { text: string; clip: ClipName }
 
@@ -16,11 +17,15 @@ export const TAP_REACTIONS: readonly TapReaction[] = [
 
 export function pickTapReaction(
   previous: TapReaction | null,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  motion: BuddyMotion = 'roam'
 ): TapReaction {
   // Filtering before picking also avoids repeats with deterministic randomness.
   const choices = TAP_REACTIONS.filter(
-    (reaction) => reaction.text !== previous?.text && reaction.clip !== previous?.clip
+    (reaction) =>
+      (motion !== 'reduced' || reaction.clip === 'wave' || reaction.clip === 'heart') &&
+      reaction.text !== previous?.text &&
+      reaction.clip !== previous?.clip
   )
   return choices[Math.floor(random() * choices.length)]!
 }

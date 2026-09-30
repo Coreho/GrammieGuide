@@ -111,15 +111,32 @@ export function BuddyTab() {
       </select>
       <h3>On the Home screen</h3>
       <label>
-        <input
-          type="checkbox"
-          checked={buddy.roaming}
-          onChange={(e) => saveBuddy({ roaming: e.target.checked })}
-        />
-        Buddy strolls along the bottom of the screen now and then
+        When she taps Buddy{' '}
+        <select
+          value={buddy.tapAction}
+          onChange={(e) => saveBuddy({ tapAction: e.target.value as typeof buddy.tapAction })}
+        >
+          <option value="reaction">A friendly reaction, then a Let&apos;s chat button</option>
+          <option value="chat">Open chat right away</option>
+        </select>
+      </label>
+      <br />
+      <label>
+        How Buddy moves{' '}
+        <select
+          value={buddy.motion}
+          onChange={(e) => saveBuddy({ motion: e.target.value as typeof buddy.motion })}
+        >
+          <option value="still">Stays put (with his usual gestures)</option>
+          <option value="roam">Walks now and then</option>
+          <option value="reduced">Reduced motion (fewer, gentler gestures)</option>
+        </select>
       </label>
       <p style={{ fontSize: '.85rem', color: '#666' }}>
-        He never walks over the tiles. Between 9 PM and 6 AM he stays put either way.
+        Choose by watching what she enjoys and what distracts her. Reduced motion keeps him in place
+        with no fidgeting on his own. Changes take effect right away. He never walks over the tiles
+        or wanders on his own between 9 PM and 6 AM. You can still ask him to walk or play any
+        gesture yourself.
       </p>
       <h3>Voice</h3>
       <label>

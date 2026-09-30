@@ -5,7 +5,7 @@ import { WeatherGlyph } from './WeatherGlyph'
 import { FontScaleControl } from './FontScaleControl'
 import { CHIP_SHADOW } from '../clay'
 import { BuddyFloor } from '../buddy/BuddyFloor'
-import type { ChatPhase, Chattiness } from '@shared/buddy/buddyMachine'
+import type { ChatPhase, Chattiness, BuddyMotion } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand } from '@shared/buddy/commands'
 import { zLayers } from '@shared/zLayers'
@@ -16,7 +16,7 @@ export type HomeBuddyProps = {
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
-  roaming: boolean
+  motion: BuddyMotion
   chattiness: Chattiness
   hour: number
   weather: RemarkWeather | null

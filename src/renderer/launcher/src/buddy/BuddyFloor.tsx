@@ -6,7 +6,8 @@ import {
   isNight,
   type BuddyActivity,
   type ChatPhase,
-  type Chattiness
+  type Chattiness,
+  type BuddyMotion
 } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
@@ -47,7 +48,7 @@ type FloorProps = {
   chatOpen: boolean
   chatPhase: ChatPhase
   onTap: () => void
-  roaming: boolean
+  motion: BuddyMotion
   chattiness: Chattiness
   hour: number
   weather: RemarkWeather | null
@@ -97,6 +98,7 @@ export function BuddyFloor(props: FloorProps) {
       <div
         ref={layerRef}
         data-buddy-activity={brain.activity}
+        data-buddy-motion={ctx?.motion}
         data-buddy-clip={ctx?.forcedClip ?? undefined}
         data-buddy-target={ctx?.target}
         style={{
@@ -124,6 +126,7 @@ export function BuddyFloor(props: FloorProps) {
               <directionalLight position={[-3, 2, -2]} intensity={0.35} />
               <Suspense fallback={null}>
                 <FloorScene
+                  motion={ctx.motion}
                   activity={brain.activity}
                   forcedClip={ctx.forcedClip}
                   commandSequence={ctx.commandSequence}
@@ -223,6 +226,7 @@ export function BuddyFloor(props: FloorProps) {
 }
 
 function FloorScene(props: {
+  motion: BuddyMotion
   activity: BuddyActivity
   forcedClip: ClipName | null
   commandSequence: number
@@ -263,6 +267,7 @@ function FloorScene(props: {
 
   return (
     <BuddyCat
+      motion={props.motion}
       activity={props.activity}
       forcedClip={props.forcedClip}
       commandSequence={props.commandSequence}

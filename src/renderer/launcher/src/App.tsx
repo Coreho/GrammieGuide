@@ -170,8 +170,9 @@ export default function App() {
   }, [buddyMenuAvailable, closeBuddyMenu])
 
   useEffect(() => {
-    if (!buddyMenuAvailable || buddyMenuAnchor) clearChatInvitation()
-  }, [buddyMenuAvailable, buddyMenuAnchor, clearChatInvitation])
+    if (!buddyMenuAvailable || buddyMenuAnchor || config?.buddy.tapAction === 'chat')
+      clearChatInvitation()
+  }, [buddyMenuAvailable, buddyMenuAnchor, config?.buddy.tapAction, clearChatInvitation])
 
   useEffect(() => {
     const offCommand = window.launcher.onBuddyCommand(clearChatInvitation)
@@ -256,13 +257,21 @@ export default function App() {
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return
               clearChatInvitation()
+              if (config.buddy.tapAction === 'chat') {
+                setShowBuddyChat(true)
+                return
+              }
               setChatInvitation('visible')
               // Her invitation outlives a short gesture; another pat starts a fresh eight seconds.
               invitationTimers.current = [
                 setTimeout(() => setChatInvitation('fading'), 8_000),
                 setTimeout(() => setChatInvitation(null), 8_400)
               ]
-              const reaction = pickTapReaction(lastTapReaction.current)
+              const reaction = pickTapReaction(
+                lastTapReaction.current,
+                Math.random,
+                config.buddy.motion
+              )
               lastTapReaction.current = reaction
               setBuddyCommand((previous) => ({
                 ...reaction,
@@ -279,7 +288,7 @@ export default function App() {
               command: buddyCommand,
               chatOpen: showBuddyChat,
               chatPhase: buddyChatPhase,
-              roaming: config.buddy.roaming,
+              motion: config.buddy.motion,
               chattiness: config.buddy.chattiness,
               hour: now.getHours(),
               weather: weather

@@ -8,7 +8,7 @@ import { quickMessageSchema } from './buddy/commands'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 5
+export const CURRENT_SCHEMA_VERSION = 6
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
@@ -63,8 +63,9 @@ export const buddyConfigSchema = z.object({
   voiceEnabled: z.boolean().default(true),
   /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
   ttsVoice: z.string().default('en-US-AriaNeural'),
-  /** Let him stroll along the bottom of the Home screen when nothing is happening. */
-  roaming: z.boolean().default(true),
+  /** Caregivers choose how much movement helps her, rather than assuming more is better. */
+  motion: z.enum(['still', 'roam', 'reduced']).default('roam'),
+  tapAction: z.enum(['reaction', 'chat']).default('reaction'),
   quickMessages: z.array(quickMessageSchema).max(50).default([])
 })
 
@@ -156,7 +157,8 @@ export function defaultConfig(): Config {
       cloudTtsEnabled: true,
       voiceEnabled: true,
       ttsVoice: 'en-US-AriaNeural',
-      roaming: true
+      motion: 'roam',
+      tapAction: 'reaction'
     },
     display: {
       fontStep: DEFAULT_FONT_STEP,
