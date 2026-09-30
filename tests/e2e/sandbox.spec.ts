@@ -108,5 +108,19 @@ test('a tap inside a web page reaches main, so it resets the idle timer', async 
   expect(viewSandboxed).toBe(true)
   await expect.poll(async () => (await check()).activity).toBeGreaterThan(before)
   expect((await check()).preloadErrors).toEqual([])
+})
+
+test("events the page fakes with its own script don't reset the idle timer", async () => {
+  // Past the preload's 2s throttle, so a counted event would be sent.
+  await new Promise((resolve) => setTimeout(resolve, 2_500))
+  const before = (await check()).activity
+  await app.evaluate(({ webContents }, url) => {
+    const view = webContents.getAllWebContents().find((w) => w.getURL() === url)!
+    return view.executeJavaScript(
+      `for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) document.dispatchEvent(new Event(type))`
+    )
+  }, site)
+  await new Promise((resolve) => setTimeout(resolve, 1_000))
+  expect((await check()).activity).toBe(before)
   await page.getByRole('button', { name: '🏠 Home' }).click()
 })
