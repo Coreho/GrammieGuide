@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-09-29_
+_Last updated: 2026-09-30_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -23,6 +23,8 @@ In **admin → Tiles**, add websites, installed apps (full Windows paths), or a 
 Built-in tiles each have their own view. **News** is wide by default. Tapping it shows today's stories as long cards (headline, a two-line summary, how long ago, and a small picture when the feed has one) so she can see what's there before choosing. Tapping a story opens it in the kiosk browser. The caregiver sets the feed address (NPR's top stories by default) and, optionally, the news website. If the feed can't be read, she sees "The news isn't ready right now." and a button to open that website instead, never an error. The top headline is deliberately not shown on the tile itself, so Home never displays upsetting news she didn't ask for. Music, games and photos built-ins remain future work.
 
 Config migrations 003 (tile sizes), 004 (saved Buddy messages) and 005 (tile colors, seeded so upgrading doesn't repaint Home) preserve existing settings.
+
+Local media infrastructure is ready: `grammie-media://` streams images and seekable audio from `userData/media/music/` and `userData/media/photos/` to Home and admin, with strict filename validation and no renderer filesystem API. Importing media remains future work.
 
 ## Buddy
 

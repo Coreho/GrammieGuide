@@ -12,12 +12,15 @@ import {
 } from './windows/windowManager'
 import { initEmbeddedBrowser, isBrowserOpen, getIdleMs, closeEmbeddedBrowser } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
+import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
 
 /**
  * Thin bootstrap: wires services together and nothing else, unlike the old
  * app's index.js which grew to ~500 lines by also owning every reliability
  * timer and window-creation detail inline.
  */
+
+registerMediaScheme()
 
 const INACTIVITY_CHECK_INTERVAL_MS = 30_000
 let inactivityTimer: NodeJS.Timeout | null = null
@@ -37,6 +40,7 @@ function startInactivityWatch(): void {
 app.whenReady().then(() => {
   loadConfig()
   registerAllIpc()
+  installMediaProtocol()
   const win = createLauncherWindow()
   initEmbeddedBrowser(win)
   startInactivityWatch()
