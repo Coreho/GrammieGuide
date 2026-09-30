@@ -1,7 +1,15 @@
 import { BrowserWindow, globalShortcut, app } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { writeQuitFlag } from '../services/reliability/watchdog'
+import { stopHeartbeat, writeQuitFlag } from '../services/reliability/watchdog'
+import { closeEmbeddedBrowser } from '../services/browser/embeddedBrowser'
+import { logReliabilityEvent } from '../services/reliability/reliabilityLog'
+import {
+  decideHomeRecovery,
+  INITIAL_HOME_RECOVERY_STATE,
+  HOME_UNRESPONSIVE_GRACE_MS,
+  type HomeRecoveryEvent
+} from '../services/reliability/homeRecovery'
 
 /**
  * Kiosk lockdown, ported conceptually from the old app's windows.js. Real
@@ -34,6 +42,7 @@ export function createLauncherWindow(): BrowserWindow {
 
   launcherWindow.on('ready-to-show', () => launcherWindow?.show())
   launcherWindow.setMenuBarVisibility(false)
+  installHomeRecovery(launcherWindow)
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     launcherWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/launcher/index.html`)
@@ -43,6 +52,95 @@ export function createLauncherWindow(): BrowserWindow {
 
   registerGlobalShortcuts()
   return launcherWindow
+}
+
+function installHomeRecovery(win: BrowserWindow): void {
+  let state = INITIAL_HOME_RECOVERY_STATE
+  let hangTimer: NodeJS.Timeout | null = null
+  let shuttingDown = false
+  let expectingForcedCrash = false
+
+  const cancelHangTimer = (): void => {
+    if (hangTimer) clearTimeout(hangTimer)
+    hangTimer = null
+  }
+  const stopRecovery = (): void => {
+    shuttingDown = true
+    cancelHangTimer()
+  }
+  const giveUp = (detail: string): void => {
+    stopRecovery()
+    logReliabilityEvent({ op: 'home-recovery-gave-up', ok: false, detail })
+    // No quit flag or immediate relaunch: the stale heartbeat gives the watchdog its back-off.
+    // Exit cannot be held up by an unresponsive renderer's unload handler.
+    stopHeartbeat()
+    app.exit(1)
+  }
+
+  const handleRecovery = (event: HomeRecoveryEvent, reason?: string): void => {
+    if (shuttingDown || win.isDestroyed() || win.webContents.isDestroyed()) return
+    cancelHangTimer()
+    // A monotonic clock keeps wall-clock corrections from extending a hang or the retry window.
+    const now = performance.now()
+    const decision = decideHomeRecovery(state, event, now)
+    state = decision.state
+    const problem =
+      event === 'crashed' ? `renderer gone: ${reason}` : 'unresponsive after grace period'
+
+    if (decision.action === 'give-up') {
+      giveUp(`recovery limit reached; ${problem}`)
+      return
+    }
+    if (decision.action === 'reload') {
+      logReliabilityEvent({
+        op: event === 'crashed' ? 'home-renderer-gone' : 'home-unresponsive',
+        ok: true,
+        detail: `reloading Home; ${problem}`
+      })
+      try {
+        // A leftover WebContentsView would cover fresh Home, which has forgotten its Home button.
+        closeEmbeddedBrowser()
+        if (event === 'check') {
+          // Electron emits render-process-gone for this kill too; it is the same recovery attempt.
+          expectingForcedCrash = true
+          win.webContents.forcefullyCrashRenderer()
+        }
+        win.webContents.reload()
+      } catch (err) {
+        giveUp(`reload failed; ${problem}; ${String(err)}`)
+      }
+      return
+    }
+
+    if (state.unresponsiveSince !== null) {
+      const remaining = HOME_UNRESPONSIVE_GRACE_MS - (now - state.unresponsiveSince)
+      hangTimer = setTimeout(() => handleRecovery('check'), Math.max(0, remaining))
+    }
+  }
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    if (expectingForcedCrash) {
+      // Our own kill, whatever reason Chromium reports: counting it again or leaving
+      // the flag set (which mutes hang detection) would both be wrong.
+      expectingForcedCrash = false
+      return
+    }
+    if (details.reason === 'clean-exit') return
+    handleRecovery('crashed', details.reason)
+  })
+  // Backstop: once fresh Home has loaded, the kill has been reported or never will be.
+  win.webContents.on('did-finish-load', () => {
+    expectingForcedCrash = false
+  })
+  win.on('unresponsive', () => {
+    if (!expectingForcedCrash) handleRecovery('unresponsive')
+  })
+  win.on('responsive', () => handleRecovery('responsive'))
+  app.once('before-quit', stopRecovery)
+  win.once('closed', () => {
+    stopRecovery()
+    app.removeListener('before-quit', stopRecovery)
+  })
 }
 
 export function getLauncherWindow(): BrowserWindow | null {
