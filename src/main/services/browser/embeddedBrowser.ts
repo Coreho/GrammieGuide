@@ -26,6 +26,10 @@ let privateNavigation = false
 export function initEmbeddedBrowser(win: BrowserWindow): void {
   hostWindow = win
   win.on('resize', () => layout())
+  win.once('closed', () => {
+    closeEmbeddedBrowser()
+    hostWindow = null
+  })
 
   if (!activityListenerRegistered) {
     ipcMain.on('browserView:activity', () => {
@@ -98,10 +102,19 @@ export function goBack(): void {
 }
 
 export function closeEmbeddedBrowser(): void {
-  if (view && hostWindow) {
-    hostWindow.contentView.removeChildView(view)
-  }
+  const closingView = view
   view = null
+  privateNavigation = false
+  if (!closingView) return
+
+  if (hostWindow && !hostWindow.isDestroyed()) {
+    hostWindow.contentView.removeChildView(closingView)
+  }
+  // Removing the view only hides it; close the page so sound and its renderer stop.
+  // A site's beforeunload handler must never keep it alive after she leaves.
+  if (!closingView.webContents.isDestroyed()) {
+    closingView.webContents.close({ waitForBeforeUnload: false })
+  }
 }
 
 export function isBrowserOpen(): boolean {
