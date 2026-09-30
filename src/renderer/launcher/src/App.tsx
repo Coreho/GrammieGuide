@@ -227,12 +227,6 @@ export default function App() {
     await window.launcher.goBack()
   }
 
-  async function handleFontStepChange(next: number): Promise<void> {
-    document.documentElement.style.setProperty('--font-scale', String(fontScaleForStep(next)))
-    const updated = await window.launcher.setFontStep(next)
-    setConfig(updated)
-  }
-
   if (!config) {
     return <div style={{ color: '#fff', padding: 32 }}>Loading...</div>
   }
@@ -250,8 +244,6 @@ export default function App() {
             date={date}
             weather={weather}
             tiles={config.tiles}
-            fontStep={config.display.fontStep}
-            onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return

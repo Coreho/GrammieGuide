@@ -10,7 +10,6 @@ export const zLayers = {
   homeBackground: 0,
   homeContent: 10,
   buddyCanvas: 20,
-  fontControl: 25,
   navBar: 30,
   tilePicker: 100,
   weatherOverlay: 200,

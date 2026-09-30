@@ -35,7 +35,8 @@ export function DisplayTab() {
         />
       </label>
       <p style={{ fontSize: '.85rem', color: '#666' }}>
-        Grandma can also change this herself from the on-screen A&minus;/A+ control on Home.
+        This is the only place to change text size: Home has no text-size buttons, so a stray
+        tap can&apos;t change it. Home updates as soon as you move the slider.
       </p>
       <label>
         <input
