@@ -93,6 +93,8 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 Web tiles open in a `WebContentsView` (not the deprecated `BrowserView`) overlaid below a 72px nav bar (`services/browser/embeddedBrowser.ts`). `urlPolicy.ts` holds the protocol allow-list. Navigation guards and popup blocking stop the user from escaping the kiosk, and blocked navigations emit `browser:blocked`. The browser closes after `confusion.inactivityTimeoutMinutes` of idle time.
 
+When the page fails to load, or a link is blocked, the native view is hidden (it would cover anything Home draws) and `browser:page-problem` tells Home to show `PageRecovery`: plain words, large Try again/Back to the page and Home buttons, never an error code, with the nav bar left in place. `shared/browser/loadFailure.ts` (pure) sorts a main-frame failure into 'offline' (connection errors, or Windows reports offline) or 'unreachable', ignores ERR_ABORTED, and builds the caregiver's log line: domain plus Chromium's error name, never the full address. The page is shown again only when a retry finishes loading. While offline, main retries every 5s once Windows reports a connection; those retries don't count as her activity, so the idle timeout still closes an unattended page. Chromium's offline emulation stalls loads instead of failing them, so e2e stands in for Windows' online state with `__e2e__.setDeviceOnline()`.
+
 ### UI conventions
 
 - **Stacking order:** every z-index comes from `src/shared/zLayers.ts`. Never hardcode z-index values.

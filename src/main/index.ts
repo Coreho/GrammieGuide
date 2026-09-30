@@ -10,7 +10,13 @@ import {
   getLauncherWindow,
   unregisterAllShortcuts
 } from './windows/windowManager'
-import { initEmbeddedBrowser, isBrowserOpen, getIdleMs, closeEmbeddedBrowser } from './services/browser/embeddedBrowser'
+import {
+  initEmbeddedBrowser,
+  isBrowserOpen,
+  getIdleMs,
+  closeEmbeddedBrowser,
+  overrideOnlineCheckForTests
+} from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
 
 /**
@@ -47,13 +53,15 @@ app.whenReady().then(() => {
   startKioskServices()
 
   // Playwright can't send a real Ctrl+Shift+A keypress to a kiosk-locked
-  // window, so E2E tests need a way to open the admin window directly, and
-  // a way to run the idle check without waiting out the timeout.
+  // window, so E2E tests need a way to open the admin window directly, a way
+  // to run the idle check without waiting out the timeout, and a stand-in
+  // for Windows' online state.
   // Only active when a test explicitly opts in via env var.
   if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
     ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
       createAdminWindow,
-      closeBrowserIfIdle
+      closeBrowserIfIdle,
+      setDeviceOnline: (online: boolean) => overrideOnlineCheckForTests(() => online)
     }
   }
 })
