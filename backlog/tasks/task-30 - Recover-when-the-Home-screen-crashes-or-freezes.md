@@ -4,7 +4,9 @@ title: Recover when the Home screen crashes or freezes
 status: To Do
 assignee: []
 created_date: '2026-09-29 09:24'
+updated_date: '2026-09-30 15:26'
 labels: []
+milestone: m-6
 dependencies: []
 priority: high
 ordinal: 29000
