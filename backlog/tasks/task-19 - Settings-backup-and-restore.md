@@ -4,6 +4,7 @@ title: Settings backup and restore
 status: To Do
 assignee: []
 created_date: '2026-09-29 05:54'
+updated_date: '2026-09-29 09:25'
 labels: []
 milestone: m-11
 dependencies: []
@@ -25,4 +26,5 @@ Rebuilding her setup after a reinstall, a new device or a bad change means re-en
 - [ ] #4 The backup says plainly that photo and music files are not included
 - [ ] #5 Backup and restore are admin-only (requireAdminUnlocked)
 - [ ] #6 Tests cover secret stripping, upgrading an old backup, and rejecting a bad file
+- [ ] #7 Restoring on a device that lacks the photo or music files shows those items as not set up yet, never as broken
 <!-- AC:END -->

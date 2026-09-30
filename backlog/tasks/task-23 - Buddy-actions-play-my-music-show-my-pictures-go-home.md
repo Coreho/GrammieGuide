@@ -4,10 +4,11 @@ title: 'Buddy actions: play my music, show my pictures, go home'
 status: To Do
 assignee: []
 created_date: '2026-09-29 05:54'
+updated_date: '2026-09-29 09:25'
 labels: []
 milestone: m-9
 dependencies:
-  - TASK-09
+  - TASK-37
   - TASK-18
 priority: medium
 ordinal: 22000

@@ -4,7 +4,7 @@ title: News reader mode
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:18'
-updated_date: '2026-09-29 08:19'
+updated_date: '2026-09-29 09:26'
 labels: []
 milestone: m-10
 dependencies:
@@ -21,9 +21,9 @@ ordinal: 4000
 <!-- SECTION:DESCRIPTION:BEGIN -->
 News stories currently open as the full website in the kiosk browser, with the site's layout, ads, pop-ups and autoplay video. Reader mode shows the article itself (title, text and pictures) in the clay style at her font size. Web tile pages that look like articles can use it too.
 
-**Prerequisite:** the News tile, story list and feed parser this builds on come from PR #4 (`feat/buddy-menu-news-tile`), which is not merged into `main` yet. Start this only after PR #4 is merged. It also waits for ad blocking (TASK-03), because "Show page" and the extraction-failure fallback show the real site.
+The News tile, story list and feed parser this builds on arrived with PR #4, merged into `main` on 2026-09-29. This task still waits for ad blocking (TASK-03), because "Show page" and the extraction-failure fallback show the real site. Codex's review suggests leaving it until core recovery, contact and offline activities work.
 
-Spec 05's "Reader extraction" section describes the approach. The rest of spec 05 (a multi-source shelf with screenshot previews) was replaced by the shipped design, one feed per News tile with stories as long cards, and is not part of this task. Feeds are parsed by the dependency-free `shared/news/parseFeed.ts`, not `fast-xml-parser`. Speech-out now exists (`buddy:speak`), so the spec's placeholder Read aloud button can work instead of staying disabled. Story opens are private navigation: log the tile, never the article address.
+Spec 05's "Reader extraction" section describes the approach. The rest of spec 05 (a multi-source shelf with screenshot previews) was replaced by the shipped design, one feed per News tile with stories as long cards, and is not part of this task. Feeds are parsed by the dependency-free `shared/news/parseFeed.ts`, not `fast-xml-parser`. Speech-out exists (`buddy:speak`), but `ttsService.ts` truncates each request at 1,200 characters (`MAX_SPEECH_CHARS`), so reading a whole article needs chunking. Story opens are private navigation: log the tile, never the article address.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -33,7 +33,7 @@ Spec 05's "Reader extraction" section describes the approach. The rest of spec 0
 - [ ] #3 The nav bar switches between Show page and Show article without breaking Back
 - [ ] #4 Web tile pages that look like articles offer Show article
 - [ ] #5 Extracted HTML is sanitized to an allow-list before rendering: scripts, iframes, event handlers, links and non-http(s) images never render
-- [ ] #6 Read aloud reads the article with the existing voice (Edge, Windows fallback) and stops when she leaves the article
-- [ ] #7 Logs record the News tile id for article opens, never the article address
-- [ ] #8 Unit tests cover the sanitizer, and an e2e test opens a local fixture story in reader mode
+- [ ] #6 Logs record the News tile id for article opens, never the article address
+- [ ] #7 Unit tests cover the sanitizer, and an e2e test opens a local fixture story in reader mode
+- [ ] #8 Read aloud reads the whole article with the existing voice (Edge, Windows fallback), not just the first 1,200 characters the voice service takes per request, and stops as soon as she leaves the article
 <!-- AC:END -->
