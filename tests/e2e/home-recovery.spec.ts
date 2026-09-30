@@ -122,6 +122,46 @@ test('Home cancels freeze recovery when the renderer becomes responsive', async 
   await expectHomeRunning()
 })
 
+test('a kill report that arrives after the backstop is not counted as a second crash', async () => {
+  test.setTimeout(90_000)
+  await app.evaluate(async ({ BrowserWindow }, graceMs) => {
+    const launcher = BrowserWindow.getAllWindows().find((win) =>
+      win.webContents.getURL().endsWith('/launcher/index.html')
+    )
+    if (!launcher) throw new Error('Launcher window not found')
+    const contents = launcher.webContents
+    // Swallow the kill, as if Chromium never reported it, so the 5 s backstop reloads Home.
+    contents.forcefullyCrashRenderer = () => {}
+    const reloaded = new Promise<void>((resolve) =>
+      contents.once('did-finish-load', () => resolve())
+    )
+    launcher.emit('unresponsive')
+    await reloaded
+    await new Promise<void>((resolve) => setTimeout(resolve, 500))
+    // Now the late report of that same kill arrives.
+    contents.emit('render-process-gone', {}, { reason: 'killed', exitCode: 1 })
+    await new Promise<void>((resolve) => setTimeout(resolve, graceMs / 10))
+  }, HOME_UNRESPONSIVE_GRACE_MS)
+  await expectHomeRunning()
+
+  const opened = app.waitForEvent('window')
+  await app.evaluate(() => {
+    ;(
+      globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }
+    ).__e2e__.createAdminWindow()
+  })
+  const admin = await opened
+  await admin.waitForLoadState('domcontentloaded')
+  await admin.getByPlaceholder('4-8 digit PIN').fill('2468')
+  await admin.getByPlaceholder('Confirm PIN').fill('2468')
+  await admin.getByRole('button', { name: 'Set PIN', exact: true }).click()
+  await expect(admin.getByRole('heading', { name: 'Home Screen Tiles' })).toBeVisible()
+  const ops = (await admin.evaluate(() => window.admin.getReliabilityLog())).map((e) => e.op)
+  // One freeze, one recovery: the late report must not add a crash recovery.
+  expect(ops.filter((op) => op === 'home-unresponsive')).toHaveLength(1)
+  expect(ops.filter((op) => op === 'home-renderer-gone')).toHaveLength(0)
+})
+
 test('four crashes hand off to the watchdog and restore the give-up log after restart', async () => {
   test.setTimeout(120_000)
   for (let attempt = 0; attempt < 3; attempt++) await recoverHome('crash')

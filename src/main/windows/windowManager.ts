@@ -26,6 +26,8 @@ import {
 const KIOSK_ENABLED = !is.dev
 /** How long a hang recovery waits for Chromium to report its forced kill before reloading anyway. */
 const FORCED_KILL_REPORT_TIMEOUT_MS = 5_000
+/** After that backstop, a kill report arriving this late is still the same recovery, not a new crash. */
+const LATE_KILL_REPORT_MS = 30_000
 
 let launcherWindow: BrowserWindow | null = null
 let adminWindow: BrowserWindow | null = null
@@ -68,6 +70,7 @@ function installHomeRecovery(win: BrowserWindow): void {
   let killReportTimer: NodeJS.Timeout | null = null
   let shuttingDown = false
   let expectingForcedCrash = false
+  let lateKillReportUntil = 0
 
   const cancelHangTimer = (): void => {
     if (hangTimer) clearTimeout(hangTimer)
@@ -133,6 +136,7 @@ function installHomeRecovery(win: BrowserWindow): void {
             killReportTimer = null
             if (!expectingForcedCrash) return
             expectingForcedCrash = false
+            lateKillReportUntil = performance.now() + LATE_KILL_REPORT_MS
             reloadHome('unresponsive after grace period; kill not reported')
           }, FORCED_KILL_REPORT_TIMEOUT_MS)
           return
@@ -151,9 +155,13 @@ function installHomeRecovery(win: BrowserWindow): void {
   }
 
   win.webContents.on('render-process-gone', (_event, details) => {
-    if (expectingForcedCrash) {
-      // Our own kill is the same attempt; reload only once the old process is gone.
+    if (expectingForcedCrash || performance.now() < lateKillReportUntil) {
+      // Our own kill is the same attempt, even when its report comes after the backstop
+      // reloaded: counting it again would spend the crash-loop budget twice for one
+      // freeze. Reload once the old process is gone; a second reload is harmless and
+      // also covers a real crash inside that window.
       expectingForcedCrash = false
+      lateKillReportUntil = 0
       cancelKillReportTimer()
       reloadHome('unresponsive after grace period')
       return
