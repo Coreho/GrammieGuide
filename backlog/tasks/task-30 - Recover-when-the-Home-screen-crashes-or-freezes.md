@@ -1,11 +1,11 @@
 ---
 id: TASK-30
 title: Recover when the Home screen crashes or freezes
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-09-29 09:24'
-updated_date: '2026-09-30 22:03'
+updated_date: '2026-09-30 22:04'
 labels: []
 milestone: m-6
 dependencies: []
@@ -49,3 +49,9 @@ Open: the hang path and the give-up exit are covered by the unit tests of the po
 
 Greptile review of PR #12, fixed by Codex (gpt-6.1-sol, yolo, session 01a0f446-cdcc-7ed0-bc86-ba8dc5559b29) and reviewed by Claude: (1) the give-up is saved to home-recovery-gave-up.json in userData just before app.exit(1) and logged as home-recovery-gave-up on the next start, then deleted; missing or damaged files never block startup (10 unit tests). (2) e2e now covers a freeze (window emits unresponsive, Home reloads in a new renderer after the 10 s grace), a cancelled freeze (responsive within 0.5 s, same renderer after the grace) and the give-up (four crashes, exit code 1, no quit flag, record saved, restored into the admin reliability log after relaunch). The freeze test exposed a real bug: reloading right after forcefullyCrashRenderer() left Home crashed on Windows, so the reload now waits for render-process-gone. Claude added a 5 s backstop that reloads anyway if that report never comes. Codex ran typecheck, lint, unit (274), build and the 4 recovery e2e tests itself.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Home now recovers by itself: a crashed renderer reloads at once, a frozen one is killed and reloaded after 10 s, and the 4th recovery within 5 minutes exits without the quit flag so the watchdog relaunches the app. Any open web page is closed first, and the give-up reason is saved and shown in admin after the restart. Verified with the pure policy tests, the record tests, and e2e tests for crash, freeze, a cancelled freeze and the give-up hand-off.
+<!-- SECTION:FINAL_SUMMARY:END -->
