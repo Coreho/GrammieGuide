@@ -65,7 +65,9 @@ describe('migration 002 (Buddy voice + roaming)', () => {
       roaming: true,
       quickMessages: []
     })
-    expect(result.config.tiles).toEqual(v1.tiles.map((tile) => ({ ...tile, size: 'normal' })))
+    expect(result.config.tiles).toEqual(
+      v1.tiles.map((tile) => ({ ...tile, size: 'normal', colorIndex: 0 }))
+    )
     expect(result.config.reliability).toEqual(v1.reliability)
   })
 
