@@ -38,16 +38,14 @@ test('launcher boots and shows the empty-tiles message', async () => {
   await expect(launcherPage.getByText(/No tiles configured yet/i)).toBeVisible({ timeout: 10_000 })
 })
 
-test('on-screen font scale control changes --font-scale live', async () => {
-  const before = await launcherPage.evaluate(() =>
+test('Home has no text-size buttons; text size comes from the caregiver setting', async () => {
+  await expect(
+    launcherPage.getByRole('button', { name: /Make text (bigger|smaller)/ })
+  ).toHaveCount(0)
+  const scale = await launcherPage.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--font-scale')
   )
-  await launcherPage.getByRole('button', { name: 'Make text bigger' }).click()
-  await launcherPage.waitForTimeout(300)
-  const after = await launcherPage.evaluate(() =>
-    getComputedStyle(document.documentElement).getPropertyValue('--font-scale')
-  )
-  expect(after.trim()).not.toBe(before.trim())
+  expect(scale.trim()).toBe('1')
 })
 
 test('admin window: PIN setup gates the panel, then tile CRUD persists', async () => {
