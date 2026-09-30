@@ -54,7 +54,9 @@ export function openUrl(
   if (!view) {
     view = new WebContentsView({
       webPreferences: {
-        preload: join(__dirname, '../preload/browserView.mjs'),
+        // Until TASK-31 this pointed at an ES module, which a sandboxed preload can't
+        // load, so taps inside web pages never reset the idle timer.
+        preload: join(__dirname, '../preload/browserView.cjs'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true

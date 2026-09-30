@@ -32,7 +32,7 @@ Shortcuts: `Ctrl+Shift+Q` always quits. `Ctrl+Shift+A` opens the admin window, a
 Three processes, each with its own electron-vite entry. The `@shared` alias resolves to `src/shared` in the main process, the preloads, the renderers and Vitest.
 
 - **Main** (`src/main`): `index.ts` is a deliberately thin bootstrap. It loads config, registers IPC, creates the launcher window, starts the embedded browser and inactivity watch, and starts the watchdog heartbeat. Put logic in `services/`, not in `index.ts`.
-- **Preloads** (`src/preload`): `launcher.ts` and `admin.ts` expose typed APIs through `contextBridge` (`window.launcher`, admin equivalent). `browserView.ts` runs inside embedded web pages and reports user activity for the inactivity timeout.
+- **Preloads** (`src/preload`): `launcher.ts` and `admin.ts` expose typed APIs through `contextBridge` (`window.launcher`, admin equivalent). `browserView.ts` runs inside embedded web pages and reports user activity for the inactivity timeout. Both windows and the web view run with `sandbox: true`, so all three preloads are built as CommonJS (`.cjs`, set in `electron.vite.config.ts`): a sandboxed preload runs as a plain script and fails on an ES module `import`. At runtime a preload may load only `electron`'s renderer APIs (plus `events`, `timers`, `url`), so shared code has to stay `import type`. Until TASK-31 the web view's preload was an ES module and silently never loaded; `tests/e2e/sandbox.spec.ts` guards this.
 - **Renderers** (`src/renderer/launcher`, `src/renderer/admin`): two separate React apps. The launcher is the kiosk Home screen, which includes tiles, weather, help and confusion overlays, and the Three.js Buddy cat in `buddy/`. The admin app is a tabbed caregiver panel behind `PinGate`, using a zustand store.
 
 ### IPC contract
@@ -91,7 +91,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 ### Embedded browser
 
-Web tiles open in a `WebContentsView` (not the deprecated `BrowserView`) overlaid below a 72px nav bar (`services/browser/embeddedBrowser.ts`). `urlPolicy.ts` holds the protocol allow-list. Navigation guards and popup blocking stop the user from escaping the kiosk, and blocked navigations emit `browser:blocked`. The browser closes after `confusion.inactivityTimeoutMinutes` of idle time.
+Web tiles open in a `WebContentsView` (not the deprecated `BrowserView`) overlaid below a 72px nav bar (`services/browser/embeddedBrowser.ts`). `urlPolicy.ts` holds the protocol allow-list. Navigation guards and popup blocking stop the user from escaping the kiosk, and blocked navigations emit `browser:blocked`. The browser closes after `confusion.inactivityTimeoutMinutes` of idle time; taps, keys, scrolling and touches inside the page count as activity through the `browserView` preload.
 
 ### UI conventions
 
