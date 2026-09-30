@@ -3,10 +3,13 @@ import { httpUrl } from '@shared/news/httpUrl'
 import { DEFAULT_NEWS_FEED, DEFAULT_NEWS_SITE } from '@shared/news/types'
 import { BUILTIN_TILE_KEYS, type Tile } from '@shared/configSchema'
 import type { OldLauncherImportPreview } from '@shared/ipcContract'
+import { nextTileColor, TILE_COLOR_INDICES } from '@shared/tileColors'
+import { THEMES } from '@shared/theme'
 import { useConfigStore } from '../state/useConfigStore'
 
 const ICONS = ['🌐', '🌤️', '📷', '🎵', '🎲', '📰', '📺', '💌', '👪', '🌷', '📚', '💻']
-const emptyDraft = (): Tile => ({
+type TileDraft = Omit<Tile, 'colorIndex'> & { colorIndex?: number }
+const emptyDraft = (): TileDraft => ({
   id: crypto.randomUUID(),
   type: 'web',
   label: '',
@@ -19,7 +22,7 @@ const emptyDraft = (): Tile => ({
 export function TilesTab() {
   const config = useConfigStore((s) => s.config)
   const save = useConfigStore((s) => s.save)
-  const [draft, setDraft] = useState<Tile>(emptyDraft)
+  const [draft, setDraft] = useState<TileDraft>(emptyDraft)
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -28,6 +31,9 @@ export function TilesTab() {
   const [importResult, setImportResult] = useState('')
 
   if (!config) return null
+
+  const colorIndex = draft.colorIndex ?? nextTileColor(config.tiles)
+  const palette = THEMES[config.display.theme]
 
   const flashSaved = (): void => {
     setSaved(true)
@@ -50,7 +56,7 @@ export function TilesTab() {
   }
 
   const saveTile = async (): Promise<void> => {
-    const tile = { ...draft, label: draft.label.trim() }
+    const tile: Tile = { ...draft, colorIndex, label: draft.label.trim() }
     if (!tile.label) {
       setError('Enter a label.')
       return
@@ -332,6 +338,34 @@ export function TilesTab() {
               </label>
             </>
           )}
+          <fieldset>
+            <legend>Tile color</legend>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {TILE_COLOR_INDICES.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`Palette color ${color + 1}`}
+                  aria-pressed={colorIndex === color}
+                  onClick={() => setDraft({ ...draft, colorIndex: color })}
+                  style={{
+                    minWidth: 80,
+                    minHeight: 48,
+                    borderRadius: 12,
+                    background:
+                      palette[`tile${color + 1}`] ??
+                      `linear-gradient(180deg, ${palette.s1}, ${palette.s2})`,
+                    color: palette[`tInk${color + 1}`] ?? palette.tInk ?? palette.ink,
+                    outline: colorIndex === color ? '3px solid #267457' : undefined
+                  }}
+                >
+                  Color {color + 1}
+                  {colorIndex === color ? ' ✓' : ''}
+                </button>
+              ))}
+            </div>
+            <p>Colors follow the Home theme. Some themes use the same shade for every tile.</p>
+          </fieldset>
           <label>
             Tile size{' '}
             <select

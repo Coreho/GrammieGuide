@@ -1,9 +1,11 @@
 ---
 id: TASK-12
 title: Give each tile a permanent color
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-09-29 05:53'
+updated_date: '2026-09-30 15:32'
 labels: []
 milestone: m-6
 dependencies: []
@@ -19,9 +21,17 @@ Tile colors come from the tile's position (`tileBackground(index)` and `tileInk(
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Each tile stores its own color, chosen by the caregiver from the clay palette in the admin Tiles tab
-- [ ] #2 Moving, adding, editing or removing tiles never changes any other tile's color
-- [ ] #3 A config migration gives existing tiles the colors they show today, so nothing changes on upgrade
-- [ ] #4 New tiles get a color not already used on Home when the palette allows
-- [ ] #5 Tests cover the migration and that reordering keeps colors
+- [x] #1 Each tile stores its own color, chosen by the caregiver from the clay palette in the admin Tiles tab
+- [x] #2 Moving, adding, editing or removing tiles never changes any other tile's color
+- [x] #3 A config migration gives existing tiles the colors they show today, so nothing changes on upgrade
+- [x] #4 New tiles get a color not already used on Home when the palette allows
+- [x] #5 Tests cover the migration and that reordering keeps colors
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented by Codex (session 01a0ec5e-1f19-71d3-8883-1166ecf03b10): tiles store a required colorIndex 0-3 (schema v5); migration 005 assigns the old index % 4 so upgrades look identical (existing values win); config:set keeps saved colors when a patch omits them and gives new tiles an unused color, else the least-used one; Home renders from colorIndex; admin Tiles tab has a four-swatch picker. Claude verified: npm test 21 files / 268 tests passed (new tileColors, configIpc and tileGrid tests cover the migration and reorder/edit/add/remove), typecheck and lint clean, npm run build ok, npm run test:e2e 22 passed. Open: AC 1 needs the admin color picker checked on screen. In the four clay themes every tile shares one surface color, so the swatches look alike; colors only differ in the two Tiles themes.
+
+Greptile review of PR #8 (color picker had no interaction test): added tests/e2e/tile-colors.spec.ts. It picks a swatch for a new tile in the admin form, saves, and checks the color main saved and the color Home paints; adds a second tile without choosing and checks it gets an unused color; reopens the first tile, sees its saved swatch pressed, changes it, and checks the other tile is untouched. Claude ran it on 2026-09-30: npm run build ok, npm run test:e2e 25 passed (22 existing + 3 new), lint clean. AC 1 checked on that evidence plus a screenshot of the picker in the default Tiles Bold theme (four distinct swatches, the chosen one outlined with a check mark). Not yet committed or pushed.
+<!-- SECTION:NOTES:END -->
