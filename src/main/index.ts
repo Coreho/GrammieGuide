@@ -22,16 +22,19 @@ import { logActivity } from './services/activityLog/activityLog'
 const INACTIVITY_CHECK_INTERVAL_MS = 30_000
 let inactivityTimer: NodeJS.Timeout | null = null
 
+/** `extraIdleMs` lets e2e tests run this real check without waiting minutes. */
+function closeBrowserIfIdle(extraIdleMs = 0): void {
+  if (!isBrowserOpen()) return
+  const timeoutMs = getConfig().confusion.inactivityTimeoutMinutes * 60_000
+  if (getIdleMs() + extraIdleMs >= timeoutMs) {
+    closeEmbeddedBrowser()
+    logActivity('browser-inactivity-timeout')
+    getLauncherWindow()?.webContents.send('browser:idle-timeout', {})
+  }
+}
+
 function startInactivityWatch(): void {
-  inactivityTimer = setInterval(() => {
-    if (!isBrowserOpen()) return
-    const timeoutMs = getConfig().confusion.inactivityTimeoutMinutes * 60_000
-    if (getIdleMs() >= timeoutMs) {
-      closeEmbeddedBrowser()
-      logActivity('browser-inactivity-timeout')
-      getLauncherWindow()?.webContents.send('browser:idle-timeout', {})
-    }
-  }, INACTIVITY_CHECK_INTERVAL_MS)
+  inactivityTimer = setInterval(() => closeBrowserIfIdle(), INACTIVITY_CHECK_INTERVAL_MS)
 }
 
 app.whenReady().then(() => {
@@ -44,10 +47,14 @@ app.whenReady().then(() => {
   startKioskServices()
 
   // Playwright can't send a real Ctrl+Shift+A keypress to a kiosk-locked
-  // window, so E2E tests need a way to open the admin window directly.
+  // window, so E2E tests need a way to open the admin window directly, and
+  // a way to run the idle check without waiting out the timeout.
   // Only active when a test explicitly opts in via env var.
   if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
-    ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = { createAdminWindow }
+    ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
+      createAdminWindow,
+      closeBrowserIfIdle
+    }
   }
 })
 

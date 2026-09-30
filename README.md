@@ -18,7 +18,7 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Home tiles
 
-In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather or News). Pick an icon, a color and normal or wide size. Edit, remove and move-up/down controls update Home immediately. Each tile keeps its own color when tiles are moved, added or removed, because the color is part of how she recognizes it; new tiles start with a color Home isn't using yet. Colors look different only in the two "Tiles" themes; the four clay themes share one tile color. Wide tiles span two columns. Labels wrap without truncation; extra rows scroll within the tile area while the footer stays 150px tall.
+In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather or News). Pick an icon, a color and normal or wide size. Edit, remove and move-up/down controls update Home immediately. Each tile keeps its own color when tiles are moved, added or removed, because the color is part of how she recognizes it; new tiles start with a color Home isn't using yet. Colors look different only in the two "Tiles" themes; the four clay themes share one tile color. Wide tiles span two columns. Labels wrap without truncation; extra rows scroll within the tile area while the footer stays 150px tall. Leaving a web page, by the Home button or the idle timeout, closes it completely, so a video or radio stream stops instead of playing on out of sight.
 
 Text size is set only by the caregiver, in **admin → Display**, and Home follows it immediately. Home no longer has its own text-size buttons (the A-/A+ in the bottom-left corner), so a stray tap can't change it.
 
