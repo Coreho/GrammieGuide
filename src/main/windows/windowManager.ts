@@ -5,6 +5,10 @@ import { stopHeartbeat, writeQuitFlag } from '../services/reliability/watchdog'
 import { closeEmbeddedBrowser } from '../services/browser/embeddedBrowser'
 import { logReliabilityEvent } from '../services/reliability/reliabilityLog'
 import {
+  restoreHomeRecoveryGiveUp,
+  writeHomeRecoveryGiveUp
+} from '../services/reliability/homeRecoveryRecord'
+import {
   decideHomeRecovery,
   INITIAL_HOME_RECOVERY_STATE,
   HOME_UNRESPONSIVE_GRACE_MS,
@@ -20,6 +24,8 @@ import {
  * `Ctrl+Shift+Q` always remains as an escape hatch regardless of mode.
  */
 const KIOSK_ENABLED = !is.dev
+/** How long a hang recovery waits for Chromium to report its forced kill before reloading anyway. */
+const FORCED_KILL_REPORT_TIMEOUT_MS = 5_000
 
 let launcherWindow: BrowserWindow | null = null
 let adminWindow: BrowserWindow | null = null
@@ -55,8 +61,11 @@ export function createLauncherWindow(): BrowserWindow {
 }
 
 function installHomeRecovery(win: BrowserWindow): void {
+  const userDataDir = app.getPath('userData')
+  restoreHomeRecoveryGiveUp(userDataDir)
   let state = INITIAL_HOME_RECOVERY_STATE
   let hangTimer: NodeJS.Timeout | null = null
+  let killReportTimer: NodeJS.Timeout | null = null
   let shuttingDown = false
   let expectingForcedCrash = false
 
@@ -64,9 +73,14 @@ function installHomeRecovery(win: BrowserWindow): void {
     if (hangTimer) clearTimeout(hangTimer)
     hangTimer = null
   }
+  const cancelKillReportTimer = (): void => {
+    if (killReportTimer) clearTimeout(killReportTimer)
+    killReportTimer = null
+  }
   const stopRecovery = (): void => {
     shuttingDown = true
     cancelHangTimer()
+    cancelKillReportTimer()
   }
   const giveUp = (detail: string): void => {
     stopRecovery()
@@ -74,7 +88,16 @@ function installHomeRecovery(win: BrowserWindow): void {
     // No quit flag or immediate relaunch: the stale heartbeat gives the watchdog its back-off.
     // Exit cannot be held up by an unresponsive renderer's unload handler.
     stopHeartbeat()
+    writeHomeRecoveryGiveUp(userDataDir, detail)
     app.exit(1)
+  }
+  const reloadHome = (problem: string): void => {
+    if (shuttingDown || win.isDestroyed() || win.webContents.isDestroyed()) return
+    try {
+      win.webContents.reload()
+    } catch (err) {
+      giveUp(`reload failed; ${problem}; ${String(err)}`)
+    }
   }
 
   const handleRecovery = (event: HomeRecoveryEvent, reason?: string): void => {
@@ -104,8 +127,17 @@ function installHomeRecovery(win: BrowserWindow): void {
           // Electron emits render-process-gone for this kill too; it is the same recovery attempt.
           expectingForcedCrash = true
           win.webContents.forcefullyCrashRenderer()
+          // On Windows, reloading before the kill is reported can leave Home crashed.
+          // But if the report never comes, reload anyway rather than leave her a dead screen.
+          killReportTimer = setTimeout(() => {
+            killReportTimer = null
+            if (!expectingForcedCrash) return
+            expectingForcedCrash = false
+            reloadHome('unresponsive after grace period; kill not reported')
+          }, FORCED_KILL_REPORT_TIMEOUT_MS)
+          return
         }
-        win.webContents.reload()
+        reloadHome(problem)
       } catch (err) {
         giveUp(`reload failed; ${problem}; ${String(err)}`)
       }
@@ -120,9 +152,10 @@ function installHomeRecovery(win: BrowserWindow): void {
 
   win.webContents.on('render-process-gone', (_event, details) => {
     if (expectingForcedCrash) {
-      // Our own kill, whatever reason Chromium reports: counting it again or leaving
-      // the flag set (which mutes hang detection) would both be wrong.
+      // Our own kill is the same attempt; reload only once the old process is gone.
       expectingForcedCrash = false
+      cancelKillReportTimer()
+      reloadHome('unresponsive after grace period')
       return
     }
     if (details.reason === 'clean-exit') return
