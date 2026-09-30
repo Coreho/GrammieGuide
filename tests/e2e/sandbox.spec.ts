@@ -81,13 +81,16 @@ test('a tap inside a web page reaches main, so it resets the idle timer', async 
   await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
   await page.getByRole('button', { name: 'Plain page', exact: true }).click()
   await expect(page.getByRole('button', { name: '🏠 Home' })).toBeVisible()
+  // A generous wait: on a busy machine the first page load has taken longer than 5s.
   await expect
-    .poll(() =>
-      app.evaluate(
-        ({ webContents }, url) =>
-          webContents.getAllWebContents().some((w) => w.getURL() === url && !w.isLoading()),
-        site
-      )
+    .poll(
+      () =>
+        app.evaluate(
+          ({ webContents }, url) =>
+            webContents.getAllWebContents().some((w) => w.getURL() === url && !w.isLoading()),
+          site
+        ),
+      { timeout: 15_000 }
     )
     .toBe(true)
   // Her tap on the tile was reported by Home itself; only taps inside the page count here.
