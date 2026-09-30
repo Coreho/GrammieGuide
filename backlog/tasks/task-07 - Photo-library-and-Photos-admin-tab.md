@@ -1,10 +1,10 @@
 ---
 id: TASK-07
-title: Photo library with captions and recorded narration
+title: Photo library with captions
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:19'
-updated_date: '2026-09-29 08:19'
+updated_date: '2026-09-29 09:25'
 labels: []
 milestone: m-8
 dependencies:
@@ -19,7 +19,7 @@ ordinal: 7000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Family photos are something for her to enjoy: large pictures with a caption the caregiver wrote, and sometimes a family member's recorded voice telling the story. There is no requirement for her to identify anyone or answer questions (the quiz-style photo games from spec 04 are on hold). Whether photos help her still needs to be tested with her. This library also supplies photo tile images and contact photos. Spec 04 still describes the import pipeline (downscaling, thumbnails, failed decodes).
+Family photos are something for her to enjoy: large pictures with a caption the caregiver wrote. There is no requirement for her to identify anyone or answer questions (the quiz-style photo games from spec 04 are on hold). Whether photos help her still needs to be tested with her. This library also supplies photo tile images and contact photos. Spec 04 still describes the import pipeline (downscaling, thumbnails, failed decodes). Recording narration was split out into TASK-36 after Codex's review.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -27,9 +27,8 @@ Family photos are something for her to enjoy: large pictures with a caption the 
 - [ ] #1 The admin Photos tab imports jpg, png and webp (and heic where Windows can decode it); each photo is downscaled to a 1600px long edge, saved as JPEG, and given a 320px thumbnail
 - [ ] #2 Files that fail to decode are reported as failed without stopping the batch, and large imports show a progress count
 - [ ] #3 Each photo has an optional caption, a "show to her" switch, and a caregiver-set order
-- [ ] #4 The caregiver can record narration for a photo with the microphone (record, play back, re-record, delete) or attach an audio file
-- [ ] #5 The launcher can list only photos marked to show; listing all, editing and removing are admin-only
-- [ ] #6 Tests cover import, narration storage and the admin-only boundaries
+- [ ] #4 The launcher can list only photos marked to show; listing all, editing and removing are admin-only
+- [ ] #5 Tests cover import and the admin-only boundaries
 <!-- AC:END -->
 
 ## Comments

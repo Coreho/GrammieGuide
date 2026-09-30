@@ -4,7 +4,7 @@ title: Media library store for imported files
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:19'
-updated_date: '2026-09-29 05:51'
+updated_date: '2026-09-29 09:25'
 labels: []
 milestone: m-8
 dependencies: []
@@ -28,4 +28,5 @@ Music and photos need a caregiver-managed library: files copied in under generat
 - [ ] #4 A missing or corrupt index starts empty (backing up the corrupt one) instead of crashing the app
 - [ ] #5 Admin library channels call requireAdminUnlocked() first
 - [ ] #6 Unit tests cover import naming, removal and index recovery
+- [ ] #7 An interrupted import (the app closing or the disk filling up) leaves no half-written entries, and the library stays usable
 <!-- AC:END -->

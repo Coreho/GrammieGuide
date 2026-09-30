@@ -60,7 +60,14 @@ describe('tile and quick-message migrations', () => {
   it('preserves wide tiles and saved commands on upgrade and repeated loads', () => {
     const raw = defaultConfig()
     raw.tiles = [
-      { id: 'w', label: 'Weather', type: 'builtin', builtinKey: 'weather', size: 'wide' }
+      {
+        id: 'w',
+        label: 'Weather',
+        type: 'builtin',
+        builtinKey: 'weather',
+        size: 'wide',
+        colorIndex: 0
+      }
     ]
     raw.buddy.quickMessages = [{ id: 'q', text: 'Hello friend', clip: 'wave', speak: false }]
     const result = runMigrations({ ...raw, schemaVersion: 2 })

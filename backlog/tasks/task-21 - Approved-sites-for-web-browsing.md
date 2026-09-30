@@ -4,6 +4,7 @@ title: Approved sites for web browsing
 status: To Do
 assignee: []
 created_date: '2026-09-29 05:54'
+updated_date: '2026-09-29 09:25'
 labels: []
 milestone: m-10
 dependencies:
@@ -28,4 +29,6 @@ Protocol checks and popup blocking stop her escaping the kiosk, but they do not 
 - [ ] #5 Blocked attempts are listed in admin with their domain and an "Approve this site" button
 - [ ] #6 Only the pages she goes to are restricted; images and scripts a page loads from other domains still work
 - [ ] #7 Tests cover subdomain matching and blocking, and an e2e test follows an unapproved link to the recovery screen
+- [ ] #8 The News exception covers only the story page main served; links and redirects from that page follow the normal approved-sites rules
+- [ ] #9 Blocked-page logging never records addresses from private News navigation
 <!-- AC:END -->

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
+import { TILE_COLOR_COUNT } from './tileColors'
 import { quickMessageSchema } from './buddy/commands'
 
 /**
@@ -7,7 +8,7 @@ import { quickMessageSchema } from './buddy/commands'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 4
+export const CURRENT_SCHEMA_VERSION = 5
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
@@ -17,6 +18,12 @@ export const tileSchema = z.object({
   type: z.enum(['web', 'app', 'builtin']),
   label: z.string(),
   size: z.enum(['normal', 'wide']).default('normal'),
+  // Store the palette slot so theme changes keep the caregiver's selection.
+  colorIndex: z
+    .number()
+    .int()
+    .min(0)
+    .max(TILE_COLOR_COUNT - 1),
   icon: z.string().optional(),
   url: z.string().optional(),
   /** Optional so existing tiles keep their version-4 shape; News validates it before fetching. */

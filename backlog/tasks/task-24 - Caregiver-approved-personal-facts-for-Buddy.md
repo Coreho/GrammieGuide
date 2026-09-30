@@ -4,11 +4,12 @@ title: Caregiver-approved personal facts for Buddy
 status: To Do
 assignee: []
 created_date: '2026-09-29 05:55'
+updated_date: '2026-09-29 09:25'
 labels: []
 milestone: m-9
 dependencies:
   - TASK-11
-priority: medium
+priority: low
 ordinal: 23000
 ---
 
@@ -25,4 +26,14 @@ Buddy knows nothing about her, so he can neither use her family's names nor answ
 - [ ] #3 Plans and appointments are mentioned only up to their date, never after
 - [ ] #4 Facts go to the API only as conversation context and are never written to the activity log
 - [ ] #5 The system prompt stays frozen; tests cover how facts are added to each request
+- [ ] #6 Plans and appointments use her local time zone, and a cancelled or deleted fact is no longer given to Buddy from the next reply on, even mid-conversation
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-09-29 09:25
+---
+Deferred to Low after Codex review (2026-09-29): build after contact, recovery and offline activities.
+---
+<!-- COMMENTS:END -->

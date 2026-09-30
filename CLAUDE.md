@@ -50,7 +50,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 - **Schema:** `src/shared/configSchema.ts` defines a zod schema, versioned by `CURRENT_SCHEMA_VERSION`. It is persisted through electron-store in `src/main/config/store.ts`.
 - **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `setConfig` merges only one level deep, so `config:set` runs patches through `mergeAdminPatch()`, which always carries the current secrets forward. Secrets change only through `admin:setPin` / `admin:setApiKey`.
 - **Old launcher import:** `config/importOldLauncher.ts` maps grandmas-launcher's `%APPDATA%\grandmas-launcher\config.json` (read-only) to weather, display and confusion settings. Tiles are deliberately not imported (Home's tiles are set up fresh), behind `admin:previewOldLauncherImport` / `admin:applyOldLauncherImport`. It never carries secrets.
-- **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` (named `NNN-description.ts`) and list it in `migrations/index.ts`. The schema is at version 4: 003 adds tile sizes and 004 adds Buddy quick messages. Existing values win over defaults. `runner.ts` applies the migrations in order and validates the final result against the current schema. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
+- **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` (named `NNN-description.ts`) and list it in `migrations/index.ts`. The schema is at version 5: 003 adds tile sizes, 004 adds Buddy quick messages, and 005 gives each tile a saved `colorIndex`, seeded from its old position so upgrading doesn't repaint Home. Existing values win over defaults. `runner.ts` applies the migrations in order and validates the final result against the current schema. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
 
 ### Reliability (Windows-specific)
 
@@ -96,6 +96,7 @@ Web tiles open in a `WebContentsView` (not the deprecated `BrowserView`) overlai
 ### UI conventions
 
 - **Stacking order:** every z-index comes from `src/shared/zLayers.ts`. Never hardcode z-index values.
+- **Tile colors:** a tile's color is its saved `colorIndex` (a palette slot 0-3, `shared/tileColors.ts`), never its position, so reordering can't repaint Home. `config:set` keeps a tile's saved color when a patch omits it and gives new tiles the least-used slot.
 - **Themes and fonts:** these live in `src/shared/theme.ts`. Font size is a discrete step index (`FONT_STEPS`, used by the A-/A+ control), not a raw scale.
 - **Visual style:** the "clay" look (`renderer/launcher/src/clay.ts`) is ported from the design files in `UI Screenshots/clay-launcher-design/`, especially `GrammieGuide Home.dc.html`. Treat those files as the visual reference.
 - **Confusion detection:** the rapid-tap detector is pure logic in `src/shared/confusionDetector.ts`, which is unit tested.
