@@ -22,6 +22,8 @@ In **admin → Tiles**, add websites, installed apps (full Windows paths), or a 
 
 Text size is set only by the caregiver, in **admin → Display**, and Home follows it immediately. Home no longer has its own text-size buttons (the A-/A+ in the bottom-left corner), so a stray tap can't change it.
 
+A web page closes by itself after the caregiver's idle time (admin → Confusion). Each tap, key press or scroll inside the page restarts that timer. Reading without touching anything doesn't, so a page she only reads still closes once the time is up. Before 2026-09-30 input inside the page didn't count at all, because the page's small activity-reporting script never loaded. Events a page fakes with its own scripts are ignored. Home, admin and web pages all run in Chromium's sandbox, which limits what a misbehaving page could do to the computer.
+
 Built-in tiles each have their own view. **News** is wide by default. Tapping it shows today's stories as long cards (headline, a two-line summary, how long ago, and a small picture when the feed has one) so she can see what's there before choosing. Tapping a story opens it in the kiosk browser. The caregiver sets the feed address (NPR's top stories by default) and, optionally, the news website. If the feed can't be read, she sees "The news isn't ready right now." and a button to open that website instead, never an error. The top headline is deliberately not shown on the tile itself, so Home never displays upsetting news she didn't ask for. Music, games and photos built-ins remain future work.
 
 Config migrations 003 (tile sizes), 004 (saved Buddy messages) and 005 (tile colors, seeded so upgrading doesn't repaint Home) preserve existing settings.
