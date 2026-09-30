@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-09-29 09:24'
-updated_date: '2026-09-30 19:03'
+updated_date: '2026-09-30 21:50'
 labels: []
 milestone: m-10
 dependencies: []
@@ -40,4 +40,6 @@ Implementation delegated to Codex (new session, workspace-write in this worktree
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented by Codex (session 01a0f3a3-8029-7953-b180-0470cc35405e): closeEmbeddedBrowser() now removes the view and then closes its webContents with waitForBeforeUnload: false (so a site's beforeunload can't keep it alive), guarding against already-destroyed objects; it also resets privateNavigation, and the launcher window's 'closed' event runs it. New tests/e2e/browser-close.spec.ts: a local page plays a Web Audio tone, the test waits until Electron reports it audible, taps Home, and checks the page is gone, nothing is audible, and the webContents ids match the baseline; six open/close cycles. Codex's sandbox could not start processes, so Claude verified on 2026-09-30: lint clean, npm test passed, npm run build ok, the new spec passes, and the full e2e suite passes (23). With the fix removed, the same spec fails with the page still open and audible after Home (fixturePages 1, audiblePages 1), so the test reproduces the bug. Callers checked: the Home button (browser:goHome) and the idle timeout in index.ts both go through closeEmbeddedBrowser(), which is now the only place the view is removed. AC 1 left open: the Home path is tested, the idle timeout uses the same function but has no test, and the recovery screen does not exist yet (TASK-16). Not committed yet.
+
+Greptile review of PR #10 ("idle exit remains untested"): the idle check in index.ts is now closeBrowserIfIdle(extraIdleMs), exposed on the e2e-only __e2e__ hook, and a new e2e test opens the tone page, confirms the check leaves it open while not idle, then runs it as if a day had passed and checks the page is gone and silent. Both browser-close tests pass. AC 1 still waits on the recovery screen (TASK-16), which does not exist yet.
 <!-- SECTION:NOTES:END -->

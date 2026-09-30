@@ -144,3 +144,34 @@ test('Home stops audible playback, closes the page, and repeated opens leave no 
     await expect.poll(browserState).toEqual(baseline)
   }
 })
+
+type E2eHooks = { __e2e__: { closeBrowserIfIdle: (extraIdleMs?: number) => void } }
+
+test('the idle timeout also closes the page and stops its sound, not just hides it', async () => {
+  const baseline = await browserState()
+  await page.getByRole('button', { name: 'Quiet tone', exact: true }).click()
+  await expect(page.getByRole('button', { name: '🏠 Home', exact: true })).toBeVisible()
+  await expect
+    .poll(() =>
+      app.evaluate(({ webContents }, url) => {
+        const contents = webContents.getAllWebContents().find((w) => w.getURL() === url)
+        return contents ? !contents.isLoading() : false
+      }, fixtureUrl)
+    )
+    .toBe(true)
+  await app.evaluate(async ({ webContents }, url) => {
+    const contents = webContents.getAllWebContents().find((w) => w.getURL() === url)
+    await contents!.executeJavaScript('window.startAudio()', true)
+  }, fixtureUrl)
+  await expect.poll(async () => (await browserState()).audiblePages).toBe(1)
+
+  // The real idle check: not idle long enough yet, so the page stays...
+  await app.evaluate(() => (globalThis as unknown as E2eHooks).__e2e__.closeBrowserIfIdle())
+  expect((await browserState()).fixturePages).toBe(1)
+  // ...then as if a whole day had passed without a tap.
+  await app.evaluate(() =>
+    (globalThis as unknown as E2eHooks).__e2e__.closeBrowserIfIdle(24 * 60 * 60_000)
+  )
+  await expect(page.getByRole('button', { name: 'Quiet tone', exact: true })).toBeVisible()
+  await expect.poll(browserState).toEqual(baseline)
+})
