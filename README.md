@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-09-28_
+_Last updated: 2026-09-30_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -20,6 +20,8 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather or News). Pick an icon and normal or wide size. Edit, remove and move-up/down controls update Home immediately. Wide tiles span two columns. Labels wrap without truncation; extra rows scroll within the tile area while the footer stays 150px tall.
 
+Text size is set only by the caregiver, in **admin → Display**, and Home follows it immediately. Home no longer has its own text-size buttons (the A-/A+ in the bottom-left corner), so a stray tap can't change it.
+
 Built-in tiles each have their own view. **News** is wide by default. Tapping it shows today's stories as long cards (headline, a two-line summary, how long ago, and a small picture when the feed has one) so she can see what's there before choosing. Tapping a story opens it in the kiosk browser. The caregiver sets the feed address (NPR's top stories by default) and, optionally, the news website. If the feed can't be read, she sees "The news isn't ready right now." and a button to open that website instead, never an error. The top headline is deliberately not shown on the tile itself, so Home never displays upsetting news she didn't ask for. Music, games and photos built-ins remain future work.
 
 Config migrations 003 (tile sizes) and 004 (saved Buddy messages) preserve existing settings.
@@ -28,7 +30,7 @@ Config migrations 003 (tile sizes) and 004 (saved Buddy messages) preserve exist
 
 Buddy is the cat in sunglasses at the bottom right of Home.
 
-- **On his own** he idles, fidgets now and then, and strolls across the full footer (never over the tiles). The text-size controls stay usable when he passes behind them. From 9 PM to 6 AM he stays put and keeps quiet. With chattiness turned on he occasionally says something in a speech bubble (never out loud).
+- **On his own** he idles, fidgets now and then, and strolls across the full footer (never over the tiles). From 9 PM to 6 AM he stays put and keeps quiet. With chattiness turned on he occasionally says something in a speech bubble (never out loud).
 - **Tap him** for a short friendly bubble and a matching happy gesture, without repeating the previous tap's line or animation. He reads it aloud when the caregiver's read-aloud setting is on. Taps work at night, and repeated taps restart the reaction without stacking speech. His bubble also offers a big **💬 Let's chat** button for eight seconds after each tap, even if the gesture ends sooner; it then fades away. Opening chat, the caregiver menu or leaving Home dismisses it. During chat, tapping him stays a pet.
 - **Caregiver menu:** press **Ctrl+Shift+B** on Home for **Let's chat**, **Dance**, **Wave**, **Say something nice**, or **Take a walk**. The small translucent card opens above where Buddy is standing and stays on screen near the edges. Press the shortcut again, Esc, or click outside to close it. Arrow keys and Tab move between commands; Enter chooses one. It stays closed in the browser and over chat, weather or confusion overlays. **Take a walk** sends him at least a third of the floor away, even at night or with roaming off, then he rests.
 - **Chat:** tap Buddy, then choose **💬 Let's chat** in his bubble. The caregiver menu also offers **Let's chat**. He joins the panel, waves, listens while she talks or types, scratches his head while thinking, and gestures while answering. The **Talk** button lets her speak instead of type; it only appears when a microphone is found. Closing the chat gets a goodbye.
