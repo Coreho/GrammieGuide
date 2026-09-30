@@ -141,6 +141,7 @@ describe('news service', () => {
     builtinKey: 'news',
     label: 'News',
     size: 'wide',
+    colorIndex: 0,
     feedUrl: 'https://news.test/feed',
     url: 'https://news.test'
   }

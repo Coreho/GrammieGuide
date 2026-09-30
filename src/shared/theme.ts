@@ -3,7 +3,7 @@
  * Six palettes: four soft "clay" themes share one tile surface color per
  * theme (differentiated only by the icon-well accent), while the two
  * "Tiles" themes give each tile its own distinct hue - tile1..tile4 cycle
- * by index so this still works with more than 4 real tiles.
+ * by saved palette slot so rearranging Home preserves each tile's color.
  */
 
 export const THEME_NAMES = ['tilesBold', 'tiles', 'mint', 'butter', 'sky', 'evening'] as const

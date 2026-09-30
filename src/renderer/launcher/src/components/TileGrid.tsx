@@ -43,11 +43,10 @@ export function TileGrid({
         padding: '4px 4px 12px'
       }}
     >
-      {tiles.map((tile, i) => (
+      {tiles.map((tile) => (
         <Tile
           key={tile.id}
           tile={tile}
-          index={i}
           compact={compact}
           dense={dense && tile.size !== 'wide'}
           onActivate={onActivate}
