@@ -67,7 +67,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 - **Main process only:** `buddy:chat` → `services/ai/buddyChatService.ts`. The API key, the client (`anthropicClient.ts`) and the frozen system prompt (`buddyPrompt.ts`) all live in main.
 - **History:** the renderer keeps the on-screen history and sends it every turn; the service sanitizes it (`toApiMessages`).
 - **Replies:** every result carries a `reply` that is safe to show her, including on failure. Technical detail goes to the activity log, and chat content is never logged. The activity log (`services/activityLog/activityLog.ts`) keeps only the last 1000 events in memory and is not saved to disk.
-- **Model:** the default is Haiku 4.5, which rejects `effort`; other models get `effort: 'low'`.
+- **Model:** the default is Sonnet 5.5; live checks (TASK-11) found Haiku 4.5 still agreeing with confused statements despite the prompt. Existing configs keep their saved model, and the caregiver can still pick Haiku. Haiku 4.5 rejects `effort`; other models get `effort: 'low'`.
 
 ### Buddy on Home
 

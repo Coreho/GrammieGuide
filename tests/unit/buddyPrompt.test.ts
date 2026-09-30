@@ -12,6 +12,17 @@ describe('BUDDY_SYSTEM_PROMPT', () => {
     expect(BUDDY_SYSTEM_PROMPT).not.toContain('go along with the conversation')
   })
 
+  it('neither agrees nor disagrees that things she mentions are happening today', () => {
+    // Without this rule, live checks on Haiku 4.5 still answered "My mother is
+    // coming to pick me up" with "I'm sure it will be nice to see her".
+    expect(BUDDY_SYSTEM_PROMPT).toContain(
+      'neither agree nor disagree that it is happening. Answer the feeling, and ask about the person, the place or the memory instead.'
+    )
+    expect(BUDDY_SYSTEM_PROMPT).toContain(
+      'Good: "Your mother. What is she like?" Not good: "How lovely that she is coming!" or "I hope work goes well."'
+    )
+  })
+
   it('forbids invented facts about people and plans', () => {
     expect(BUDDY_SYSTEM_PROMPT).toContain(
       'Never invent facts about her family or other people, or about plans, visits or appointments.'

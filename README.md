@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-09-28_
+_Last updated: 2026-09-30_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -32,6 +32,7 @@ Buddy is the cat in sunglasses at the bottom right of Home.
 - **Tap him** for a short friendly bubble and a matching happy gesture, without repeating the previous tap's line or animation. He reads it aloud when the caregiver's read-aloud setting is on. Taps work at night, and repeated taps restart the reaction without stacking speech. His bubble also offers a big **💬 Let's chat** button for eight seconds after each tap, even if the gesture ends sooner; it then fades away. Opening chat, the caregiver menu or leaving Home dismisses it. During chat, tapping him stays a pet.
 - **Caregiver menu:** press **Ctrl+Shift+B** on Home for **Let's chat**, **Dance**, **Wave**, **Say something nice**, or **Take a walk**. The small translucent card opens above where Buddy is standing and stays on screen near the edges. Press the shortcut again, Esc, or click outside to close it. Arrow keys and Tab move between commands; Enter chooses one. It stays closed in the browser and over chat, weather or confusion overlays. **Take a walk** sends him at least a third of the floor away, even at night or with roaming off, then he rests.
 - **Chat:** tap Buddy, then choose **💬 Let's chat** in his bubble. The caregiver menu also offers **Let's chat**. He joins the panel, waves, listens while she talks or types, scratches his head while thinking, and gestures while answering. The **Talk** button lets her speak instead of type; it only appears when a microphone is found. Closing the chat gets a goodbye.
+- **What he says:** he never argues with something confused, never agrees that it is true, and never makes up facts about her family, plans or visits. When she says her mother is coming or she has to get to work, he asks about the person or the job instead ("Your mother. What is she like?"). Asked something he can't know, he suggests she ask her family. He runs on Claude Sonnet 5.5 by default, because live checks found the cheaper Haiku 4.5 still going along with confused statements.
 - **Caregiver settings** (admin, Buddy tab): API key and model, chattiness, whether he strolls, whether replies are read aloud, online vs Windows voice, and which voice (with a "Try this voice" button).
 - **Command Buddy** (admin, Buddy tab): play any of his 24 animation clips, ask him to take a walk, send a short message with a gesture and optional read-aloud, and save/remove quick messages. Commands work on Home, including at night, and are ignored while she is chatting. Each gesture plays once, with a 20-second recovery timeout. Read-aloud uses the existing online voice with Windows fallback. Message content is never written to the activity log.
 
