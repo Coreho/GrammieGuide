@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { createRequire } from 'module'
+import { createHash } from 'crypto'
 import { runPowerShell, type ExecFileFn } from './shellExec'
 import { logReliabilityEvent } from './reliabilityLog'
 
@@ -96,11 +97,19 @@ async function enforceViaPowerShell(
     return
   }
 
+  // Compute a hash of the C# source to bind the cached DLL to the expected code.
+  // Including the hash in the filename prevents an attacker from planting a
+  // malicious assembly that this fallback would blindly load. Any change to the
+  // source (including by an attacker replacing VolumeHelper.cs) invalidates old
+  // cached DLLs, forcing a fresh compile from the current source.
+  const sourceHash = createHash('sha256').update(csSource, 'utf8').digest('hex').slice(0, 16)
+  const dllName = `GrammieGuideVolumeHelper.${sourceHash}.dll`
+
   const script = `
 $src = @'
 ${csSource}
 '@
-$dll = Join-Path $env:TEMP 'GrammieGuideVolumeHelper.dll'
+$dll = Join-Path $env:TEMP '${dllName}'
 if (-not (Test-Path $dll)) {
   Add-Type -TypeDefinition $src -OutputAssembly $dll -Language CSharp
 } else {
