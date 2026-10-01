@@ -93,6 +93,10 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 Web tiles open in a `WebContentsView` (not the deprecated `BrowserView`) overlaid below a 72px nav bar (`services/browser/embeddedBrowser.ts`). `urlPolicy.ts` holds the protocol allow-list. Navigation guards and popup blocking stop the user from escaping the kiosk, and blocked navigations emit `browser:blocked`. The browser closes after `confusion.inactivityTimeoutMinutes` of idle time; taps, keys, scrolling and touches inside the page count as activity through the `browserView` preload.
 
+### Audio rules
+
+`src/shared/audio/audioPolicy.ts` is the one rule for overlapping sound (music, photo narration, Buddy's voice, Buddy listening, web page sound). It is pure and not wired in yet: the music player (TASK-37), narration (TASK-36) and Buddy actions (TASK-23) should report to it with `audioStep` and do what `decideAudio` says, not decide for themselves. TASK-37's acceptance criteria #9-#14 track the wiring: music and Buddy's voice, listening and chat through the rule, page `audio-state-changed` as `webPage` holds, `muteWebPage` applied with `setAudioMuted`, and the nav-bar music Stop with its e2e test. Listening, narration, an open chat and an audible web page pause music; Buddy's voice outside chat lowers it. Music comes back `RESUME_DELAY_MS` after the hold ends, so turns don't make it stop and start. One voice plays at a time (newest wins), no voice plays while he listens, and page sound is muted while a voice plays or he listens. Stop works in every state, and while music is on a Stop must show on every screen, including the browser's nav bar.
+
 ### UI conventions
 
 - **Stacking order:** every z-index comes from `src/shared/zLayers.ts`. Never hardcode z-index values.
