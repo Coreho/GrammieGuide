@@ -4,14 +4,16 @@ title: Harden the embedded browser session
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:18'
-updated_date: '2026-09-29 05:51'
-labels: []
+updated_date: '2026-10-01 12:18'
+labels:
+  - autopilot
+  - needs-human
 milestone: m-10
 dependencies: []
 documentation:
   - docs/specs/01-scam-shield.md
 priority: medium
-ordinal: 1000
+ordinal: 20
 ---
 
 ## Description
