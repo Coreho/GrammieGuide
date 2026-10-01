@@ -347,22 +347,26 @@ describe('audio policy: her own choices win', () => {
   })
 })
 
-describe('audio policy: Stop works from any screen (AC #4)', () => {
+// The rule half of AC #4. The rule knows sounds, not screens, so these are
+// audio states: Stop must work in every one of them, and showStopMusic must
+// not depend on anything a screen could hide. Drawing that Stop in the
+// browser's nav bar (and testing it end to end) is TASK-37's acceptance criteria.
+describe('audio policy: Stop works in every audio state (AC #4, the rule)', () => {
   type Scenario = { name: string; setup: (h: Harness) => void; ends: string[] }
   const scenarios: Scenario[] = [
-    { name: 'Home, music playing', setup: () => undefined, ends: [] },
+    { name: 'music playing', setup: () => undefined, ends: [] },
     {
-      name: 'Home, Buddy talking over it',
+      name: 'Buddy talking over it',
       setup: (h) => h.send(start('buddyVoice', 'line-1')),
       ends: ['line-1']
     },
     {
-      name: 'a web page playing a video',
+      name: 'a web page making sound',
       setup: (h) => h.send(start('webPage', 'page')),
       ends: ['page']
     },
     {
-      name: 'a web page playing a video while Buddy talks',
+      name: 'a web page making sound while Buddy talks',
       setup: (h) => {
         h.send(start('webPage', 'page'))
         h.send(start('buddyVoice', 'line-1'))

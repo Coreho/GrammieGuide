@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-09-29 09:24'
-updated_date: '2026-10-01 18:44'
+updated_date: '2026-10-01 18:52'
 labels: []
 milestone: m-8
 dependencies: []
@@ -49,10 +49,14 @@ API (src/shared/audio/audioPolicy.ts): audioStep(state, event, now) -> { state, 
 AC #4 is met at the rule level: Stop is accepted in every state (playing, lowered, held by a page, narration, listening or chat, paused) and never comes back by itself, and showStopMusic does not depend on the screen. The visible nav-bar Stop is TASK-37's to draw from showStopMusic.
 
 Validation: tests/unit/audioPolicy.test.ts (36 tests) written first and seen failing (29 of 34 at that point) against a stub; now npm test 304 passed, npm run lint clean, npm run typecheck clean, npm run build ok. E2E not run (not possible unattended here, and there is nothing wired to drive yet).
+
+Review follow-up: AC #4 is met in the rule (Stop is accepted in every audio state and showStopMusic depends on no screen; tests/unit/audioPolicy.test.ts, now labelled by audio state rather than screen). Its visible half, a music Stop in the browser nav bar while showStopMusic is true with an e2e test, is now TASK-37 AC #13, alongside the Stop on Home's chip (AC #3). The WebContents half of AC #3 is TASK-37 AC #11 (audio-state-changed feeds webPage start/end) and AC #12 (muteWebPage applied with setAudioMuted), with unit tests in AC #14; music and Buddy's voice, listening and chat going through audioPolicy are AC #9 and #10. CLAUDE.md's Audio rules section points there.
+
+Review follow-up validation: npm run lint clean, npm run typecheck clean, npm test 304 passed (the 8 Stop-in-every-state tests among them), npm run build ok. E2E not run (not possible unattended here; the nav-bar Stop it would drive is TASK-37 AC #13).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Added the shared audio rule as pure logic in src/shared/audio/audioPolicy.ts: music gives way to listening, narration, a chat and web page sound (paused) and to Buddy's voice (lowered), comes back 2s after the hold ends, voices take turns and stay silent while he listens, page sound is muted under any voice or while he listens, and her Pause and Stop always win, with Stop shown on every screen. Verified with 36 new unit tests covering each criterion, including a web page's sound starting, stopping and closing, plus the full unit suite, lint, typecheck and build. Wiring into the music player, narration and the browser nav bar is left to TASK-37, TASK-36 and TASK-23, as documented in CLAUDE.md.
+Added the shared audio rule as pure logic in src/shared/audio/audioPolicy.ts: music gives way to listening, narration, a chat and web page sound (paused) and to Buddy's voice (lowered), comes back 2s after the hold ends, voices take turns and stay silent while he listens, page sound is muted under any voice or while he listens, and her Pause and Stop always win, with Stop offered in every audio state. Verified with 36 unit tests covering each criterion, including a web page's sound starting, stopping and closing, plus the full unit suite, lint, typecheck and build. Nothing plays music yet, so the wiring is tracked as acceptance criteria on TASK-37: #9-#10 route music and Buddy through the rule, #11-#12 feed page audio-state-changed in and apply muteWebPage with setAudioMuted, #13 draws the nav-bar music Stop with an e2e test, and #14 unit-tests the page wiring.
 <!-- SECTION:FINAL_SUMMARY:END -->
