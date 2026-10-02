@@ -86,9 +86,13 @@ export class LibraryStore {
     try {
       raw = await this.io.readFile(this.paths.index, 'utf8')
     } catch (error) {
-      this.entries = []
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') this.recoveryError = error
-      return this.entries
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        this.entries = []
+        return this.entries
+      }
+      // EBUSY or EPERM is often brief on Windows (antivirus, backup). Fail just this request
+      // and read again next time, instead of showing an empty library until the app restarts.
+      throw new Error('Library index is unavailable right now')
     }
     try {
       this.entries = parseIndex(raw)

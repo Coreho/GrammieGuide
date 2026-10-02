@@ -71,6 +71,34 @@ describe('admin library IPC', () => {
     expect(mocks.unlock).toHaveBeenCalledTimes(3)
   })
 
+  it('keeps filesystem paths out of list, update and remove errors', async () => {
+    const fsError = (): Error =>
+      Object.assign(
+        new Error("EPERM: operation not permitted, rename 'C:\\Users\\her\\index.json'"),
+        {
+          code: 'EPERM'
+        }
+      )
+    mocks.list.mockRejectedValue(fsError())
+    mocks.update.mockRejectedValue(fsError())
+    mocks.remove.mockRejectedValue(fsError())
+    for (const [channel, request] of [
+      ['library:list', { library: 'photos' }],
+      ['library:update', { library: 'photos', id: 'id', patch: {} }],
+      ['library:remove', { library: 'photos', id: 'id' }]
+    ] as const) {
+      const error = await invoke(channel, request).catch((e: Error) => e)
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).toMatch(/^Could not /)
+      expect((error as Error).message).not.toContain('Users')
+    }
+    // The store's own messages carry no paths and stay useful to the caregiver.
+    mocks.update.mockRejectedValue(new Error('Library entry not found'))
+    await expect(
+      invoke('library:update', { library: 'photos', id: 'gone', patch: {} })
+    ).rejects.toThrow('Library entry not found')
+  })
+
   it('imports only native-picker selections and returns entries without source paths', async () => {
     mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/photo.jpg'] })
     mocks.import.mockResolvedValue([{ id: 'generated', fileName: 'generated.jpg', metadata: {} }])

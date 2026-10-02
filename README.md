@@ -31,7 +31,7 @@ Built-in tiles each have their own view. **News** is wide by default. Tapping it
 
 Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors, seeded so upgrading doesn't repaint Home), and 006 (Buddy tap and motion choices) preserve existing settings.
 
-Local media infrastructure is ready: `grammie-media://` streams images and seekable audio from `userData/media/music/` and `userData/media/photos/` to Home and admin, with strict filename validation and no renderer filesystem API. Importing media remains future work.
+Local media infrastructure is ready: `grammie-media://` streams images and seekable audio from `userData/media/music/` and `userData/media/photos/` to Home and admin, with strict filename validation and no renderer filesystem API. The caregiver-side library store is in place too. Each library keeps its own `index.json` beside its files, separate from config. Importing copies files in under generated names, and the original path is never kept. A damaged index is backed up and the library starts empty instead of stopping the kiosk. Admin can list, import (through the Windows file picker), caption and remove entries, but there is no admin screen for it yet, and nothing on Home uses it yet (TASK-07, TASK-09).
 
 ## Buddy
 

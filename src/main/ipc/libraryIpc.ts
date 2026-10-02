@@ -4,6 +4,19 @@ import { isMediaLibrary, type MediaLibrary } from '@shared/media/mediaPath'
 import { LibraryStore } from '../services/media/libraryStore'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 
+/**
+ * The store's own errors are plain messages, but filesystem errors (EPERM, ENOSPC...) name
+ * userData paths. Like import's, those are replaced before they cross IPC.
+ */
+async function withoutPaths<T>(work: Promise<T>, message: string): Promise<T> {
+  try {
+    return await work
+  } catch (error) {
+    if (typeof (error as NodeJS.ErrnoException | null)?.code === 'string') throw new Error(message)
+    throw error
+  }
+}
+
 export function registerLibraryIpc(): void {
   const stores = new Map<MediaLibrary, LibraryStore>()
   function library(request: { library: MediaLibrary }): LibraryStore {
@@ -20,7 +33,7 @@ export function registerLibraryIpc(): void {
     'library:list',
     (_event, request: IpcRequest<'library:list'>): Promise<IpcResponse<'library:list'>> => {
       requireAdminUnlocked()
-      return library(request).list()
+      return withoutPaths(library(request).list(), 'Could not read the media library')
     }
   )
   ipcMain.handle(
@@ -48,14 +61,17 @@ export function registerLibraryIpc(): void {
     'library:update',
     (_event, request: IpcRequest<'library:update'>): Promise<IpcResponse<'library:update'>> => {
       requireAdminUnlocked()
-      return library(request).update(request.id, request.patch)
+      return withoutPaths(
+        library(request).update(request.id, request.patch),
+        'Could not update the media library'
+      )
     }
   )
   ipcMain.handle(
     'library:remove',
     (_event, request: IpcRequest<'library:remove'>): Promise<IpcResponse<'library:remove'>> => {
       requireAdminUnlocked()
-      return library(request).remove(request.id)
+      return withoutPaths(library(request).remove(request.id), 'Could not remove the media file')
     }
   )
 }

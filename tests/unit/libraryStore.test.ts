@@ -194,6 +194,24 @@ describe('media library store', () => {
     expect(await fs.readFile(paths.index, 'utf8')).toBe('{corrupt')
   })
 
+  it('retries an index that is briefly unreadable instead of treating it as empty', async () => {
+    const entries = await store.import([source])
+    let busy = true
+    const flaky = new LibraryStore(userData, 'photos', {
+      ...fs,
+      readFile: (async (...args: Parameters<typeof fs.readFile>) => {
+        if (busy) throw Object.assign(new Error('EBUSY: resource busy'), { code: 'EBUSY' })
+        return fs.readFile(...args)
+      }) as typeof fs.readFile
+    })
+    await expect(flaky.list()).rejects.toThrow('unavailable right now')
+    await expect(flaky.import([source])).rejects.toThrow('unavailable right now')
+    busy = false
+    expect(await flaky.list()).toEqual(entries)
+    expect(await flaky.import([source])).toHaveLength(1)
+    expect(await new LibraryStore(userData, 'photos').list()).toHaveLength(2)
+  })
+
   it('rejects structural and non-finite metadata patches without changing the index', async () => {
     const entries = await store.import([source])
     await expect(store.update(entries[0]!.id, { duration: Infinity })).rejects.toThrow()
