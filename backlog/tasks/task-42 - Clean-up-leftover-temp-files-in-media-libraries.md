@@ -1,9 +1,10 @@
 ---
 id: TASK-42
 title: Clean up leftover temp files in media libraries
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-02 18:00'
+updated_date: '2026-10-02 20:05'
 labels: []
 milestone: m-8
 dependencies:

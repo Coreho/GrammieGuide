@@ -1,9 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { LibraryStore } from '../../src/main/services/media/libraryStore'
 import { libraryPaths } from '../../src/main/services/media/libraryPaths'
+
+const leftovers = [
+  '.00000000-0000-4000-8000-000000000000.import.tmp',
+  '.00000000-0000-4000-8000-000000000000.index.tmp',
+  '00000000-0000-4000-8000-000000000000.jpg'
+]
 
 describe('media library store', () => {
   let root: string
@@ -22,6 +28,234 @@ describe('media library store', () => {
   afterEach(async () => {
     await fs.rm(root, { recursive: true, force: true })
   })
+
+  async function writeLeftovers(folder: string): Promise<void> {
+    await fs.mkdir(folder, { recursive: true })
+    for (const name of leftovers) await fs.writeFile(join(folder, name), 'leftover')
+  }
+
+  it.each(
+    (['photos', 'music'] as const).flatMap((library) =>
+      leftovers.map((name) => [library, name] as const)
+    )
+  )(
+    'sweeps %s leftover %s while preserving every listed file and unrelated files',
+    async (library, name) => {
+      const original = new LibraryStore(userData, library)
+      const entries = await original.import([source, source])
+      const paths = libraryPaths(userData, library)
+      const index = await fs.readFile(paths.index, 'utf8')
+      await fs.writeFile(join(paths.folder, name), 'leftover')
+      await fs.writeFile(join(paths.folder, 'index.json.corrupt-old'), '{corrupt')
+      await fs.writeFile(join(paths.folder, 'notes.txt'), 'keep')
+      await fs.mkdir(join(paths.folder, '.directory.import.tmp'))
+      await fs.writeFile(join(paths.folder, '.directory.import.tmp', 'child'), 'keep')
+      const restarted = new LibraryStore(userData, library)
+
+      expect(await restarted.list()).toEqual(entries)
+      await expect(fs.stat(join(paths.folder, name))).rejects.toMatchObject({ code: 'ENOENT' })
+      for (const entry of entries) {
+        expect(await fs.readFile(join(paths.folder, entry.fileName), 'utf8')).toBe('complete photo')
+      }
+      expect(await fs.readFile(paths.index, 'utf8')).toBe(index)
+      expect(await fs.readFile(join(paths.folder, 'index.json.corrupt-old'), 'utf8')).toBe(
+        '{corrupt'
+      )
+      expect(await fs.readFile(join(paths.folder, 'notes.txt'), 'utf8')).toBe('keep')
+      expect(await fs.readFile(join(paths.folder, '.directory.import.tmp', 'child'), 'utf8')).toBe(
+        'keep'
+      )
+    }
+  )
+
+  it('sweeps after backing up a corrupt index and preserves the backup verbatim', async () => {
+    const paths = libraryPaths(userData, 'photos')
+    await writeLeftovers(paths.folder)
+    await fs.writeFile(paths.index, '{corrupt')
+
+    expect(await store.list()).toEqual([])
+    const remaining = await fs.readdir(paths.folder)
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]).toMatch(/^index\.json\.corrupt-/)
+    expect(await fs.readFile(join(paths.folder, remaining[0]!), 'utf8')).toBe('{corrupt')
+  })
+
+  it.each(['EBUSY', 'EPERM', 'ENOENT'])(
+    'does not scan or delete anything when reading the index fails with %s',
+    async (code) => {
+      const entries = await store.import([source])
+      const paths = libraryPaths(userData, 'photos')
+      await writeLeftovers(paths.folder)
+      const readdir = vi.fn(fs.readdir)
+      const rm = vi.fn(fs.rm)
+      let unreadable = true
+      const faulty = new LibraryStore(userData, 'photos', {
+        ...fs,
+        readdir,
+        rm,
+        readFile: (async (...args: Parameters<typeof fs.readFile>) => {
+          if (unreadable) throw Object.assign(new Error(code), { code })
+          return fs.readFile(...args)
+        }) as typeof fs.readFile
+      })
+
+      if (code === 'ENOENT') expect(await faulty.list()).toEqual([])
+      else await expect(faulty.list()).rejects.toThrow('unavailable right now')
+      expect(readdir).not.toHaveBeenCalled()
+      expect(rm).not.toHaveBeenCalled()
+      for (const name of [...leftovers, entries[0]!.fileName]) {
+        expect(await fs.readFile(join(paths.folder, name), 'utf8')).toBe(
+          name === entries[0]!.fileName ? 'complete photo' : 'leftover'
+        )
+      }
+      if (code !== 'ENOENT') {
+        unreadable = false
+        expect(await faulty.list()).toEqual(entries)
+        expect(readdir).toHaveBeenCalledTimes(1)
+        for (const name of leftovers) {
+          await expect(fs.stat(join(paths.folder, name))).rejects.toMatchObject({ code: 'ENOENT' })
+        }
+      }
+    }
+  )
+
+  it('does not sweep on this or later requests when a corrupt-index backup fails', async () => {
+    const entries = await store.import([source])
+    const paths = libraryPaths(userData, 'photos')
+    await writeLeftovers(paths.folder)
+    await fs.writeFile(paths.index, '{corrupt')
+    const readdir = vi.fn(fs.readdir)
+    const rm = vi.fn(fs.rm)
+    const faulty = new LibraryStore(userData, 'photos', {
+      ...fs,
+      readdir,
+      rm,
+      rename: async () => {
+        throw new Error('disk full')
+      }
+    })
+
+    expect(await faulty.list()).toEqual([])
+    expect(await faulty.list()).toEqual([])
+    await expect(faulty.import([source])).rejects.toThrow('recovery')
+    expect(readdir).not.toHaveBeenCalled()
+    expect(rm).not.toHaveBeenCalled()
+    expect(await fs.readFile(paths.index, 'utf8')).toBe('{corrupt')
+    for (const name of [...leftovers, entries[0]!.fileName]) {
+      expect(await fs.readFile(join(paths.folder, name), 'utf8')).toBe(
+        name === entries[0]!.fileName ? 'complete photo' : 'leftover'
+      )
+    }
+  })
+
+  it('does no constructor work and holds the operation queue until the load sweep finishes', async () => {
+    const entries = await store.import([source])
+    const paths = libraryPaths(userData, 'photos')
+    await writeLeftovers(paths.folder)
+    let releaseSweep!: () => void
+    const blocked = new Promise<void>((resolve) => {
+      releaseSweep = resolve
+    })
+    let markStarted!: (started: boolean) => void
+    const started = new Promise<boolean>((resolve) => {
+      markStarted = resolve
+    })
+    const mkdir = vi.fn(fs.mkdir)
+    const readFile = vi.fn(fs.readFile)
+    const readdir = vi.fn(fs.readdir)
+    const copyFile = vi.fn(fs.copyFile)
+    const rm = vi.fn(async (...args: Parameters<typeof fs.rm>) => {
+      if (args[0] === join(paths.folder, leftovers[0]!)) {
+        markStarted(true)
+        await blocked
+      }
+      await fs.rm(...args)
+    })
+    const restarted = new LibraryStore(userData, 'photos', {
+      ...fs,
+      mkdir,
+      readFile,
+      readdir,
+      copyFile,
+      rm
+    })
+    await Promise.resolve()
+    for (const method of [mkdir, readFile, readdir, copyFile, rm]) {
+      expect(method).not.toHaveBeenCalled()
+    }
+
+    const loading = restarted.list()
+    const importing = restarted.import([source])
+    const sweeping = await Promise.race([started, loading.then(() => false)])
+    const copiedWhileSweeping = copyFile.mock.calls.length
+    releaseSweep()
+    const [listed, added] = await Promise.all([loading, importing])
+    expect(sweeping).toBe(true)
+    expect(copiedWhileSweeping).toBe(0)
+    expect(listed).toEqual(entries)
+    expect(await restarted.list()).toEqual([...entries, ...added])
+    for (const entry of [...entries, ...added]) {
+      expect(await fs.readFile(join(paths.folder, entry.fileName), 'utf8')).toBe('complete photo')
+    }
+  })
+
+  it('sweeps only on the first load of an instance, including when mutations load it', async () => {
+    await store.import([source])
+    const paths = libraryPaths(userData, 'photos')
+    await writeLeftovers(paths.folder)
+    const readdir = vi.fn(fs.readdir)
+    const restarted = new LibraryStore(userData, 'photos', { ...fs, readdir })
+
+    const [added] = await restarted.import([source])
+    expect(readdir).toHaveBeenCalledTimes(1)
+    await writeLeftovers(paths.folder)
+    await restarted.list()
+    await restarted.update(added!.id, { caption: 'Family' })
+    await restarted.remove(added!.id)
+    expect(readdir).toHaveBeenCalledTimes(1)
+    for (const name of leftovers) {
+      expect(await fs.readFile(join(paths.folder, name), 'utf8')).toBe('leftover')
+    }
+    await new LibraryStore(userData, 'photos').list()
+    for (const name of leftovers) {
+      await expect(fs.stat(join(paths.folder, name))).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
+  it.each(['scan', 'delete'] as const)(
+    'keeps the library usable if cleanup cannot %s',
+    async (failure) => {
+      const entries = await store.import([source])
+      const paths = libraryPaths(userData, 'photos')
+      await writeLeftovers(paths.folder)
+      const restarted = new LibraryStore(userData, 'photos', {
+        ...fs,
+        readdir: (async (...args: Parameters<typeof fs.readdir>) => {
+          if (failure === 'scan') throw new Error('directory busy')
+          return fs.readdir(...args)
+        }) as typeof fs.readdir,
+        rm: async (...args) => {
+          if (failure === 'delete' && args[0] === join(paths.folder, leftovers[0]!)) {
+            throw new Error('file busy')
+          }
+          await fs.rm(...args)
+        }
+      })
+
+      expect(await restarted.list()).toEqual(entries)
+      expect(await restarted.import([source])).toHaveLength(1)
+      expect(await restarted.list()).toHaveLength(2)
+      expect(await fs.readFile(join(paths.folder, entries[0]!.fileName), 'utf8')).toBe(
+        'complete photo'
+      )
+      expect(await fs.readFile(join(paths.folder, leftovers[0]!), 'utf8')).toBe('leftover')
+      if (failure === 'delete') {
+        for (const name of leftovers.slice(1)) {
+          await expect(fs.stat(join(paths.folder, name))).rejects.toMatchObject({ code: 'ENOENT' })
+        }
+      }
+    }
+  )
 
   it('keeps independent indexes outside config and copies under unique generated names', async () => {
     await fs.mkdir(userData, { recursive: true })

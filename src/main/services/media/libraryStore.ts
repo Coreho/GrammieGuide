@@ -5,7 +5,10 @@ import { isMediaLibrary, type MediaLibrary } from '@shared/media/mediaPath'
 import type { LibraryEntry, LibraryMetadata } from '@shared/media/libraryTypes'
 import { libraryPaths } from './libraryPaths'
 
-type LibraryIO = Pick<typeof fs, 'mkdir' | 'readFile' | 'copyFile' | 'rename' | 'rm' | 'open'> & {
+type LibraryIO = Pick<
+  typeof fs,
+  'mkdir' | 'readFile' | 'readdir' | 'copyFile' | 'rename' | 'rm' | 'open'
+> & {
   writeFile: (path: string, data: string) => Promise<void>
 }
 
@@ -106,6 +109,26 @@ export class LibraryStore {
       } catch (error) {
         // Still allow an empty read, but never overwrite an index we could not back up.
         this.recoveryError = error
+      }
+    }
+    if (!this.recoveryError) {
+      // load() runs only on demand, inside run(): cleanup cannot race an import or delay startup.
+      // A failed index read returned/threw above; never infer unused files from an untrusted index.
+      const listed = new Set(this.entries.map((entry) => entry.fileName))
+      const files = await this.io
+        .readdir(this.paths.folder, { withFileTypes: true })
+        .catch(() => [])
+      for (const file of files) {
+        if (!file.isFile() || listed.has(file.name)) continue
+        const temporary = file.name.endsWith('.import.tmp') || file.name.endsWith('.index.tmp')
+        const imported =
+          UUID.test(file.name.slice(0, 36)) && /^[0-9a-f-]{36}\.[a-z0-9]{1,10}$/.test(file.name)
+        if (temporary || imported) {
+          // Busy files can wait until next launch; cleanup must not make the library unusable.
+          await this.io
+            .rm(join(this.paths.folder, file.name), { force: true })
+            .catch(() => undefined)
+        }
       }
     }
     return this.entries
