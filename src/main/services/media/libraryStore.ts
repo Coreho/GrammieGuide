@@ -97,8 +97,10 @@ export class LibraryStore {
       // and read again next time, instead of showing an empty library until the app restarts.
       throw new Error('Library index is unavailable right now')
     }
+    let indexTrusted = false
     try {
       this.entries = parseIndex(raw)
+      indexTrusted = true
     } catch {
       this.entries = []
       try {
@@ -113,7 +115,7 @@ export class LibraryStore {
     }
     if (!this.recoveryError) {
       // load() runs only on demand, inside run(): cleanup cannot race an import or delay startup.
-      // A failed index read returned/threw above; never infer unused files from an untrusted index.
+      // A backup preserves the corrupt index, but cannot tell us which media files are unused.
       const listed = new Set(this.entries.map((entry) => entry.fileName))
       const files = await this.io
         .readdir(this.paths.folder, { withFileTypes: true })
@@ -123,7 +125,7 @@ export class LibraryStore {
         const temporary = file.name.endsWith('.import.tmp') || file.name.endsWith('.index.tmp')
         const imported =
           UUID.test(file.name.slice(0, 36)) && /^[0-9a-f-]{36}\.[a-z0-9]{1,10}$/.test(file.name)
-        if (temporary || imported) {
+        if (temporary || (indexTrusted && imported)) {
           // Busy files can wait until next launch; cleanup must not make the library unusable.
           await this.io
             .rm(join(this.paths.folder, file.name), { force: true })

@@ -68,17 +68,38 @@ describe('media library store', () => {
     }
   )
 
-  it('sweeps after backing up a corrupt index and preserves the backup verbatim', async () => {
-    const paths = libraryPaths(userData, 'photos')
-    await writeLeftovers(paths.folder)
-    await fs.writeFile(paths.index, '{corrupt')
+  it.each(['photos', 'music'] as const)(
+    'preserves imported %s and the corrupt backup, removing only temp files',
+    async (library) => {
+      const mediaSource = library === 'photos' ? source : join(root, 'private-original.MP3')
+      const content = library === 'photos' ? 'complete photo' : 'complete song'
+      await fs.writeFile(mediaSource, content)
+      const original = new LibraryStore(userData, library)
+      const entries = await original.import([mediaSource, mediaSource])
+      const paths = libraryPaths(userData, library)
+      await writeLeftovers(paths.folder)
+      await fs.writeFile(paths.index, '{corrupt')
+      const restarted = new LibraryStore(userData, library)
 
-    expect(await store.list()).toEqual([])
-    const remaining = await fs.readdir(paths.folder)
-    expect(remaining).toHaveLength(1)
-    expect(remaining[0]).toMatch(/^index\.json\.corrupt-/)
-    expect(await fs.readFile(join(paths.folder, remaining[0]!), 'utf8')).toBe('{corrupt')
-  })
+      expect(await restarted.list()).toEqual([])
+      expect(await restarted.list()).toEqual([])
+      expect(await new LibraryStore(userData, library).list()).toEqual([])
+      const remaining = await fs.readdir(paths.folder)
+      const backups = remaining.filter((name) => name.startsWith('index.json.corrupt-'))
+      expect(backups).toHaveLength(1)
+      expect(remaining.sort()).toEqual(
+        [...backups, ...entries.map((entry) => entry.fileName), leftovers[2]!].sort()
+      )
+      expect(await fs.readFile(join(paths.folder, backups[0]!), 'utf8')).toBe('{corrupt')
+      for (const entry of entries) {
+        expect(await fs.readFile(join(paths.folder, entry.fileName), 'utf8')).toBe(content)
+      }
+      expect(await fs.readFile(join(paths.folder, leftovers[2]!), 'utf8')).toBe('leftover')
+      for (const name of leftovers.slice(0, 2)) {
+        await expect(fs.stat(join(paths.folder, name))).rejects.toMatchObject({ code: 'ENOENT' })
+      }
+    }
+  )
 
   it.each(['EBUSY', 'EPERM', 'ENOENT'])(
     'does not scan or delete anything when reading the index fails with %s',
