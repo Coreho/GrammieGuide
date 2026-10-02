@@ -94,6 +94,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (config?.buddy.chatEnabled === false) {
+      setShowBuddyChat(false)
+      setBuddyChatPhase('idle')
+      clearChatInvitation()
+    }
+  }, [config?.buddy.chatEnabled, clearChatInvitation])
+
+  useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 10_000)
     return () => clearInterval(t)
   }, [])
@@ -183,9 +191,20 @@ export default function App() {
   }, [buddyMenuAvailable, closeBuddyMenu])
 
   useEffect(() => {
-    if (!buddyMenuAvailable || buddyMenuAnchor || config?.buddy.tapAction === 'chat')
+    if (
+      !buddyMenuAvailable ||
+      buddyMenuAnchor ||
+      !config?.buddy.chatEnabled ||
+      config.buddy.tapAction === 'chat'
+    )
       clearChatInvitation()
-  }, [buddyMenuAvailable, buddyMenuAnchor, config?.buddy.tapAction, clearChatInvitation])
+  }, [
+    buddyMenuAvailable,
+    buddyMenuAnchor,
+    config?.buddy.chatEnabled,
+    config?.buddy.tapAction,
+    clearChatInvitation
+  ])
 
   useEffect(() => {
     const offCommand = window.launcher.onBuddyCommand(clearChatInvitation)
@@ -262,16 +281,18 @@ export default function App() {
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return
               clearChatInvitation()
-              if (config.buddy.tapAction === 'chat') {
+              if (config.buddy.chatEnabled && config.buddy.tapAction === 'chat') {
                 setShowBuddyChat(true)
                 return
               }
-              setChatInvitation('visible')
-              // Her invitation outlives a short gesture; another pat starts a fresh eight seconds.
-              invitationTimers.current = [
-                setTimeout(() => setChatInvitation('fading'), 8_000),
-                setTimeout(() => setChatInvitation(null), 8_400)
-              ]
+              if (config.buddy.chatEnabled) {
+                setChatInvitation('visible')
+                // Her invitation outlives a short gesture; another pat starts a fresh eight seconds.
+                invitationTimers.current = [
+                  setTimeout(() => setChatInvitation('fading'), 8_000),
+                  setTimeout(() => setChatInvitation(null), 8_400)
+                ]
+              }
               const reaction = pickTapReaction(
                 lastTapReaction.current,
                 Math.random,
@@ -285,13 +306,16 @@ export default function App() {
               }))
             }}
             buddy={{
-              chatInvitation: buddyMenuAvailable && !buddyMenuAnchor ? chatInvitation : null,
+              chatInvitation:
+                config.buddy.chatEnabled && buddyMenuAvailable && !buddyMenuAnchor
+                  ? chatInvitation
+                  : null,
               onChat: () => {
                 clearChatInvitation()
-                setShowBuddyChat(true)
+                if (config.buddy.chatEnabled) setShowBuddyChat(true)
               },
               command: buddyCommand,
-              chatOpen: showBuddyChat,
+              chatOpen: config.buddy.chatEnabled && showBuddyChat,
               chatPhase: buddyChatPhase,
               motion: config.buddy.motion,
               chattiness: config.buddy.chattiness,
@@ -306,10 +330,14 @@ export default function App() {
           <BuddyMenu
             anchor={buddyMenuAnchor}
             onClose={closeBuddyMenu}
-            onChat={() => {
-              closeBuddyMenu()
-              setShowBuddyChat(true)
-            }}
+            onChat={
+              config.buddy.chatEnabled
+                ? () => {
+                    closeBuddyMenu()
+                    setShowBuddyChat(true)
+                  }
+                : undefined
+            }
             onCommand={(command) => {
               closeBuddyMenu()
               setBuddyCommand((previous) => ({
@@ -320,7 +348,7 @@ export default function App() {
           />
         )}
         {/* Inside the stage, so Buddy (on the footer floor) can stand in front of its backdrop. */}
-        {view === 'home' && showBuddyChat && (
+        {view === 'home' && config.buddy.chatEnabled && showBuddyChat && (
           <BuddyChatPanel
             voiceEnabled={config.buddy.voiceEnabled}
             onPhaseChange={setBuddyChatPhase}

@@ -13,7 +13,7 @@ export function BuddyMenu({
   onClose
 }: {
   anchor: BuddyMenuAnchor
-  onChat: () => void
+  onChat?: () => void
   onCommand: (command: BuddyCommand) => void
   onClose: () => void
 }) {
@@ -54,7 +54,7 @@ export function BuddyMenu({
   }, [onClose])
 
   const choices = [
-    { label: "Let's chat", icon: '💬', action: onChat },
+    ...(onChat ? [{ label: "Let's chat", icon: '💬', action: onChat }] : []),
     { label: 'Dance', icon: '🎵', action: () => onCommand({ clip: 'dance' }) },
     { label: 'Wave', icon: '👋', action: () => onCommand({ clip: 'big_wave' }) },
     {
