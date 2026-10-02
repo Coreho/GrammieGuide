@@ -1,10 +1,10 @@
 ---
 id: TASK-06
 title: Media library store for imported files
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-09-29 04:19'
-updated_date: '2026-09-29 09:25'
+updated_date: '2026-10-02 17:00'
 labels: []
 milestone: m-8
 dependencies: []

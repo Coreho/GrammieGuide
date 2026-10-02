@@ -7,6 +7,10 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  listLibrary: (request: IpcRequest<'library:list'>) => invoke('library:list', request),
+  importLibrary: (request: IpcRequest<'library:import'>) => invoke('library:import', request),
+  updateLibrary: (request: IpcRequest<'library:update'>) => invoke('library:update', request),
+  removeLibrary: (request: IpcRequest<'library:remove'>) => invoke('library:remove', request),
   commandBuddy: (command: IpcRequest<'buddy:command'>) => invoke('buddy:command', command),
   getConfig: () => invoke('config:get'),
   setConfig: (patch: Partial<Config>) => invoke('config:set', patch),

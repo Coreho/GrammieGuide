@@ -231,3 +231,42 @@ test('returns private 404s for bad names, unknown libraries, unsupported types a
   expect(JSON.stringify(log)).not.toContain('missing-private-photo')
   expect(JSON.stringify(log)).not.toContain(userData)
 })
+
+test('admin library bridge gates access, imports a playable copy, updates and removes it', async () => {
+  await admin.evaluate(() => window.admin.lock())
+  await expect(
+    admin.evaluate(() => window.admin.listLibrary({ library: 'photos' }))
+  ).rejects.toThrow('admin unlock required')
+  await admin.evaluate(() => window.admin.unlock('2468'))
+  expect(await admin.evaluate(() => window.admin.listLibrary({ library: 'photos' }))).toEqual([])
+
+  // Stand in for the native picker; import still goes through the real preload, IPC and disk store.
+  await app.evaluate(
+    ({ dialog }, source) => {
+      const original = dialog.showOpenDialog
+      dialog.showOpenDialog = async () => {
+        dialog.showOpenDialog = original
+        return { canceled: false, filePaths: [source] }
+      }
+    },
+    join(userData, MEDIA_LIBRARY_FOLDERS.photos, 'photo.png')
+  )
+  const entries = await admin.evaluate(() => window.admin.importLibrary({ library: 'photos' }))
+  expect(entries).toHaveLength(1)
+  const entry = entries[0]!
+  expect(entry.fileName).toMatch(/^[0-9a-f-]{36}\.png$/)
+  expect(JSON.stringify(entries)).not.toContain(userData)
+  const url = `grammie-media://photos/${entry.fileName}`
+  expect((await fetchMedia(url)).bytes).toEqual(Array.from(png))
+  const updated = await admin.evaluate(
+    (id) => window.admin.updateLibrary({ library: 'photos', id, patch: { caption: 'Family' } }),
+    entry.id
+  )
+  expect(updated.metadata.caption).toBe('Family')
+  expect(
+    await admin.evaluate((id) => window.admin.removeLibrary({ library: 'photos', id }), entry.id)
+  ).toBe(true)
+  expect(await admin.evaluate(() => window.admin.listLibrary({ library: 'photos' }))).toEqual([])
+  expect((await fetchMedia(url)).status).toBe(404)
+  expect((await fetchMedia('grammie-media://photos/photo.png')).status).toBe(200)
+})

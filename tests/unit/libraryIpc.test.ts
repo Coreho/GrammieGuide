@@ -1,0 +1,113 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  handle: vi.fn(),
+  unlock: vi.fn(),
+  getPath: vi.fn(),
+  dialog: vi.fn(),
+  list: vi.fn(),
+  import: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn()
+}))
+vi.mock('electron', () => ({
+  ipcMain: { handle: mocks.handle },
+  app: { getPath: mocks.getPath },
+  dialog: { showOpenDialog: mocks.dialog }
+}))
+vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlock }))
+vi.mock('../../src/main/services/media/libraryStore', () => ({
+  LibraryStore: class {
+    list = mocks.list
+    import = mocks.import
+    update = mocks.update
+    remove = mocks.remove
+  }
+}))
+import { registerLibraryIpc } from '../../src/main/ipc/libraryIpc'
+
+describe('admin library IPC', () => {
+  const invoke = async (channel: string, request: unknown): Promise<unknown> =>
+    mocks.handle.mock.calls.find(([name]) => name === channel)![1]({}, request)
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mocks.getPath.mockReturnValue('userData')
+    registerLibraryIpc()
+  })
+
+  it.each(['list', 'import', 'update', 'remove'])(
+    'checks the lock before any %s request processing',
+    async (op) => {
+      mocks.unlock.mockImplementation(() => {
+        throw new Error('locked')
+      })
+      await expect(invoke(`library:${op}`, null)).rejects.toThrow('locked')
+      expect(mocks.unlock).toHaveBeenCalledOnce()
+      expect(mocks.getPath).not.toHaveBeenCalled()
+      for (const operation of [
+        mocks.dialog,
+        mocks.list,
+        mocks.import,
+        mocks.update,
+        mocks.remove
+      ]) {
+        expect(operation).not.toHaveBeenCalled()
+      }
+    }
+  )
+
+  it('lists, updates and removes through the store', async () => {
+    mocks.list.mockResolvedValue([])
+    mocks.update.mockResolvedValue({ id: 'id' })
+    mocks.remove.mockResolvedValue(true)
+    expect(await invoke('library:list', { library: 'photos' })).toEqual([])
+    expect(
+      await invoke('library:update', { library: 'photos', id: 'id', patch: { caption: 'Family' } })
+    ).toEqual({ id: 'id' })
+    expect(mocks.update).toHaveBeenCalledWith('id', { caption: 'Family' })
+    expect(await invoke('library:remove', { library: 'photos', id: 'id' })).toBe(true)
+    expect(mocks.remove).toHaveBeenCalledWith('id')
+    expect(mocks.unlock).toHaveBeenCalledTimes(3)
+  })
+
+  it('imports only native-picker selections and returns entries without source paths', async () => {
+    mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/photo.jpg'] })
+    mocks.import.mockResolvedValue([{ id: 'generated', fileName: 'generated.jpg', metadata: {} }])
+    const result = await invoke('library:import', { library: 'photos', paths: ['untrusted'] })
+    expect(mocks.import).toHaveBeenCalledWith(['private/photo.jpg'])
+    expect(JSON.stringify(result)).not.toContain('private')
+    expect(mocks.unlock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not import after cancellation or if admin locks while the picker is open', async () => {
+    mocks.dialog.mockResolvedValue({ canceled: true, filePaths: [] })
+    expect(await invoke('library:import', { library: 'music' })).toEqual([])
+    expect(mocks.import).not.toHaveBeenCalled()
+    mocks.dialog.mockImplementation(async () => {
+      mocks.unlock.mockImplementation(() => {
+        throw new Error('locked')
+      })
+      return { canceled: false, filePaths: ['private/song.mp3'] }
+    })
+    await expect(invoke('library:import', { library: 'music' })).rejects.toThrow('locked')
+    expect(mocks.import).not.toHaveBeenCalled()
+  })
+
+  it.each(['list', 'import', 'update', 'remove'])(
+    'rejects unknown libraries for %s',
+    async (op) => {
+      await expect(invoke(`library:${op}`, { library: '../outside' })).rejects.toThrow()
+      expect(mocks.dialog).not.toHaveBeenCalled()
+      expect(mocks.getPath).not.toHaveBeenCalled()
+    }
+  )
+
+  it('does not expose source paths through import errors', async () => {
+    mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/photo.jpg'] })
+    mocks.import.mockRejectedValue(new Error('ENOENT: private/photo.jpg'))
+    await expect(invoke('library:import', { library: 'photos' })).rejects.toThrow(
+      'Could not import media files'
+    )
+  })
+})
