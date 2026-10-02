@@ -35,6 +35,14 @@ node "$env:USERPROFILE\.claude\workflow-tools\board-runner.cjs" --publish-catalo
 A new idle instance must wait at least 20 seconds after the previous heartbeat to
 reuse the same runner ID. Concurrent listeners are rejected by a local PID lock and
 by the server. `--check` reads local tasks/open PRs without registering a heartbeat.
+`--check` and `--recover` must be used alone; combining either with another option
+is rejected.
+
+PowerShell and the GitHub CLI are launched by absolute path, because Windows looks
+in the working directory (the repository) before PATH for a bare program name.
+PowerShell comes from the Windows system folder. `gh.exe` is taken from the first
+absolute PATH entry that has it, or from an optional absolute `ghExe` in
+`board-runner.json`.
 
 Set `executionEnabled` in the local `board-runner.json` to `true` and restart the
 listener to accept a board Start click. Set its name to `GrammieGuide Windows` when
@@ -90,6 +98,9 @@ Local files:
 
 Network failures retry with the same instance/job identity. A claimed job is never
 relaunched after duplicate delivery. Terminal reports persist until acknowledged.
+Each journal write is flushed to disk before it replaces the previous journal.
+Windows doesn't let Node force the rename itself through, so a power cut at that
+moment can still leave the previous journal; the job dies in the same power cut.
 An unresolved journal blocks a restart, including the ambiguous window between
 recording launch intent and saving the child PID. Do not delete the journal to
 force a restart.
@@ -101,7 +112,9 @@ node "$env:USERPROFILE\.claude\workflow-tools\board-runner.cjs" --recover
 ```
 
 Recovery reports a terminal outcome using the persisted owning instance ID, then
-exits. It refuses if the child PID is still alive or a launch has an unknown PID.
+exits. It clears the journal only after the board confirms the report (`ok: true`);
+any other reply leaves the journal as it was. It refuses if the child PID is still
+alive or a launch has an unknown PID.
 Those cases need local inspection, never broad process-name killing. Wait 20 seconds
 before starting a fresh listener. If a terminal snapshot upload fails, the job's
 terminal API report remains authoritative; inspect the local progress file/logs.
@@ -114,7 +127,8 @@ npm run lint
 ```
 
 Tests cover disabled mode, duplicate Start, lost acknowledgments, completion during
-polling, Stop ordering, journal recovery guard, input validation, strict workflow
+polling, Stop ordering, journal recovery guard, `--recover` (refusals, unconfirmed
+board replies, clearing a confirmed job), exclusive options, PATH lookup, input validation, strict workflow
 selection, pinned progress identity, actual Windows descendant isolation, and
 launch/terminal progress using a harmless compiled fixture executable. They do not
 launch Claude or execute real Backlog tasks. The actual model-driven workflow

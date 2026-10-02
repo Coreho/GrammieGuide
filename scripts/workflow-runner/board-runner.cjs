@@ -13,8 +13,33 @@ const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF
 function write(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true })
   const tmp = `${file}.${process.pid}.tmp`
-  fs.writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n', { mode: 0o600 })
+  // Flush before the rename. Otherwise a power cut can leave the renamed journal empty or
+  // stale, losing a recorded launch intent so the board's redelivery could start it again.
+  const fd = fs.openSync(tmp, 'w', 0o600)
+  try {
+    fs.writeFileSync(fd, JSON.stringify(value, null, 2) + '\n')
+    fs.fsyncSync(fd)
+  } finally {
+    fs.closeSync(fd)
+  }
   fs.renameSync(tmp, file)
+}
+// Windows looks in the working directory (the repo) before PATH for a bare program name,
+// so a stray gh.exe or powershell.exe there would run instead of the real one, outside
+// the Job Object. Helpers are therefore launched by absolute path only.
+const POWERSHELL = path.join(
+  process.env.SystemRoot || 'C:\\Windows',
+  'System32',
+  'WindowsPowerShell',
+  'v1.0',
+  'powershell.exe'
+)
+function onPath(name, searchPath = process.env.PATH || '') {
+  for (const dir of searchPath.split(path.delimiter)) {
+    const file = path.join(dir, name)
+    if (path.isAbsolute(dir) && fs.existsSync(file)) return file
+  }
+  throw new Error(`${name} not found on PATH`)
 }
 function validate(command, cfg) {
   if (!command || !ID.test(command.id || '')) throw new Error('Invalid job ID')
@@ -194,6 +219,8 @@ function config(file) {
     'progressHelper'
   ])
     if (!path.isAbsolute(cfg[key] || '')) throw new Error(`Local ${key} must be an absolute path`)
+  if (cfg.ghExe !== undefined && !path.isAbsolute(cfg.ghExe))
+    throw new Error('Local ghExe must be an absolute path')
   const remote = read(cfg.remoteConfig)
   const url = new URL(remote.url)
   if (
@@ -236,7 +263,7 @@ function catalog(cfg) {
     throw new Error('Unsupported or incomplete Backlog export')
   const prs = JSON.parse(
     execFileSync(
-      'gh.exe',
+      cfg.ghExe || onPath('gh.exe'),
       ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'title,url,headRefName'],
       { cwd: cfg.repoDir, windowsHide: true, encoding: 'utf8', timeout: 30000 }
     )
@@ -314,7 +341,7 @@ function launch(cfg, command) {
   const output = fs.openSync(path.join(args.runDir, 'claude-output.json'), 'w')
   const errors = fs.openSync(path.join(args.runDir, 'claude-stderr.log'), 'w')
   const child = spawn(
-    'powershell.exe',
+    POWERSHELL,
     [
       '-NoProfile',
       '-NonInteractive',
@@ -451,16 +478,16 @@ function acquire(file) {
     if (fs.readFileSync(file, 'utf8') === String(process.pid)) fs.unlinkSync(file)
   }
 }
-async function recover(cfg, journal) {
+async function recover(cfg, journal, deps = { request, alive }) {
   const state = read(journal)
   const job = state.jobs[state.currentId]
   if (!job) return console.log('No unresolved job')
-  if (job.launchAttempted && (!job.pid || alive(job.pid)))
+  if (job.launchAttempted && (!job.pid || deps.alive(job.pid)))
     throw new Error(
       'Owned child may still be alive (or spawn outcome unknown). Inspect locally; automatic recovery refused.'
     )
   const status = TERMINAL.has(job.status) ? job.status : 'failed'
-  await request(cfg, '/api/runner/poll', {
+  const response = await deps.request(cfg, '/api/runner/poll', {
     runnerId: cfg.runnerId,
     instanceId: state.instanceId,
     repo: cfg.repo,
@@ -474,6 +501,10 @@ async function recover(cfg, journal) {
       message: 'Recovered journal after owned child exit; job will not be replayed'
     }
   })
+  // Same bar as a normal poll. Clearing the journal on any other reply would drop the
+  // only record of this report while the board still shows the job as running.
+  if (!response || response.ok !== true)
+    throw new Error('Board did not confirm the recovered report; journal left unchanged')
   job.status = status
   state.currentId = null
   write(journal, state)
@@ -482,10 +513,13 @@ async function recover(cfg, journal) {
   )
 }
 async function main(argv = process.argv.slice(2)) {
-  const file = path.join(os.homedir(), '.claude', 'workflow-tools', 'board-runner.json')
-  const cfg = config(file)
   if (argv.some((arg) => !['--once', '--publish-catalog', '--recover', '--check'].includes(arg)))
     throw new Error('Unknown option')
+  // Both return before the listener starts, so any other option would be silently ignored.
+  const alone = argv.find((arg) => arg === '--check' || arg === '--recover')
+  if (alone && argv.length > 1) throw new Error(`${alone} cannot be combined with other options`)
+  const file = path.join(os.homedir(), '.claude', 'workflow-tools', 'board-runner.json')
+  const cfg = config(file)
   if (argv.includes('--check')) {
     console.log(
       JSON.stringify({
@@ -551,7 +585,19 @@ async function main(argv = process.argv.slice(2)) {
     release()
   }
 }
-module.exports = { Runner, workflowArgs, workflowPrompt, validate, launch, read, write, catalog }
+module.exports = {
+  Runner,
+  workflowArgs,
+  workflowPrompt,
+  validate,
+  launch,
+  read,
+  write,
+  catalog,
+  recover,
+  onPath,
+  main
+}
 if (require.main === module)
   main().catch((error) => {
     console.error(error.message)

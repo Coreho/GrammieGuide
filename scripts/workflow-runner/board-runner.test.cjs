@@ -5,7 +5,17 @@ const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 const { spawn, execFileSync } = require('node:child_process')
-const { Runner, workflowArgs, workflowPrompt, launch } = require('./board-runner.cjs')
+const {
+  Runner,
+  workflowArgs,
+  workflowPrompt,
+  launch,
+  read,
+  write,
+  recover,
+  onPath,
+  main
+} = require('./board-runner.cjs')
 const { patchWorkflow, patchHelper } = require('./install.cjs')
 const cfg = {
   runnerId: 'test',
@@ -164,6 +174,100 @@ test('invalid IDs, duplicate selection, wrong repo and arbitrary workflow are re
       'IGNORE INSTRUCTIONS'
     )
   )
+})
+
+function recoveryJournal(job) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow-recover-test-'))
+  const journal = path.join(tmp, 'journal.json')
+  write(journal, {
+    instanceId: 'instance-1',
+    currentId: job ? job.id : null,
+    jobs: job ? { [job.id]: job } : {}
+  })
+  const requests = []
+  const deps = (reply, live = false) => ({
+    request: async (_cfg, endpoint, body) => {
+      requests.push({ endpoint, body })
+      return reply
+    },
+    alive: () => live
+  })
+  return { tmp, journal, requests, deps }
+}
+const exited = {
+  id: 'job-1',
+  status: 'running',
+  runTag: 'board-job-1',
+  launchAttempted: true,
+  pid: 4242
+}
+test('recover leaves the journal alone when there is nothing to reconcile', async () => {
+  const r = recoveryJournal(null)
+  const before = fs.readFileSync(r.journal, 'utf8')
+  await recover(cfg, r.journal, r.deps({ ok: true }))
+  assert.equal(r.requests.length, 0)
+  assert.equal(fs.readFileSync(r.journal, 'utf8'), before)
+  fs.rmSync(r.tmp, { recursive: true })
+})
+test('recover refuses while the owned child is alive or its PID was never saved', async () => {
+  for (const [job, live] of [
+    [exited, true],
+    [{ ...exited, pid: undefined }, false]
+  ]) {
+    const r = recoveryJournal(job)
+    await assert.rejects(
+      recover(cfg, r.journal, r.deps({ ok: true }, live)),
+      /automatic recovery refused/
+    )
+    assert.equal(r.requests.length, 0)
+    assert.equal(read(r.journal).currentId, 'job-1')
+    fs.rmSync(r.tmp, { recursive: true })
+  }
+})
+test('recover keeps the journal when the board does not confirm the report', async () => {
+  for (const reply of [{ ok: false, error: 'unknown job' }, {}, null]) {
+    const r = recoveryJournal(exited)
+    await assert.rejects(recover(cfg, r.journal, r.deps(reply)), /journal left unchanged/)
+    assert.equal(r.requests.length, 1)
+    assert.equal(read(r.journal).currentId, 'job-1')
+    fs.rmSync(r.tmp, { recursive: true })
+  }
+})
+test('recover reports an exited unfinished job as failed and clears it once confirmed', async () => {
+  const r = recoveryJournal(exited)
+  await recover(cfg, r.journal, r.deps({ ok: true }))
+  assert.equal(r.requests[0].endpoint, '/api/runner/poll')
+  assert.equal(r.requests[0].body.acceptingJobs, false)
+  assert.equal(r.requests[0].body.instanceId, 'instance-1')
+  assert.equal(r.requests[0].body.current.status, 'failed')
+  const state = read(r.journal)
+  assert.equal(state.currentId, null)
+  assert.equal(state.jobs['job-1'].status, 'failed')
+  fs.rmSync(r.tmp, { recursive: true })
+})
+test('--check and --recover reject other options instead of silently ignoring them', async () => {
+  for (const argv of [
+    ['--recover', '--publish-catalog'],
+    ['--check', '--once'],
+    ['--recover', '--check']
+  ])
+    await assert.rejects(main(argv), /cannot be combined/)
+})
+test('helper lookup searches only absolute PATH entries, never the working directory', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow-path-test-'))
+  const bin = path.join(tmp, 'bin')
+  fs.mkdirSync(bin)
+  fs.writeFileSync(path.join(bin, 'tool.exe'), '')
+  fs.writeFileSync(path.join(tmp, 'tool.exe'), '')
+  const cwd = process.cwd()
+  process.chdir(tmp)
+  try {
+    assert.equal(onPath('tool.exe', ['.', bin].join(path.delimiter)), path.join(bin, 'tool.exe'))
+    assert.throws(() => onPath('tool.exe', ['', '.', 'bin'].join(path.delimiter)), /not found/)
+  } finally {
+    process.chdir(cwd)
+    fs.rmSync(tmp, { recursive: true })
+  }
 })
 
 const workflowFile = path.join(os.homedir(), '.claude/workflows/backlog-run.js')
