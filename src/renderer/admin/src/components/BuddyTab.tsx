@@ -84,6 +84,18 @@ export function BuddyTab() {
   return (
     <div>
       <h2>Buddy (AI companion)</h2>
+      <label>
+        <input
+          type="checkbox"
+          checked={buddy.chatEnabled}
+          onChange={(e) => saveBuddy({ chatEnabled: e.target.checked })}
+        />
+        Allow Buddy chat
+      </label>
+      <p>
+        Turn this off if chatting confuses or upsets her. Buddy stays on Home with friendly tap
+        reactions. Changes take effect right away, including closing an open chat.
+      </p>
       <h3>Anthropic API key</h3>
       <p>
         Status:{' '}
@@ -120,8 +132,14 @@ export function BuddyTab() {
           value={buddy.tapAction}
           onChange={(e) => saveBuddy({ tapAction: e.target.value as typeof buddy.tapAction })}
         >
-          <option value="reaction">A friendly reaction, then a Let&apos;s chat button</option>
-          <option value="chat">Open chat right away</option>
+          <option value="reaction">
+            {buddy.chatEnabled
+              ? "A friendly reaction, then a Let's chat button"
+              : 'A friendly reaction'}
+          </option>
+          <option value="chat">
+            {buddy.chatEnabled ? 'Open chat right away' : 'A friendly reaction (chat is off)'}
+          </option>
         </select>
       </label>
       <br />

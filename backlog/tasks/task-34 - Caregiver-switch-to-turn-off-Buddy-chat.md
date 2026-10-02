@@ -1,9 +1,10 @@
 ---
 id: TASK-34
 title: Caregiver switch to turn off Buddy chat
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-09-29 09:24'
+updated_date: '2026-10-02 17:00'
 labels: []
 milestone: m-9
 dependencies: []

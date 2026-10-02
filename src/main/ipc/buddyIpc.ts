@@ -26,11 +26,12 @@ export function registerBuddyIpc(): void {
     return { ok: true }
   })
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
-    const { anthropicApiKey, model } = getConfig().buddy
+    const { anthropicApiKey, model, chatEnabled } = getConfig().buddy
     const result = await buddyChat(Array.isArray(req?.turns) ? req.turns : [], {
+      chatEnabled,
       apiKey: anthropicApiKey,
       model,
-      client: anthropicApiKey ? getAnthropicClient(anthropicApiKey) : null,
+      client: chatEnabled && anthropicApiKey ? getAnthropicClient(anthropicApiKey) : null,
       log: logActivity
     })
     // Log that a conversation happened, never what was said - the activity

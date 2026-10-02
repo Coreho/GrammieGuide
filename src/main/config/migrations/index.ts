@@ -3,6 +3,7 @@ import { migration as migration003 } from './003-tile-sizes'
 import { migration as migration004 } from './004-buddy-quick-messages'
 import { migration as migration005 } from './005-tile-colors'
 import { migration as migration006 } from './006-buddy-interaction-settings'
+import { migration as migration007 } from './007-buddy-chat-enabled'
 
 export interface Migration {
   version: number
@@ -22,5 +23,6 @@ export const migrations: Migration[] = [
   migration003,
   migration004,
   migration005,
-  migration006
+  migration006,
+  migration007
 ]

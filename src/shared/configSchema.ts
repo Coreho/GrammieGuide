@@ -8,7 +8,7 @@ import { quickMessageSchema } from './buddy/commands'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 6
+export const CURRENT_SCHEMA_VERSION = 7
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
@@ -55,6 +55,8 @@ export const confusionConfigSchema = z.object({
 
 export const buddyConfigSchema = z.object({
   anthropicApiKey: z.string().optional(),
+  /** Chat can be switched off while Buddy's presence and friendly reactions stay available. */
+  chatEnabled: z.boolean().default(true),
   /** Sonnet 5.5, not the cheaper Haiku 4.5: live checks found Haiku still agreeing with
    * confused statements ("I'm sure it will be nice to see her") despite the prompt. */
   model: z.string().default('claude-sonnet-5-5'),
