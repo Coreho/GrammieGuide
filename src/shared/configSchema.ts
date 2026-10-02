@@ -55,7 +55,9 @@ export const confusionConfigSchema = z.object({
 
 export const buddyConfigSchema = z.object({
   anthropicApiKey: z.string().optional(),
-  model: z.string().default('claude-haiku-4-5'),
+  /** Sonnet 5.5, not the cheaper Haiku 4.5: live checks found Haiku still agreeing with
+   * confused statements ("I'm sure it will be nice to see her") despite the prompt. */
+  model: z.string().default('claude-sonnet-5-5'),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
   /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
   cloudTtsEnabled: z.boolean().default(true),
@@ -152,7 +154,7 @@ export function defaultConfig(): Config {
       rapidTap: { count: 20, windowMs: 4000, clusterRadiusPx: 80, cooldownMs: 15000 }
     },
     buddy: {
-      model: 'claude-haiku-4-5',
+      model: 'claude-sonnet-5-5',
       chattiness: 'off',
       cloudTtsEnabled: true,
       voiceEnabled: true,

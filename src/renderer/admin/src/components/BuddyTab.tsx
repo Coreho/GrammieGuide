@@ -15,7 +15,11 @@ const VOICES: { id: string; label: string }[] = [
 const PREVIEW_LINE = "Hi there! It's so nice to see you today."
 
 const MODELS: { id: string; label: string }[] = [
-  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 - fastest, lowest cost (recommended)' },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 - gentlest with confused statements (recommended)' },
+  {
+    id: 'claude-haiku-4-5',
+    label: 'Claude Haiku 4.5 - fastest, lowest cost, more likely to play along with confused statements'
+  },
   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 - more thoughtful, slower' },
   { id: 'claude-opus-5', label: 'Claude Opus 5 - most capable, highest cost' }
 ]

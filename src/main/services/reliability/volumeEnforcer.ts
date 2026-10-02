@@ -96,24 +96,31 @@ async function enforceViaPowerShell(
     return
   }
 
-  const script = `
-$src = @'
-${csSource}
-'@
-$dll = Join-Path $env:TEMP 'GrammieGuideVolumeHelper.dll'
-if (-not (Test-Path $dll)) {
-  Add-Type -TypeDefinition $src -OutputAssembly $dll -Language CSharp
-} else {
-  Add-Type -Path $dll
-}
-[GrammieGuide.VolumeHelper]::EnforceCeiling(${ceilingPercent})
-`.trim()
-
-  const result = await runPowerShell(script, { execFileImpl })
+  const result = await runPowerShell(volumeFallbackScript(csSource, ceilingPercent), {
+    execFileImpl
+  })
   logReliabilityEvent({
     op: 'volume-enforce-powershell',
     ok: result.ok,
-    detail: result.ok ? undefined : result.error ?? result.stderr,
+    detail: result.ok ? undefined : (result.error ?? result.stderr),
     durationMs: result.durationMs
   })
+}
+
+/**
+ * Compiles the helper in memory on every call. The old app cached the DLL at a
+ * fixed %TEMP% path and loaded whatever file was there, so any process running
+ * as her could plant code for an elevated run to execute. A hash of the source
+ * in the file name doesn't help: the source ships with the app, so the name is
+ * still predictable. Compiling takes about half a second, and this path only
+ * runs when the loudness module has failed.
+ */
+export function volumeFallbackScript(csSource: string, ceilingPercent: number): string {
+  return `
+$src = @'
+${csSource}
+'@
+Add-Type -TypeDefinition $src -Language CSharp
+[GrammieGuide.VolumeHelper]::EnforceCeiling(${ceilingPercent})
+`.trim()
 }
