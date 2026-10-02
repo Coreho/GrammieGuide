@@ -4,7 +4,7 @@ title: Settings backup and restore
 status: In Progress
 assignee: []
 created_date: '2026-09-29 05:54'
-updated_date: '2026-10-02 20:19'
+updated_date: '2026-10-02 20:55'
 labels: []
 milestone: m-11
 dependencies: []
@@ -28,3 +28,9 @@ Rebuilding her setup after a reinstall, a new device or a bad change means re-en
 - [ ] #6 Tests cover secret stripping, upgrading an old backup, and rejecting a bad file
 - [ ] #7 Restoring on a device that lacks the photo or music files shows those items as not set up yet, never as broken
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Left: (1) Red flag: out-of-scope change in src/renderer/launcher/src/tiles/builtins.tsx:30 adds MediaNotSetup overlay and makes photos/music builtin tiles return it (builtinFor), new imports OverlayShell, zLayers, LinkIcon; changes launcher behavior, reviewer to confirm. (2) Not reviewed because checks were still failing.
+<!-- SECTION:NOTES:END -->
