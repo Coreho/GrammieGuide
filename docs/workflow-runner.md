@@ -142,7 +142,10 @@ The first three board runs (TASK-17, TASK-13, TASK-34) built nothing. The first
 hit the plan's usage limit, and the other two were refused by the Workflow tool's
 `scriptPath` check. Each was correctly reported as failed, not done. A headless
 probe then confirmed that a saved workflow started by name runs, and that
-`claude --print` waits for it to finish before exiting.
+`claude --print` waits for it to finish before exiting. The fourth run (TASK-34) then went all the way from Start to finish in
+about six minutes. It passed preflight, skipped TASK-34 for overlapping open PRs #7
+and #16, and reported done. The catalog comes from the local checkout's Backlog, so
+keep that checkout on an up-to-date `main`, or the board lists finished tasks.
 
 The VPS session owns board UI/server code. Its API contract and this runner's handoff
 are `/opt/stacks/workflow-board/RUNNER-API.md` and `WINDOWS-RUNNER.md`. API identity is
