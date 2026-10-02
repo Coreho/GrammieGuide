@@ -8,6 +8,7 @@ import {
   MAX_TURN_CHARS
 } from '../../src/main/services/ai/buddyChatService'
 import { BUDDY_SYSTEM_PROMPT } from '../../src/main/services/ai/buddyPrompt'
+import { defaultConfig } from '../../src/shared/configSchema'
 import type { BuddyChatTurn } from '../../src/shared/ipcContract'
 
 type CreateFn = (params: Anthropic.MessageCreateParamsNonStreaming) => Promise<unknown>
@@ -79,6 +80,17 @@ describe('buddyChat', () => {
     const { client, create } = fakeClient(() => textResponse('Hi!'))
     await buddyChat(greetingThenUser, { apiKey: 'k', model: 'claude-sonnet-5', client, log })
     expect(create.mock.calls[0]![0]).toMatchObject({ output_config: { effort: 'low' } })
+  })
+
+  it('defaults new setups to Sonnet 5.5, asked for low effort', async () => {
+    const { client, create } = fakeClient(() => textResponse('Hi!'))
+    const model = defaultConfig().buddy.model
+    expect(model).toBe('claude-sonnet-5-5')
+    await buddyChat(greetingThenUser, { apiKey: 'k', model, client, log })
+    expect(create.mock.calls[0]![0]).toMatchObject({
+      model: 'claude-sonnet-5-5',
+      output_config: { effort: 'low' }
+    })
   })
 
   it('turns a refusal into a gentle change of subject', async () => {

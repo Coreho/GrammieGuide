@@ -15,6 +15,8 @@ import {
   type BuddyInput
 } from '../../src/shared/buddy/buddyMachine'
 import { pickRemark, timeOfDay, greetingFor } from '../../src/shared/buddy/remarks'
+import { BUDDY_CLIPS } from '../../src/shared/buddy/commands'
+import { pickClip } from '../../src/renderer/launcher/src/buddy/clips'
 
 /** Deterministic "random" that walks a fixed sequence. */
 function seq(...values: number[]): () => number {
@@ -34,7 +36,7 @@ function start(input: Partial<BuddyInput> = {}): Harness {
   const actor = createActor(buddyMachine, {
     clock,
     input: {
-      roaming: true,
+      motion: 'roam',
       chattiness: 'off',
       hour: 10,
       random: seq(0.5),
@@ -50,11 +52,131 @@ function start(input: Partial<BuddyInput> = {}): Harness {
 
 const MIN = 60_000
 
+describe.each(['still', 'roam', 'reduced'] as const)('%s motion', (motion) => {
+  it.each([10, 23])('allows every caregiver clip and a deliberate walk at hour %s', (hour) => {
+    const { actor, activity, ctx } = start({ motion, hour })
+    for (const clip of BUDDY_CLIPS) {
+      actor.send({ type: 'COMMAND', clip, text: 'Hello', speak: true })
+      expect(activity()).toBe('commanded')
+      expect(ctx()).toMatchObject({ forcedClip: clip, commandSpeak: true, bubble: 'Hello' })
+      actor.send({ type: 'CLIP_DONE' })
+      expect(activity()).toBe('resting')
+    }
+    actor.send({ type: 'COMMAND', walk: true, at: 0.5 })
+    expect(activity()).toBe('strolling')
+    expect(Math.abs(ctx().target - 0.5)).toBeGreaterThanOrEqual(1 / 3)
+    const target = ctx().target
+    actor.send({
+      type: 'SETTINGS',
+      motion: 'reduced',
+      chattiness: 'off',
+      hour,
+      weather: null,
+      at: 0.6
+    })
+    expect(activity()).toBe('strolling')
+    expect(ctx().target).toBe(target)
+    actor.send({ type: 'ARRIVED', at: target })
+    expect(activity()).toBe('resting')
+  })
+
+  it.each([10, 23])('honors fidget and stroll rules over time at hour %s', (hour) => {
+    const { actor, clock, activity } = start({ motion, hour })
+    const seen = new Set<BuddyActivity>()
+    actor.send({ type: 'CLIP_DONE' })
+    for (let i = 0; i < 600; i++) {
+      clock.increment(1000)
+      seen.add(activity())
+      if (activity() === 'strolling') actor.send({ type: 'ARRIVED', at: 0.4 })
+      if (activity() === 'fidgeting') actor.send({ type: 'CLIP_DONE' })
+    }
+    expect(seen.has('strolling')).toBe(motion === 'roam' && hour === 10)
+    expect(seen.has('fidgeting')).toBe(motion !== 'reduced')
+  })
+
+  it('keeps chat responsive and reduces repeated talking gestures only in reduced mode', () => {
+    const { actor, activity, ctx } = start({ motion, position: 0.3 })
+    actor.send({ type: 'CHAT_OPEN', at: 0.35 })
+    expect(ctx().target).toBe(motion === 'reduced' ? 0.35 : CHAT_SPOT)
+    actor.send({ type: 'CHAT_PHASE', phase: 'speaking' })
+    expect(activity()).toBe('chat.talking')
+    actor.send({ type: 'CLIP_DONE' })
+    expect(activity()).toBe(motion === 'reduced' ? 'chat.attending' : 'chat.talking')
+    actor.send({ type: 'COMMAND', walk: true })
+    expect(activity()).not.toBe('strolling')
+    actor.send({ type: 'PET' })
+    expect(activity()).toBe('chat.petted')
+    actor.send({ type: 'CHAT_CLOSE' })
+    expect(activity()).toBe('farewell')
+  })
+})
+
+describe('live motion changes', () => {
+  it.each(['still', 'reduced'] as const)(
+    'stops an unprompted stroll immediately for %s',
+    (motion) => {
+      const { actor, clock, activity, ctx } = start()
+      actor.send({ type: 'CLIP_DONE' })
+      for (let i = 0; i < 6 && activity() !== 'strolling'; i++) {
+        clock.increment(26_000)
+        if (activity() === 'fidgeting') actor.send({ type: 'CLIP_DONE' })
+      }
+      expect(activity()).toBe('strolling')
+      actor.send({ type: 'SETTINGS', motion, chattiness: 'off', hour: 10, weather: null, at: 0.45 })
+      expect(activity()).toBe('resting')
+      expect(ctx()).toMatchObject({ position: 0.45, target: 0.45, motion })
+      actor.send({ type: 'SETTINGS', motion: 'roam', chattiness: 'off', hour: 10, weather: null })
+      clock.increment(26_000)
+      expect(activity()).toBe('strolling')
+    }
+  )
+
+  it('stops a fidget immediately, cancels its timeout, and resumes fidgets when switched back', () => {
+    const { actor, clock, activity } = start({ motion: 'still' })
+    actor.send({ type: 'CLIP_DONE' })
+    clock.increment(26_000)
+    expect(activity()).toBe('fidgeting')
+    actor.send({ type: 'SETTINGS', motion: 'reduced', chattiness: 'off', hour: 10, weather: null })
+    expect(activity()).toBe('resting')
+    for (let i = 0; i < 30; i++) {
+      clock.increment(26_000)
+      expect(activity()).toBe('resting')
+    }
+    actor.send({ type: 'SETTINGS', motion: 'still', chattiness: 'off', hour: 10, weather: null })
+    clock.increment(26_000)
+    expect(activity()).toBe('fidgeting')
+  })
+
+  it('stops chat repositioning when reduced motion is chosen mid-chat', () => {
+    const { actor, activity, ctx } = start({ position: 0.3 })
+    actor.send({ type: 'CHAT_OPEN' })
+    actor.send({
+      type: 'SETTINGS',
+      motion: 'reduced',
+      chattiness: 'off',
+      hour: 10,
+      weather: null,
+      at: 0.4
+    })
+    expect(activity()).toBe('chat.hello')
+    expect(ctx()).toMatchObject({ position: 0.4, target: 0.4 })
+  })
+
+  it('keeps configured remarks in reduced mode, with calm idling instead of beckoning', () => {
+    const { actor, clock, activity, ctx } = start({ motion: 'reduced', chattiness: 'normal' })
+    actor.send({ type: 'CLIP_DONE' })
+    for (let i = 0; i < 250 && activity() !== 'remarking'; i++) clock.increment(1000)
+    expect(activity()).toBe('remarking')
+    expect(ctx().bubble).toBeTruthy()
+    expect(pickClip(activity(), { motion: ctx().motion, random: () => 0 })).toBe('idle_calm')
+  })
+})
+
 describe('buddy machine', () => {
   it.each([0.06, 0.5, 0.94])(
-    'takes a deliberate walk from %s at night with roaming off',
+    'takes a deliberate walk from %s at night in still mode',
     (position) => {
-      const { actor, activity, ctx, clock } = start({ position, hour: 23, roaming: false })
+      const { actor, activity, ctx, clock } = start({ position, hour: 23, motion: 'still' })
       actor.send({ type: 'COMMAND', walk: true })
       expect(activity()).toBe('strolling')
       const target = ctx().target
@@ -174,8 +296,8 @@ describe('buddy machine', () => {
     expect(ctx().position).toBe(target)
   })
 
-  it('never strolls when roaming is off', () => {
-    const { actor, clock, activity } = start({ roaming: false })
+  it('never strolls in still mode', () => {
+    const { actor, clock, activity } = start({ motion: 'still' })
     actor.send({ type: 'CLIP_DONE' })
     for (let i = 0; i < 40; i++) {
       clock.increment(26_000)
@@ -195,7 +317,7 @@ describe('buddy machine', () => {
   })
 
   it('makes no unprompted remarks while chattiness is off', () => {
-    const { actor, clock, activity } = start({ roaming: false })
+    const { actor, clock, activity } = start({ motion: 'still' })
     actor.send({ type: 'CLIP_DONE' })
     for (let i = 0; i < 60; i++) {
       clock.increment(26_000)
@@ -206,7 +328,7 @@ describe('buddy machine', () => {
 
   it('remarks when chattiness is on, shows the bubble for a while, then clears it', () => {
     const { actor, clock, activity, ctx } = start({
-      roaming: false,
+      motion: 'still',
       chattiness: 'normal',
       random: seq(0.1)
     })
@@ -225,11 +347,11 @@ describe('buddy machine', () => {
   })
 
   it('turning chattiness on starts a fresh wait instead of remarking at once', () => {
-    const { actor, clock, activity } = start({ roaming: false })
+    const { actor, clock, activity } = start({ motion: 'still' })
     actor.send({ type: 'CLIP_DONE' })
     clock.increment(10 * MIN)
     if (activity() === 'fidgeting') actor.send({ type: 'CLIP_DONE' })
-    actor.send({ type: 'SETTINGS', roaming: false, chattiness: 'normal', hour: 10, weather: null })
+    actor.send({ type: 'SETTINGS', motion: 'still', chattiness: 'normal', hour: 10, weather: null })
     clock.increment(26_000)
     expect(activity()).not.toBe('remarking')
   })
@@ -378,7 +500,7 @@ describe('stuck clips', () => {
     const actor = createActor(buddyMachine, {
       clock,
       input: {
-        roaming: false,
+        motion: 'still',
         chattiness: 'off',
         hour: 10,
         random: () => 0.5,

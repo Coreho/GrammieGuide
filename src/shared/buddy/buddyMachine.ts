@@ -1,6 +1,7 @@
 import { setup, assign } from 'xstate'
 import { farewellLine, greetingFor, pickRemark, type RemarkWeather } from './remarks'
 import type { BuddyCommand, ClipName } from './commands'
+import type { Config } from '../configSchema'
 
 /**
  * Buddy's behavior: what he's doing right now, as a state machine. Pure
@@ -11,20 +12,22 @@ import type { BuddyCommand, ClipName } from './commands'
  *
  * Calm by default, as the plan requires: long stretches of plain idling,
  * the occasional fidget, a stroll every minute or so if the caregiver
- * allows roaming, and no unprompted talking unless chattiness is turned on.
- * At night he stays put and fidgets rarely.
+ * chooses roam, and no unprompted talking unless chattiness is turned on.
+ * Reduced motion skips fidgets entirely. At night he stays put and fidgets rarely otherwise.
  *
  * Positions are fractions (0 = left end of his floor, 1 = right end) so this
  * file never needs to know screen sizes.
  */
 
 export type Chattiness = 'off' | 'low' | 'normal'
+export type BuddyMotion = Config['buddy']['motion']
 export type ChatPhase = 'idle' | 'hearing' | 'thinking' | 'speaking'
 
 export type BuddyContext = {
   random: () => number
   now: () => number
-  roaming: boolean
+  motion: BuddyMotion
+  deliberateWalk: boolean
   chattiness: Chattiness
   hour: number
   weather: RemarkWeather | null
@@ -46,13 +49,14 @@ export type BuddyEvent =
   | ({ type: 'COMMAND'; at?: number } & BuddyCommand)
   | { type: 'CLIP_DONE' }
   | { type: 'ARRIVED'; at: number }
-  | { type: 'CHAT_OPEN' }
+  | { type: 'CHAT_OPEN'; at?: number }
   | { type: 'CHAT_CLOSE' }
   | { type: 'CHAT_PHASE'; phase: ChatPhase }
   | { type: 'PET' }
   | {
       type: 'SETTINGS'
-      roaming: boolean
+      motion: BuddyMotion
+      at?: number
       chattiness: Chattiness
       hour: number
       weather: RemarkWeather | null
@@ -61,7 +65,7 @@ export type BuddyEvent =
 export type BuddyInput = {
   random?: () => number
   now?: () => number
-  roaming: boolean
+  motion: BuddyMotion
   chattiness: Chattiness
   hour: number
   weather?: RemarkWeather | null
@@ -120,7 +124,8 @@ export const buddyMachine = setup({
       !isNight(context.hour) &&
       context.now() >= context.nextRemarkAt,
     strollDue: ({ context }) =>
-      context.roaming && !isNight(context.hour) && context.now() >= context.nextStrollAt,
+      context.motion === 'roam' && !isNight(context.hour) && context.now() >= context.nextStrollAt,
+    canFidget: ({ context }) => context.motion !== 'reduced',
     phaseChanged: ({ context, event }) =>
       event.type === 'CHAT_PHASE' && event.phase !== context.chatPhase,
     hearing: ({ context }) => context.chatPhase === 'hearing',
@@ -143,7 +148,11 @@ export const buddyMachine = setup({
       if (event.type !== 'SETTINGS') return {}
       const chattinessChanged = event.chattiness !== context.chattiness
       return {
-        roaming: event.roaming,
+        motion: event.motion,
+        // Stop at his rendered position, not the stale start of a walk.
+        ...(event.motion === 'reduced' && context.motion !== 'reduced' && !context.deliberateWalk
+          ? { position: event.at ?? context.position, target: event.at ?? context.position }
+          : {}),
         chattiness: event.chattiness,
         hour: event.hour,
         weather: event.weather,
@@ -162,6 +171,10 @@ export const buddyMachine = setup({
         event.type === 'CHAT_PHASE' ? event.phase : context.chatPhase
     }),
     clearBubble: assign({ bubble: null }),
+    stopAtCurrent: assign(({ context, event }) => {
+      const position = event.type === 'SETTINGS' ? (event.at ?? context.position) : context.position
+      return { position, target: position }
+    }),
     startCommand: assign(({ context, event }) => {
       if (event.type !== 'COMMAND') return {}
       // The renderer supplies his live position, including halfway through a stroll.
@@ -178,7 +191,8 @@ export const buddyMachine = setup({
     return {
       random,
       now,
-      roaming: input.roaming,
+      motion: input.motion,
+      deliberateWalk: false,
       chattiness: input.chattiness,
       hour: input.hour,
       weather: input.weather ?? null,
@@ -243,18 +257,30 @@ export const buddyMachine = setup({
       always: [
         { guard: 'remarkDue', target: 'remarking' },
         { guard: 'strollDue', target: 'strolling' },
-        { target: 'fidgeting' }
+        { guard: 'canFidget', target: 'fidgeting' },
+        { target: 'resting' }
       ]
     },
 
     fidgeting: {
-      on: { CLIP_DONE: 'resting' },
+      on: {
+        CLIP_DONE: 'resting',
+        SETTINGS: [
+          {
+            guard: ({ event }) => event.motion === 'reduced',
+            target: 'resting',
+            actions: 'applySettings'
+          },
+          { actions: 'applySettings' }
+        ]
+      },
       after: { clipTimeout: 'resting' }
     },
 
     strolling: {
       entry: assign({
-        // Deliberate walks bypass the idle guards, even at night or with roaming off.
+        // Deliberate walks bypass the idle guards in every motion mode, even at night.
+        deliberateWalk: ({ event }) => event.type === 'COMMAND',
         target: ({ context, event }) =>
           pickStrollTarget(
             context.position,
@@ -262,7 +288,16 @@ export const buddyMachine = setup({
             event.type === 'COMMAND' ? 1 / 3 : 0.18
           )
       }),
+      exit: assign({ deliberateWalk: false }),
       on: {
+        SETTINGS: [
+          {
+            guard: ({ context, event }) => !context.deliberateWalk && event.motion !== 'roam',
+            target: 'resting',
+            actions: ['applySettings', 'stopAtCurrent']
+          },
+          { actions: 'applySettings' }
+        ],
         ARRIVED: {
           target: 'resting',
           actions: [
@@ -292,7 +327,15 @@ export const buddyMachine = setup({
     },
 
     chat: {
-      entry: [assign({ target: CHAT_SPOT, bubble: null })],
+      entry: assign(({ context, event }) => ({
+        target:
+          context.motion === 'reduced'
+            ? event.type === 'CHAT_OPEN'
+              ? (event.at ?? context.position)
+              : context.position
+            : CHAT_SPOT,
+        bubble: null
+      })),
       initial: 'hello',
       on: {
         // Already chatting: another open is a no-op, not a restart.
@@ -326,7 +369,12 @@ export const buddyMachine = setup({
         attending: {},
         hearing: {},
         thinking: {},
-        talking: {},
+        talking: {
+          // One gentle gesture per reply is enough; don't keep moving until speech ends.
+          on: {
+            CLIP_DONE: { guard: ({ context }) => context.motion === 'reduced', target: 'attending' }
+          }
+        },
         petted: { on: { CLIP_DONE: 'routing' }, after: { clipTimeout: 'routing' } }
       }
     },

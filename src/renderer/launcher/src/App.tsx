@@ -13,6 +13,8 @@ import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { NavBar } from './components/NavBar'
+import { PageRecovery } from './components/PageRecovery'
+import type { PageProblem } from '@shared/browser/loadFailure'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
@@ -58,6 +60,8 @@ function timeParts(now: Date): { time: string; ampm: string; date: string } {
 export default function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null)
   const [view, setView] = useState<View>('home')
+  /** A web page that failed or was blocked; Home's recovery screen stands in for it. */
+  const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
   /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
   const [openBuiltin, setOpenBuiltin] = useState<TileType | null>(null)
   const [showConfusion, setShowConfusion] = useState(false)
@@ -129,8 +133,17 @@ export default function App() {
       setView('home')
       setShowConfusion(true)
     })
-    return offIdle
+    const offProblem = window.launcher.onPageProblem(({ kind }) => setPageProblem(kind))
+    return () => {
+      offIdle()
+      offProblem()
+    }
   }, [])
+
+  // Whatever went wrong on the last page stays with that page.
+  useEffect(() => {
+    if (view !== 'browser') setPageProblem(null)
+  }, [view])
 
   const buddyMenuAvailable =
     Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
@@ -170,8 +183,9 @@ export default function App() {
   }, [buddyMenuAvailable, closeBuddyMenu])
 
   useEffect(() => {
-    if (!buddyMenuAvailable || buddyMenuAnchor) clearChatInvitation()
-  }, [buddyMenuAvailable, buddyMenuAnchor, clearChatInvitation])
+    if (!buddyMenuAvailable || buddyMenuAnchor || config?.buddy.tapAction === 'chat')
+      clearChatInvitation()
+  }, [buddyMenuAvailable, buddyMenuAnchor, config?.buddy.tapAction, clearChatInvitation])
 
   useEffect(() => {
     const offCommand = window.launcher.onBuddyCommand(clearChatInvitation)
@@ -227,12 +241,6 @@ export default function App() {
     await window.launcher.goBack()
   }
 
-  async function handleFontStepChange(next: number): Promise<void> {
-    document.documentElement.style.setProperty('--font-scale', String(fontScaleForStep(next)))
-    const updated = await window.launcher.setFontStep(next)
-    setConfig(updated)
-  }
-
   if (!config) {
     return <div style={{ color: '#fff', padding: 32 }}>Loading...</div>
   }
@@ -250,19 +258,25 @@ export default function App() {
             date={date}
             weather={weather}
             tiles={config.tiles}
-            fontStep={config.display.fontStep}
-            onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return
               clearChatInvitation()
+              if (config.buddy.tapAction === 'chat') {
+                setShowBuddyChat(true)
+                return
+              }
               setChatInvitation('visible')
               // Her invitation outlives a short gesture; another pat starts a fresh eight seconds.
               invitationTimers.current = [
                 setTimeout(() => setChatInvitation('fading'), 8_000),
                 setTimeout(() => setChatInvitation(null), 8_400)
               ]
-              const reaction = pickTapReaction(lastTapReaction.current)
+              const reaction = pickTapReaction(
+                lastTapReaction.current,
+                Math.random,
+                config.buddy.motion
+              )
               lastTapReaction.current = reaction
               setBuddyCommand((previous) => ({
                 ...reaction,
@@ -279,7 +293,7 @@ export default function App() {
               command: buddyCommand,
               chatOpen: showBuddyChat,
               chatPhase: buddyChatPhase,
-              roaming: config.buddy.roaming,
+              motion: config.buddy.motion,
               chattiness: config.buddy.chattiness,
               hour: now.getHours(),
               weather: weather
@@ -320,6 +334,17 @@ export default function App() {
       </Stage>
 
       {view === 'browser' && <NavBar onHome={goHome} onBack={goBack} />}
+      {view === 'browser' && pageProblem && (
+        <PageRecovery
+          problem={pageProblem}
+          onAction={() =>
+            void (pageProblem === 'blocked'
+              ? window.launcher.dismissBlockedPage()
+              : window.launcher.retryPage())
+          }
+          onHome={() => void goHome()}
+        />
+      )}
 
       {OpenBuiltinView && openBuiltin && (
         <OpenBuiltinView

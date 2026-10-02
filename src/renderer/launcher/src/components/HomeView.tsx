@@ -2,13 +2,11 @@ import type { Tile as TileType } from '@shared/configSchema'
 import type { WeatherSnapshot } from '@shared/ipcContract'
 import { TileGrid } from './TileGrid'
 import { WeatherGlyph } from './WeatherGlyph'
-import { FontScaleControl } from './FontScaleControl'
 import { CHIP_SHADOW } from '../clay'
 import { BuddyFloor } from '../buddy/BuddyFloor'
-import type { ChatPhase, Chattiness } from '@shared/buddy/buddyMachine'
+import type { ChatPhase, Chattiness, BuddyMotion } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand } from '@shared/buddy/commands'
-import { zLayers } from '@shared/zLayers'
 
 export type HomeBuddyProps = {
   chatInvitation: 'visible' | 'fading' | null
@@ -16,7 +14,7 @@ export type HomeBuddyProps = {
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
-  roaming: boolean
+  motion: BuddyMotion
   chattiness: Chattiness
   hour: number
   weather: RemarkWeather | null
@@ -28,8 +26,6 @@ export function HomeView({
   date,
   weather,
   tiles,
-  fontStep,
-  onFontStepChange,
   onActivateTile,
   onBuddyTap,
   buddy
@@ -39,8 +35,6 @@ export function HomeView({
   date: string
   weather: WeatherSnapshot | null
   tiles: TileType[]
-  fontStep: number
-  onFontStepChange: (step: number) => void
   onActivateTile: (tile: TileType) => void
   onBuddyTap: () => void
   buddy: HomeBuddyProps
@@ -143,12 +137,10 @@ export function HomeView({
       <footer
         style={{ flex: 'none', height: 150, display: 'flex', alignItems: 'flex-end', gap: 32 }}
       >
-        <div style={{ position: 'relative', zIndex: zLayers.fontControl }}>
-          <FontScaleControl step={fontStep} onChange={onFontStepChange} />
-        </div>
         {/*
           The floor spans the Stage while the footer reserves exactly 150px.
-          The text-size control stays above his tap target when he passes it.
+          No text-size buttons here: the caregiver sets text size in admin's
+          Display tab, so a stray tap can't change it on her.
         */}
         <BuddyFloor {...buddy} onTap={onBuddyTap} />
       </footer>

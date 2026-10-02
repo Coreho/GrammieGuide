@@ -218,7 +218,7 @@ test('taps react without a menu, respect read-aloud, and replace rapid reactions
   await admin.evaluate(async () => {
     const config = await window.admin.getConfig()
     await window.admin.setConfig({
-      buddy: { ...config.buddy, voiceEnabled: false, cloudTtsEnabled: false, roaming: false }
+      buddy: { ...config.buddy, voiceEnabled: false, cloudTtsEnabled: false, motion: 'still' }
     })
   })
   // Reload ensures the renderer has the saved settings before the first tap.
@@ -321,6 +321,14 @@ test('5–8 tiles retain complete labels and the 150px footer at the largest tex
       },
       { count, url }
     )
+    // Admin's Display setting is the only way to change text size; Home follows it live.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          getComputedStyle(document.documentElement).getPropertyValue('--font-scale').trim()
+        )
+      )
+      .toBe('1.6')
     const grid = page.getByRole('main', { name: 'Home tiles' })
     await expect(grid.getByRole('button')).toHaveCount(count)
     const layout = await grid.evaluate((el) => {
@@ -346,7 +354,7 @@ test('5–8 tiles retain complete labels and the 150px footer at the largest tex
   await page.screenshot({ path: 'test-results/handoff-eight-tiles.png' })
 })
 
-test('daytime roaming reaches the left footer and text controls stay usable; night stays still', async () => {
+test('daytime roaming reaches the left footer; night stays still', async () => {
   test.setTimeout(180_000)
   await page.addInitScript(() => {
     Math.random = () => 0.05
@@ -360,19 +368,14 @@ test('daytime roaming reaches the left footer and text controls stay usable; nig
   await expect(floor).toHaveAttribute('data-buddy-target', /^0\.10/)
   await page.clock.runFor(35_000)
   const hit = await page.getByRole('button', { name: 'Say hello to Buddy' }).boundingBox()
-  const smaller = await page.getByRole('button', { name: 'Make text smaller' }).boundingBox()
-  expect(hit!.x).toBeLessThan(smaller!.x + 200)
+  const floorBox = await page.locator('[data-buddy-floor]').boundingBox()
+  expect(hit!.x).toBeLessThan(floorBox!.x + floorBox!.width * 0.25)
   await page.keyboard.press('Control+Shift+B')
   const leftMenu = await page.getByRole('menu', { name: 'Buddy menu' }).boundingBox()
   expect(leftMenu!.x).toBeGreaterThanOrEqual(0)
   expect(leftMenu!.y).toBeGreaterThanOrEqual(0)
   expect(leftMenu!.y + leftMenu!.height).toBeLessThanOrEqual(hit!.y)
   await page.keyboard.press('Escape')
-
-  await page.getByRole('button', { name: 'Make text smaller' }).click()
-  await expect
-    .poll(() => page.evaluate(() => window.launcher.getConfig().then((c) => c.display.fontStep)))
-    .toBe(3)
   await page.screenshot({ path: 'test-results/handoff-left-roaming.png' })
   await page.clock.setFixedTime(new Date(2026, 8, 26, 23, 0))
   await page.reload()

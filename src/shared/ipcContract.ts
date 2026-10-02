@@ -1,6 +1,7 @@
 import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
+import type { PageProblem } from './browser/loadFailure'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -125,8 +126,6 @@ export interface IpcApi {
   /** Whether there's a recognizer and a microphone at all, so the panel can hide its mic button. */
   'buddy:canListen': { request: void; response: boolean }
 
-  'display:setFontStep': { request: { step: number }; response: PublicConfig }
-
   'weather:get': {
     request: { label: string; units: 'imperial' | 'metric' }
     response: WeatherSnapshot | null
@@ -135,6 +134,10 @@ export interface IpcApi {
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
   'browser:goBack': { request: void; response: void }
+  /** Her "Try again" on the recovery screen: reload the page that failed. */
+  'browser:retry': { request: void; response: void }
+  /** Her "Back to the page" after a blocked link. */
+  'browser:dismissBlocked': { request: void; response: void }
 }
 
 export type IpcChannel = keyof IpcApi
@@ -148,6 +151,8 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
 export interface IpcEvents {
   'buddy:command': BuddyCommand
   'browser:blocked': { url: string }
+  /** The page failed or a link was blocked (Home shows its recovery screen), or null once it's fine again. */
+  'browser:page-problem': { kind: PageProblem | null }
   'browser:can-go-back-changed': { canGoBack: boolean }
   'browser:idle-timeout': Record<string, never>
   /** Pushed to the launcher whenever config changes, so admin edits show up live. */
