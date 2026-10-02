@@ -31,6 +31,8 @@ Built-in tiles each have their own view. **News** is wide by default. Tapping it
 
 Config migrations 003 (tile sizes), 004 (saved Buddy messages) and 005 (tile colors, seeded so upgrading doesn't repaint Home) preserve existing settings.
 
+Local media infrastructure is ready: `grammie-media://` streams images and seekable audio from `userData/media/music/` and `userData/media/photos/` to Home and admin, with strict filename validation and no renderer filesystem API. Importing media remains future work.
+
 ## Buddy
 
 Buddy is the cat in sunglasses at the bottom right of Home.
