@@ -69,3 +69,5 @@ The switch keeps the old launcher's start-at-login on until GrammieGuide has set
 - `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first)
 - `npm run package` - Windows installer via electron-builder (`dist/GrammieGuide Setup <version>.exe`)
 - `sh scripts/blender/buildBuddy.sh` - rebuild Buddy's model from the Meshy downloads (needs Blender)
+
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Coreho/GrammieGuide?utm_source=oss&utm_medium=github&utm_campaign=Coreho%2FGrammieGuide&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
