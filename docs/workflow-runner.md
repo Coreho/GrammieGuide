@@ -18,8 +18,11 @@ backs up and patches the existing workflow/progress helper, and creates
 preserves existing configuration and does not start the listener. The patch fails
 on unexpected source changes instead of silently editing a different workflow.
 
-The installed `backlog-run-codex` wrapper forwards the new arguments too. To use it,
-change both `workflow` and `workflowFile` in the local config and republish its catalog.
+The saved `backlog-run-codex` and `backlog-run-codex-lite` wrappers forward the new
+arguments too. The lite one has Codex build every task, using Opus 5.5 only to pick tasks
+and to review Codex at medium effort, which saves the owner's Claude usage. To use either,
+change both `workflow` and `workflowFile` in the local config, then restart the listener
+with `--publish-catalog`. The board only offers runs that match the runner's workflow.
 
 ## Connect and operate
 

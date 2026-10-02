@@ -12,6 +12,7 @@ const {
   launch,
   read,
   write,
+  config,
   recover,
   onPath,
   main
@@ -255,6 +256,35 @@ test('--check and --recover reject other options instead of silently ignoring th
     ['--recover', '--check']
   ])
     await assert.rejects(main(argv), /cannot be combined/)
+})
+test('local config accepts only the saved backlog-run workflows', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow-config-test-'))
+  const remoteConfig = path.join(tmp, 'remote.json')
+  write(remoteConfig, { url: 'https://workflow.koreokorp.com/api/snapshot', token: 'fixture' })
+  const local = (workflow) => {
+    const file = path.join(tmp, `${workflow}.json`)
+    const absolute = path.join(tmp, 'x')
+    write(file, {
+      runnerId: 'test',
+      repo: 'GrammieGuide',
+      workflow,
+      remoteConfig,
+      ...Object.fromEntries(
+        ['repoDir', 'runsDir', 'stateDir', 'workflowFile']
+          .concat(['claudeExe', 'backlogCli', 'progressHelper'])
+          .map((key) => [key, absolute])
+      )
+    })
+    return file
+  }
+  try {
+    for (const workflow of ['backlog-run', 'backlog-run-codex', 'backlog-run-codex-lite'])
+      assert.equal(config(local(workflow)).workflow, workflow)
+    for (const workflow of ['backlog-run-other', 'autopilot', ''])
+      assert.throws(() => config(local(workflow)), /Invalid local runner configuration/)
+  } finally {
+    fs.rmSync(tmp, { recursive: true })
+  }
 })
 test('helper lookup searches only absolute PATH entries, never the working directory', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow-path-test-'))
