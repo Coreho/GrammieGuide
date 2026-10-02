@@ -33,6 +33,8 @@ Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors
 
 Local media infrastructure is ready: `grammie-media://` streams images and seekable audio from `userData/media/music/` and `userData/media/photos/` to Home and admin, with strict filename validation and no renderer filesystem API. The caregiver-side library store is in place too. Each library keeps its own `index.json` beside its files, separate from config. Importing copies files in under generated names, and the original path is never kept. A damaged index is backed up and the library starts empty instead of stopping the kiosk. Admin can list, import (through the Windows file picker), caption and remove entries, but there is no admin screen for it yet, and nothing on Home uses it yet (TASK-07, TASK-09).
 
+Photo imports accept PNG, JPG/JPEG, GIF, WEBP, AVIF, BMP and ICO files. Music imports accept MP3, WAV, OGG/OGA, OPUS, M4A, AAC, FLAC and WEBM files. Extensions are checked without regard to case, and the picker offers only the chosen library's types. If any selected file has an unsupported extension (including a music file chosen for photos or a photo chosen for music), the whole batch is rejected before copying anything, with a plain message listing the accepted kinds. These extension checks do not verify a file's contents or encoding.
+
 ## Buddy
 
 Buddy is the cat in sunglasses at the bottom right of Home.
