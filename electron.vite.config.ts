@@ -19,7 +19,10 @@ export default defineConfig({
           launcher: resolve('src/preload/launcher.ts'),
           admin: resolve('src/preload/admin.ts'),
           browserView: resolve('src/preload/browserView.ts')
-        }
+        },
+        // Every window and the web view is sandboxed, and a sandboxed preload runs as a
+        // plain script: the default ES module output (.mjs) fails on its first import.
+        output: { format: 'cjs', entryFileNames: '[name].cjs' }
       }
     },
     plugins: [externalizeDepsPlugin()]
