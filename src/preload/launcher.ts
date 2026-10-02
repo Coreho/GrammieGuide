@@ -30,6 +30,8 @@ const launcherApi = {
   openBrowser: (url: string) => invoke('browser:open', { url }),
   goHome: () => invoke('browser:goHome'),
   goBack: () => invoke('browser:goBack'),
+  retryPage: () => invoke('browser:retry'),
+  dismissBlockedPage: () => invoke('browser:dismissBlocked'),
   reportActivity: () => ipcRenderer.send('browserView:activity'),
 
   buddyChat: (turns: BuddyChatTurn[]) => invoke('buddy:chat', { turns }),
@@ -39,6 +41,8 @@ const launcherApi = {
 
   onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) =>
     on('browser:blocked', cb),
+  onPageProblem: (cb: (payload: IpcEvents['browser:page-problem']) => void) =>
+    on('browser:page-problem', cb),
   onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb()),
   onConfigChanged: (cb: (config: IpcEvents['config:changed']) => void) => on('config:changed', cb)
 }
