@@ -13,6 +13,8 @@ import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { NavBar } from './components/NavBar'
+import { PageRecovery } from './components/PageRecovery'
+import type { PageProblem } from '@shared/browser/loadFailure'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
@@ -58,6 +60,8 @@ function timeParts(now: Date): { time: string; ampm: string; date: string } {
 export default function App() {
   const [config, setConfig] = useState<PublicConfig | null>(null)
   const [view, setView] = useState<View>('home')
+  /** A web page that failed or was blocked; Home's recovery screen stands in for it. */
+  const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
   /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
   const [openBuiltin, setOpenBuiltin] = useState<TileType | null>(null)
   const [showConfusion, setShowConfusion] = useState(false)
@@ -129,8 +133,17 @@ export default function App() {
       setView('home')
       setShowConfusion(true)
     })
-    return offIdle
+    const offProblem = window.launcher.onPageProblem(({ kind }) => setPageProblem(kind))
+    return () => {
+      offIdle()
+      offProblem()
+    }
   }, [])
+
+  // Whatever went wrong on the last page stays with that page.
+  useEffect(() => {
+    if (view !== 'browser') setPageProblem(null)
+  }, [view])
 
   const buddyMenuAvailable =
     Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
@@ -227,12 +240,6 @@ export default function App() {
     await window.launcher.goBack()
   }
 
-  async function handleFontStepChange(next: number): Promise<void> {
-    document.documentElement.style.setProperty('--font-scale', String(fontScaleForStep(next)))
-    const updated = await window.launcher.setFontStep(next)
-    setConfig(updated)
-  }
-
   if (!config) {
     return <div style={{ color: '#fff', padding: 32 }}>Loading...</div>
   }
@@ -250,8 +257,6 @@ export default function App() {
             date={date}
             weather={weather}
             tiles={config.tiles}
-            fontStep={config.display.fontStep}
-            onFontStepChange={handleFontStepChange}
             onActivateTile={activateTile}
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return
@@ -320,6 +325,17 @@ export default function App() {
       </Stage>
 
       {view === 'browser' && <NavBar onHome={goHome} onBack={goBack} />}
+      {view === 'browser' && pageProblem && (
+        <PageRecovery
+          problem={pageProblem}
+          onAction={() =>
+            void (pageProblem === 'blocked'
+              ? window.launcher.dismissBlockedPage()
+              : window.launcher.retryPage())
+          }
+          onHome={() => void goHome()}
+        />
+      )}
 
       {OpenBuiltinView && openBuiltin && (
         <OpenBuiltinView
