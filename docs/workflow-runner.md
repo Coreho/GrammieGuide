@@ -61,6 +61,11 @@ workflow still audits open PR files. Refresh the catalog by restarting with
 
 The runner sends **only validated selected IDs** into a fixed, locally configured
 workflow. It ignores network-supplied shell commands, paths, titles and prompt text.
+Claude is told to start the saved workflow by **name**, not `scriptPath`: the
+Workflow tool rejects a script path outside the working directory, even one added
+with `--add-dir`. So `workflowFile` must be `~/.claude/workflows/<workflow>.js`,
+and a launch is refused if the repository has its own `.claude/workflows/` copy
+that could be loaded instead of the patched one.
 Each job uses `board-<job UUID>` as its run tag and writes beneath
 `~/GrammieGuide-runs/board-<job UUID>/`. The workflow filters picker output in code;
 the progress helper pins the tag and directory using the child environment.
@@ -131,8 +136,13 @@ polling, Stop ordering, journal recovery guard, `--recover` (refusals, unconfirm
 board replies, clearing a confirmed job), exclusive options, PATH lookup, input validation, strict workflow
 selection, pinned progress identity, actual Windows descendant isolation, and
 launch/terminal progress using a harmless compiled fixture executable. They do not
-launch Claude or execute real Backlog tasks. The actual model-driven workflow
-invocation remains to be exercised by the first authorized real run.
+launch Claude or execute real Backlog tasks.
+
+The first three board runs (TASK-17, TASK-13, TASK-34) built nothing. The first
+hit the plan's usage limit, and the other two were refused by the Workflow tool's
+`scriptPath` check. Each was correctly reported as failed, not done. A headless
+probe then confirmed that a saved workflow started by name runs, and that
+`claude --print` waits for it to finish before exiting.
 
 The VPS session owns board UI/server code. Its API contract and this runner's handoff
 are `/opt/stacks/workflow-board/RUNNER-API.md` and `WINDOWS-RUNNER.md`. API identity is

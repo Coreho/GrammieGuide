@@ -69,7 +69,9 @@ function workflowArgs(command, cfg) {
 }
 function workflowPrompt(command, cfg) {
   const args = workflowArgs(command, cfg)
-  return `Run the saved ${cfg.workflow} workflow using the Workflow tool with scriptPath ${JSON.stringify(cfg.workflowFile)} and args as this exact structured JSON object:\n${JSON.stringify(args)}\nInvoke it once. Do not implement tasks yourself or substitute another workflow. Preserve all preflight, dependency, permission and usage checks. If Workflow is unavailable or fails, report failure and stop.\n`
+  // By name, not scriptPath: the Workflow tool refuses a scriptPath outside the working
+  // directory even with --add-dir, so the first two board runs never started.
+  return `Run the saved ${cfg.workflow} workflow using the Workflow tool with name ${JSON.stringify(cfg.workflow)} (no scriptPath) and args as this exact structured JSON object:\n${JSON.stringify(args)}\nInvoke it once. Do not implement tasks yourself or substitute another workflow. Preserve all preflight, dependency, permission and usage checks. If Workflow is unavailable or fails, report failure and stop.\n`
 }
 function alive(pid) {
   try {
@@ -322,6 +324,14 @@ function publishCatalog(cfg) {
 function preflight(cfg, command) {
   if (process.platform !== 'win32') throw new Error('Live execution requires Windows')
   for (const file of [cfg.claudeExe, cfg.workflowFile, cfg.progressHelper]) fs.accessSync(file)
+  // The job names the workflow, so the file checked here must be the one that name loads.
+  // A project copy might win the lookup and skip the board integration; refuse instead.
+  if (
+    path.resolve(cfg.workflowFile) !==
+      path.join(os.homedir(), '.claude', 'workflows', `${cfg.workflow}.js`) ||
+    fs.existsSync(path.join(cfg.repoDir, '.claude', 'workflows', `${cfg.workflow}.js`))
+  )
+    throw new Error('workflowFile must be the saved user workflow named by workflow')
   const baseWorkflow = path.join(path.dirname(cfg.workflowFile), 'backlog-run.js')
   if (!fs.readFileSync(baseWorkflow, 'utf8').includes('// board-runner integration v1'))
     throw new Error('Install workflow integration before enabling execution')
