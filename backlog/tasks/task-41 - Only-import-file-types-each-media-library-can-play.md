@@ -1,9 +1,10 @@
 ---
 id: TASK-41
 title: Only import file types each media library can play
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-02 18:00'
+updated_date: '2026-10-02 20:05'
 labels: []
 milestone: m-8
 dependencies:
