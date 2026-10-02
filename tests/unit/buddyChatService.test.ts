@@ -58,16 +58,44 @@ describe('toApiMessages', () => {
 describe('buddyChat', () => {
   const log = vi.fn()
 
+  it.each(['k', undefined])(
+    'refuses disabled chat with key %s without calling Anthropic',
+    async (apiKey) => {
+      const { client, create } = fakeClient(() => textResponse('unused'))
+      const result = await buddyChat(greetingThenUser, {
+        chatEnabled: false,
+        apiKey,
+        model: 'claude-sonnet-5-5',
+        client,
+        log
+      })
+      expect(result).toMatchObject({ ok: false, reason: 'disabled', reply: expect.any(String) })
+      expect(create).not.toHaveBeenCalled()
+    }
+  )
+
   it('returns the friendly not-set-up line without calling the API when no key is set', async () => {
     const { client, create } = fakeClient(() => textResponse('unused'))
-    const result = await buddyChat(greetingThenUser, { apiKey: undefined, model: 'claude-haiku-4-5', client, log })
+    const result = await buddyChat(greetingThenUser, {
+      chatEnabled: true,
+      apiKey: undefined,
+      model: 'claude-haiku-4-5',
+      client,
+      log
+    })
     expect(result).toEqual({ ok: false, reason: 'no-key', reply: REPLIES.noKey })
     expect(create).not.toHaveBeenCalled()
   })
 
   it('sends the frozen system prompt and returns the model text', async () => {
     const { client, create } = fakeClient(() => textResponse('Hello there! How is your day going?'))
-    const result = await buddyChat(greetingThenUser, { apiKey: 'k', model: 'claude-haiku-4-5', client, log })
+    const result = await buddyChat(greetingThenUser, {
+      chatEnabled: true,
+      apiKey: 'k',
+      model: 'claude-haiku-4-5',
+      client,
+      log
+    })
     expect(result).toEqual({ ok: true, reply: 'Hello there! How is your day going?' })
     const params = create.mock.calls[0]![0]
     expect(params.system).toBe(BUDDY_SYSTEM_PROMPT)
@@ -78,7 +106,13 @@ describe('buddyChat', () => {
 
   it('asks newer models for low effort', async () => {
     const { client, create } = fakeClient(() => textResponse('Hi!'))
-    await buddyChat(greetingThenUser, { apiKey: 'k', model: 'claude-sonnet-5', client, log })
+    await buddyChat(greetingThenUser, {
+      chatEnabled: true,
+      apiKey: 'k',
+      model: 'claude-sonnet-5',
+      client,
+      log
+    })
     expect(create.mock.calls[0]![0]).toMatchObject({ output_config: { effort: 'low' } })
   })
 
@@ -86,7 +120,7 @@ describe('buddyChat', () => {
     const { client, create } = fakeClient(() => textResponse('Hi!'))
     const model = defaultConfig().buddy.model
     expect(model).toBe('claude-sonnet-5-5')
-    await buddyChat(greetingThenUser, { apiKey: 'k', model, client, log })
+    await buddyChat(greetingThenUser, { chatEnabled: true, apiKey: 'k', model, client, log })
     expect(create.mock.calls[0]![0]).toMatchObject({
       model: 'claude-sonnet-5-5',
       output_config: { effort: 'low' }
@@ -95,7 +129,13 @@ describe('buddyChat', () => {
 
   it('turns a refusal into a gentle change of subject', async () => {
     const { client } = fakeClient(() => ({ content: [], stop_reason: 'refusal', stop_details: { category: null } }))
-    const result = await buddyChat(greetingThenUser, { apiKey: 'k', model: 'claude-haiku-4-5', client, log })
+    const result = await buddyChat(greetingThenUser, {
+      chatEnabled: true,
+      apiKey: 'k',
+      model: 'claude-haiku-4-5',
+      client,
+      log
+    })
     expect(result).toEqual({ ok: false, reason: 'declined', reply: REPLIES.declined })
   })
 
@@ -104,7 +144,13 @@ describe('buddyChat', () => {
     const { client } = fakeClient(() => {
       throw new Anthropic.APIConnectionError({ message: 'offline' })
     })
-    const result = await buddyChat(greetingThenUser, { apiKey: 'k', model: 'claude-haiku-4-5', client, log })
+    const result = await buddyChat(greetingThenUser, {
+      chatEnabled: true,
+      apiKey: 'k',
+      model: 'claude-haiku-4-5',
+      client,
+      log
+    })
     expect(result).toEqual({ ok: false, reason: 'unavailable', reply: REPLIES.unavailable })
     expect(log).toHaveBeenCalledWith('buddy-chat-error', expect.stringContaining('connection'))
   })
@@ -112,6 +158,7 @@ describe('buddyChat', () => {
   it('does not call the API when the last turn is not from her', async () => {
     const { client, create } = fakeClient(() => textResponse('unused'))
     const result = await buddyChat([{ role: 'assistant', text: 'Hi!' }], {
+      chatEnabled: true,
       apiKey: 'k',
       model: 'claude-haiku-4-5',
       client,

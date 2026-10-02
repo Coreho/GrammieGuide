@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buddyConfigSchema, defaultConfig } from '../../src/shared/configSchema'
+import { buddyConfigSchema, defaultConfig, CURRENT_SCHEMA_VERSION } from '../../src/shared/configSchema'
 import { migration } from '../../src/main/config/migrations/006-buddy-interaction-settings'
 import { runMigrations } from '../../src/main/config/migrations/runner'
 
@@ -37,7 +37,7 @@ describe('migration 006 (Buddy interaction settings)', () => {
     const before = structuredClone(raw)
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
-    expect(result.config.schemaVersion).toBe(6)
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config.buddy).toEqual({ ...buddy, motion, tapAction: 'reaction' })
     expect(raw).toEqual(before)
     expect(runMigrations(result.config).config).toEqual(result.config)

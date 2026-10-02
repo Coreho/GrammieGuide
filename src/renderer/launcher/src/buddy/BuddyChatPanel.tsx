@@ -106,7 +106,7 @@ export function BuddyChatPanel({
 
   async function sendText(raw: string): Promise<void> {
     const text = raw.trim()
-    if (!text || waiting) return
+    if (!open.current || !text || waiting) return
     stopSpeaking()
     const next: Message[] = [...messagesRef.current, { from: 'user', text }]
     setMessages(next)
@@ -125,7 +125,7 @@ export function BuddyChatPanel({
   }
 
   async function listen(): Promise<void> {
-    if (waiting || hearing) return
+    if (!open.current || waiting || hearing) return
     stopSpeaking()
     setHearing(true)
     setPhase('hearing')

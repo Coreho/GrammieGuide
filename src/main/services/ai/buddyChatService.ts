@@ -16,6 +16,7 @@ export const MAX_TURNS = 20
 export const MAX_TURN_CHARS = 2000
 
 export const REPLIES = {
+  disabled: "I'm happy to sit here with you.",
   noKey: "I'd love to chat, but my talking isn't switched on yet. Your family can help set me up.",
   unavailable: "I'm having a little trouble hearing you right now. Let's try again in a bit.",
   declined: "Let's talk about something else. How has your day been?"
@@ -57,8 +58,18 @@ function supportsEffort(model: string): boolean {
 
 export async function buddyChat(
   turns: BuddyChatTurn[],
-  opts: { apiKey: string | undefined; model: string; client: MessagesClient | null; log: (type: string, detail?: string) => void }
+  opts: {
+    chatEnabled: boolean
+    apiKey: string | undefined
+    model: string
+    client: MessagesClient | null
+    log: (type: string, detail?: string) => void
+  }
 ): Promise<BuddyChatResult> {
+  if (!opts.chatEnabled) {
+    return { ok: false, reason: 'disabled', reply: REPLIES.disabled }
+  }
+
   if (!opts.apiKey || !opts.client) {
     return { ok: false, reason: 'no-key', reply: REPLIES.noKey }
   }

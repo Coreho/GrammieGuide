@@ -60,7 +60,7 @@ export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
  */
 export type BuddyChatResult =
   | { ok: true; reply: string }
-  | { ok: false; reason: 'no-key' | 'unavailable' | 'declined'; reply: string }
+  | { ok: false; reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'; reply: string }
 
 /** Base64 MP3 of Buddy's line, or why there's none (the renderer then uses the Windows voice). */
 export type BuddySpeakResult =

@@ -58,6 +58,7 @@ describe('migration 002 (Buddy voice + roaming)', () => {
     expect(result.config.buddy).toEqual({
       anthropicApiKey: 'sk-ant-keep-me',
       model: 'claude-haiku-4-5',
+      chatEnabled: true,
       chattiness: 'low',
       cloudTtsEnabled: false,
       voiceEnabled: true,
