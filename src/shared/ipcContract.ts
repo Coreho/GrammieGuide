@@ -125,8 +125,6 @@ export interface IpcApi {
   /** Whether there's a recognizer and a microphone at all, so the panel can hide its mic button. */
   'buddy:canListen': { request: void; response: boolean }
 
-  'display:setFontStep': { request: { step: number }; response: PublicConfig }
-
   'weather:get': {
     request: { label: string; units: 'imperial' | 'metric' }
     response: WeatherSnapshot | null

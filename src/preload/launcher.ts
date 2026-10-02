@@ -24,7 +24,6 @@ const launcherApi = {
   getNews: (tileId: string) => invoke('news:get', { tileId }),
   openNews: (tileId: string, storyId?: string) => invoke('news:open', { tileId, storyId }),
   getConfig: () => invoke('config:get'),
-  setFontStep: (step: number) => invoke('display:setFontStep', { step }),
   getWeather: (label: string, units: 'imperial' | 'metric') =>
     invoke('weather:get', { label, units }),
 

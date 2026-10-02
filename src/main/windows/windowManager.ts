@@ -41,10 +41,11 @@ export function createLauncherWindow(): BrowserWindow {
     alwaysOnTop: KIOSK_ENABLED,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: join(__dirname, '../preload/launcher.mjs'),
+      // CommonJS on purpose: a sandboxed preload can't load an ES module.
+      preload: join(__dirname, '../preload/launcher.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   })
 
@@ -199,10 +200,10 @@ export function createAdminWindow(): BrowserWindow {
     height: 720,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: join(__dirname, '../preload/admin.mjs'),
+      preload: join(__dirname, '../preload/admin.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   })
 

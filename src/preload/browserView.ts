@@ -9,7 +9,10 @@ import { ipcRenderer } from 'electron'
 let lastSent = 0
 const THROTTLE_MS = 2000
 
-function reportActivity(): void {
+function reportActivity(event: Event): void {
+  // Only her real input counts: a page could otherwise dispatch fake events on a
+  // timer and keep itself open forever past the caregiver's idle timeout.
+  if (!event.isTrusted) return
   const now = Date.now()
   if (now - lastSent < THROTTLE_MS) return
   lastSent = now
