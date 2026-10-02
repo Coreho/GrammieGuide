@@ -218,7 +218,7 @@ test('taps react without a menu, respect read-aloud, and replace rapid reactions
   await admin.evaluate(async () => {
     const config = await window.admin.getConfig()
     await window.admin.setConfig({
-      buddy: { ...config.buddy, voiceEnabled: false, cloudTtsEnabled: false, roaming: false }
+      buddy: { ...config.buddy, voiceEnabled: false, cloudTtsEnabled: false, motion: 'still' }
     })
   })
   // Reload ensures the renderer has the saved settings before the first tap.
