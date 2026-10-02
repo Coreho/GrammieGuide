@@ -1,10 +1,10 @@
 ---
 id: TASK-19
 title: Settings backup and restore
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-09-29 05:54'
-updated_date: '2026-09-29 09:25'
+updated_date: '2026-10-02 20:19'
 labels: []
 milestone: m-11
 dependencies: []

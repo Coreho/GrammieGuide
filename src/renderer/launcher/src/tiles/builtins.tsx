@@ -3,6 +3,9 @@ import { BUILTIN_TILE_KEYS, type PublicConfig, type Tile } from '@shared/configS
 import { NewspaperIcon, SunCompassIcon } from '../icons'
 import { WeatherOverlay } from '../components/WeatherOverlay'
 import { NewsOverlay } from './NewsOverlay'
+import { LinkIcon } from '../icons'
+import { OverlayShell } from '../components/OverlayShell'
+import { zLayers } from '@shared/zLayers'
 
 export type BuiltinKey = (typeof BUILTIN_TILE_KEYS)[number]
 
@@ -26,6 +29,26 @@ function WeatherView({ config, onClose }: BuiltinViewProps) {
   )
 }
 
+function MediaNotSetup({ tile, onClose }: BuiltinViewProps) {
+  return (
+    <OverlayShell zIndex={zLayers.weatherOverlay} onClose={onClose}>
+      <section role="dialog" aria-label={tile.label}>
+        <p style={{ fontSize: 'calc(32px * var(--font-scale, 1))' }}>
+          {tile.label} is not set up yet.
+        </p>
+        <button
+          onClick={onClose}
+          style={{ padding: '18px 32px', fontSize: 'calc(28px * var(--font-scale, 1))' }}
+        >
+          Back to Home
+        </button>
+      </section>
+    </OverlayShell>
+  )
+}
+
+const MEDIA_NOT_SETUP: Builtin = { icon: () => <LinkIcon />, View: MediaNotSetup }
+
 /**
  * What makes each built-in tile its own thing: the picture in its well and the
  * view it opens. A new kind (music, photos, ...) adds its key to
@@ -38,6 +61,9 @@ const BUILTINS: Record<BuiltinKey, Builtin> = {
 
 export function builtinFor(tile: Tile): Builtin | undefined {
   const key = tile.type === 'builtin' ? tile.builtinKey : undefined
+  // A backup can retain media tiles from another setup. Until the media views
+  // exist, keep a calm route back Home instead of a tile that does nothing.
+  if (key === 'photos' || key === 'music') return MEDIA_NOT_SETUP
   return key && (BUILTIN_TILE_KEYS as readonly string[]).includes(key)
     ? BUILTINS[key as BuiltinKey]
     : undefined

@@ -31,6 +31,10 @@ Built-in tiles each have their own view. **News** is wide by default. Tapping it
 
 Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors, seeded so upgrading doesn't repaint Home), 006 (Buddy tap and motion choices), and 007 (the chat switch, on for existing setups) preserve existing settings.
 
+In **admin → Reliability → Settings backup and restore**, **Save backup** writes all settings and tiles to a JSON file you choose. **Restore backup** replaces the current settings and tiles from that file, upgrades older settings through the config migrations, and updates Home immediately. Save a backup before restoring if you want to keep the current setup. An invalid or unreadable backup is rejected in plain words without changing settings.
+
+Backups exclude the Buddy API key and caregiver PIN hash/salt; restore keeps the destination device's existing secrets. Photo and music files and their separate library indexes are not included. Import media separately on another device. Photos and Music views are still future work; restored tiles for those kinds show “not set up yet” with a way back Home. Contact channels are not in the current config schema, so no contact tokens are exported; backup support must be extended alongside their future schema.
+
 Local media infrastructure is ready: `grammie-media://` streams images and seekable audio from `userData/media/music/` and `userData/media/photos/` to Home and admin, with strict filename validation and no renderer filesystem API. The caregiver-side library store is in place too. Each library keeps its own `index.json` beside its files, separate from config. Importing copies files in under generated names, and the original path is never kept. A damaged index is backed up and the library starts empty instead of stopping the kiosk. Admin can list, import (through the Windows file picker), caption and remove entries, but there is no admin screen for it yet, and nothing on Home uses it yet (TASK-07, TASK-09).
 
 ## Buddy

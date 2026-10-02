@@ -7,6 +7,8 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  saveBackup: () => invoke('backup:save'),
+  restoreBackup: () => invoke('backup:restore'),
   listLibrary: (request: IpcRequest<'library:list'>) => invoke('library:list', request),
   importLibrary: (request: IpcRequest<'library:import'>) => invoke('library:import', request),
   updateLibrary: (request: IpcRequest<'library:update'>) => invoke('library:update', request),

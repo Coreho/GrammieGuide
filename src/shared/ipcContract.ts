@@ -89,6 +89,17 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'backup:save': {
+    request: void
+    response: { ok: true } | { ok: false; canceled: true } | { ok: false; message: string }
+  }
+  'backup:restore': {
+    request: void
+    response:
+      | { ok: true; config: PublicConfig }
+      | { ok: false; canceled: true }
+      | { ok: false; message: string }
+  }
   'library:list': { request: LibraryRequest; response: LibraryEntry[] }
   'library:import': { request: LibraryRequest; response: LibraryEntry[] }
   'library:update': {

@@ -47,6 +47,8 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 ### Config
 
+- **Settings backup/restore:** `services/config/backup.ts` builds a versioned JSON envelope from schema-validated public config. `backup:save/restore` use native dialogs and `requireAdminUnlocked()` (rechecked after dialogs/reads). Restore calls `runMigrations` but rejects its failure result and empty/incomplete inputs, never applying boot fallback defaults. `mergeAdminPatch` preserves the latest device secrets; successful restore pushes `config:changed` to Home and refreshes admin's config store. Media files and separate library indexes are excluded. Contacts/tokens are not yet schema fields; adding contact channels must extend backup secret handling and tests. Restored Photos/Music tiles have a “not set up yet” view until their actual views exist.
+
 - **Schema:** `src/shared/configSchema.ts` defines a zod schema, versioned by `CURRENT_SCHEMA_VERSION`. It is persisted through electron-store in `src/main/config/store.ts`.
 - **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `setConfig` merges only one level deep, so `config:set` runs patches through `mergeAdminPatch()`, which always carries the current secrets forward. Secrets change only through `admin:setPin` / `admin:setApiKey`.
 - **Old launcher import:** `config/importOldLauncher.ts` maps grandmas-launcher's `%APPDATA%\grandmas-launcher\config.json` (read-only) to weather, display and confusion settings. Tiles are deliberately not imported (Home's tiles are set up fresh), behind `admin:previewOldLauncherImport` / `admin:applyOldLauncherImport`. It never carries secrets.
