@@ -9,6 +9,9 @@ const { spawn, execFileSync } = require('node:child_process')
 const TERMINAL = new Set(['done', 'failed', 'stopped'])
 const ID = /^[\w.-]{1,100}$/
 const TASK = /^TASK-\d+(?:\.\d+)*$/
+// The saved workflows a board Start may launch. All three run backlog-run's patched engine;
+// the lite one has Codex build every task to save the owner's Claude usage.
+const WORKFLOWS = ['backlog-run', 'backlog-run-codex', 'backlog-run-codex-lite']
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''))
 function write(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -207,7 +210,7 @@ function config(file) {
   if (
     !ID.test(cfg.runnerId || '') ||
     cfg.repo !== 'GrammieGuide' ||
-    !['backlog-run', 'backlog-run-codex'].includes(cfg.workflow)
+    !WORKFLOWS.includes(cfg.workflow)
   )
     throw new Error('Invalid local runner configuration')
   for (const key of [
@@ -604,6 +607,7 @@ module.exports = {
   read,
   write,
   catalog,
+  config,
   recover,
   onPath,
   main
