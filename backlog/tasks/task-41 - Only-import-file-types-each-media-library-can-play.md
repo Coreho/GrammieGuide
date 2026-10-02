@@ -1,10 +1,10 @@
 ---
 id: TASK-41
 title: Only import file types each media library can play
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-02 18:00'
-updated_date: '2026-10-02 20:05'
+updated_date: '2026-10-02 20:18'
 labels: []
 milestone: m-8
 dependencies:
@@ -21,8 +21,14 @@ Found while reviewing PR #23 (TASK-06). Import accepts any file with a 1-10 char
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Importing into photos accepts only the image types grammie-media serves, and music only the audio types it serves
-- [ ] #2 The file picker offers only those types for the chosen library
-- [ ] #3 A batch with a rejected file adds nothing, and the caregiver sees a plain message naming the kinds of file that are accepted
-- [ ] #4 Unit tests cover accepted and rejected extensions for both libraries
+- [x] #1 Importing into photos accepts only the image types grammie-media serves, and music only the audio types it serves
+- [x] #2 The file picker offers only those types for the chosen library
+- [x] #3 A batch with a rejected file adds nothing, and the caregiver sees a plain message naming the kinds of file that are accepted
+- [x] #4 Unit tests cover accepted and rejected extensions for both libraries
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Library import now accepts only the file types grammie-media serves for each library (shared LIBRARY_CONTENT_TYPES in src/shared/media/mediaTypes.ts); a batch with any rejected file adds nothing and returns a plain message; picker filters per library. Verified with lint, typecheck, 620 unit tests, build and e2e.
+<!-- SECTION:FINAL_SUMMARY:END -->
