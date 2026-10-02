@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-09-29_
+_Last updated: 2026-10-01_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -65,3 +65,9 @@ The switch keeps the old launcher's start-at-login on until GrammieGuide has set
 - `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first)
 - `npm run package` - Windows installer via electron-builder (`dist/GrammieGuide Setup <version>.exe`)
 - `sh scripts/blender/buildBuddy.sh` - rebuild Buddy's model from the Meshy downloads (needs Blender)
+
+## Remote backlog runs
+
+You can start Backlog tasks from the password-protected board at https://workflow.koreokorp.com. A runner on this Windows PC checks the board every three seconds. When you click Start, it runs the `backlog-run` workflow in a hidden Claude session. The board shows each task's progress and links to the PRs it opens. The runner sends the workflow only the task IDs you selected. It never runs commands from the board. Setup, Stop, logs and recovery are in [docs/workflow-runner.md](docs/workflow-runner.md); the source is in `scripts/workflow-runner/`.
+
+The runner is installed and connected, but it hasn't done a real run yet. Its tests use a stand-in program instead of Claude. It also doesn't start again after a reboot.

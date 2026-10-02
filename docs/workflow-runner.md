@@ -1,0 +1,126 @@
+# Windows workflow runner
+
+The Windows runner connects the saved Claude `backlog-run` workflow to
+https://workflow.koreokorp.com using outbound HTTPS polling every three seconds.
+It reuses the token in `~/.claude/workflow-tools/board-remote.json`; no inbound port,
+new account, or credentials in the repository are needed.
+
+Source lives in `scripts/workflow-runner/`. Install from the GrammieGuide checkout:
+
+```powershell
+node scripts/workflow-runner/install.cjs
+node "$env:USERPROFILE\.claude\workflow-tools\board-runner.cjs" --check
+```
+
+Installation copies the runner and Windows supervisor into `~/.claude/workflow-tools/`,
+backs up and patches the existing workflow/progress helper, and creates
+`board-runner.json` **with execution disabled** if it does not exist. Reinstallation
+preserves existing configuration and does not start the listener. The patch fails
+on unexpected source changes instead of silently editing a different workflow.
+
+The installed `backlog-run-codex` wrapper forwards the new arguments too. To use it,
+change both `workflow` and `workflowFile` in the local config and republish its catalog.
+
+## Connect and operate
+
+```powershell
+# Single authenticated connection check; always disables execution for this process.
+# Publishes a read-only task catalog, with current open PRs unavailable for selection.
+node "$env:USERPROFILE\.claude\workflow-tools\board-runner.cjs" --once --publish-catalog
+
+# Persistent foreground listener (Ctrl+C stops its owned active run, then exits).
+node "$env:USERPROFILE\.claude\workflow-tools\board-runner.cjs" --publish-catalog
+```
+
+A new idle instance must wait at least 20 seconds after the previous heartbeat to
+reuse the same runner ID. Concurrent listeners are rejected by a local PID lock and
+by the server. `--check` reads local tasks/open PRs without registering a heartbeat.
+
+Set `executionEnabled` in the local `board-runner.json` to `true` and restart the
+listener to accept a board Start click. Set its name to `GrammieGuide Windows` when
+enabled. Set it to `false` and restart to connect without accepting work. The board
+shows “Connected · execution disabled” in that mode and rejects Start server-side.
+Configuration is read at startup; changing the file alone does not affect a running
+process. Installation does not add a Windows scheduled task or startup entry.
+
+On the board, select the `grammie-windows-catalog` snapshot (or an earlier matching
+run), select task IDs, and click Start. The runner checks current local To Do tasks
+and open PRs again. The workflow then performs its existing origin/dependency,
+overlap, usage, test and readiness checks. Selection never overrides a blocker.
+Catalog export uses current PR titles/branch names to identify task IDs; the full
+workflow still audits open PR files. Refresh the catalog by restarting with
+`--publish-catalog`; it is a snapshot, not a continuous Backlog watcher.
+
+The runner sends **only validated selected IDs** into a fixed, locally configured
+workflow. It ignores network-supplied shell commands, paths, titles and prompt text.
+Each job uses `board-<job UUID>` as its run tag and writes beneath
+`~/GrammieGuide-runs/board-<job UUID>/`. The workflow filters picker output in code;
+the progress helper pins the tag and directory using the child environment.
+
+Claude runs with the existing local permission settings and `--permission-prompts
+none`: operations that still require a human fail rather than bypassing permissions.
+Notification/artifact uploads are disabled for board-triggered jobs; the existing
+direct VPS snapshot upload remains active. A zero CLI exit alone is insufficient:
+the runner also requires a matching terminal progress record before reporting done.
+“Done” means the workflow finished; individual tasks can still be skipped, stuck,
+or draft PRs. Inspect their outcomes on the board.
+
+## Stop, logs, and recovery
+
+Stop terminates only that job's Windows supervisor. Before launching Claude, the
+supervisor puts itself in a Windows Job Object with kill-on-close and no breakaway.
+Its descendants inherit membership, including those whose parent later exits.
+The supervisor also watches the runner process and exits if its owner dies.
+The runner reports stopped only after the owned supervisor exits, and updates
+unfinished progress rows. Worktrees/branches remain for inspection; Stop does not
+promise a graceful commit or draft PR. See Microsoft's
+[Job Object documentation](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
+
+Local files:
+
+- `~/.claude/workflow-tools/board-runner.json`: trusted configuration; references the
+  existing token file without copying its token.
+- `~/.claude/workflow-tools/board-runner-state/journal.json`: instance ID, claimed job
+  IDs, launch intent, owned PID, and pending terminal acknowledgment.
+- `~/.claude/workflow-tools/board-runner-state/runner.lock`: current listener PID.
+- `~/.claude/workflow-tools/board-runner-state/runner.stdout.log` and
+  `runner.stderr.log`: logs when started hidden during setup.
+- Per-run `workflow-prompt.txt`, `claude-output.json`, `claude-stderr.log`,
+  `progress.json`, and `PROGRESS.md`.
+
+Network failures retry with the same instance/job identity. A claimed job is never
+relaunched after duplicate delivery. Terminal reports persist until acknowledged.
+An unresolved journal blocks a restart, including the ambiguous window between
+recording launch intent and saving the child PID. Do not delete the journal to
+force a restart.
+
+After inspecting that the owned process has exited, reconcile a pending job:
+
+```powershell
+node "$env:USERPROFILE\.claude\workflow-tools\board-runner.cjs" --recover
+```
+
+Recovery reports a terminal outcome using the persisted owning instance ID, then
+exits. It refuses if the child PID is still alive or a launch has an unknown PID.
+Those cases need local inspection, never broad process-name killing. Wait 20 seconds
+before starting a fresh listener. If a terminal snapshot upload fails, the job's
+terminal API report remains authoritative; inspect the local progress file/logs.
+
+## Verification and coordination
+
+```powershell
+node --test scripts/workflow-runner/board-runner.test.cjs
+npm run lint
+```
+
+Tests cover disabled mode, duplicate Start, lost acknowledgments, completion during
+polling, Stop ordering, journal recovery guard, input validation, strict workflow
+selection, pinned progress identity, actual Windows descendant isolation, and
+launch/terminal progress using a harmless compiled fixture executable. They do not
+launch Claude or execute real Backlog tasks. The actual model-driven workflow
+invocation remains to be exercised by the first authorized real run.
+
+The VPS session owns board UI/server code. Its API contract and this runner's handoff
+are `/opt/stacks/workflow-board/RUNNER-API.md` and `WINDOWS-RUNNER.md`. API identity is
+`grammie-windows`, repository `GrammieGuide`, workflow `backlog-run`. Only coordination
+Markdown files are written on the VPS by this local integration session.
