@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-09-30_
+_Last updated: 2026-10-02_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -77,3 +77,9 @@ The switch keeps the old launcher's start-at-login on until GrammieGuide has set
 - `sh scripts/blender/buildBuddy.sh` - rebuild Buddy's model from the Meshy downloads (needs Blender)
 
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Coreho/GrammieGuide?utm_source=oss&utm_medium=github&utm_campaign=Coreho%2FGrammieGuide&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
+## Remote backlog runs
+
+You can start Backlog tasks from the password-protected board at https://workflow.koreokorp.com. A runner on this Windows PC checks the board every three seconds. When you click Start, it runs the `backlog-run` workflow in a hidden Claude session. The board shows each task's progress and links to the PRs it opens. The runner sends the workflow only the task IDs you selected. It never runs commands from the board. Setup, Stop, logs and recovery are in [docs/workflow-runner.md](docs/workflow-runner.md); the source is in `scripts/workflow-runner/`.
+
+The runner is installed and connected. On 2026-10-02 a board run went all the way from Start to finish for the first time. It started the workflow, passed preflight, skipped TASK-34 because it overlaps open PRs, and reported the run as done. No board run has built a task yet. The runner reads the task list from the local checkout, so keep that checkout on an up-to-date `main`. Its tests use a stand-in program instead of Claude. It also doesn't start again after a reboot.
