@@ -17,8 +17,7 @@ import { useBuddyBrain } from './useBuddyBrain'
 
 /**
  * Buddy's floor spans the full bottom of Home. The footer still reserves
- * only 150px, and the text-size control sits above him when he passes it.
- * He walks to the right of the chat panel when she talks to him.
+ * only 150px. He walks to the right of the chat panel when she talks to him.
  *
  * The canvas is taller than the footer so raised arms and his speech bubble
  * have room, and it never takes pointer events - taps on whatever is behind
