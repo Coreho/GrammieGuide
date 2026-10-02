@@ -1,9 +1,8 @@
 import type { ComponentType, ReactNode } from 'react'
 import { BUILTIN_TILE_KEYS, type PublicConfig, type Tile } from '@shared/configSchema'
-import { NewspaperIcon, SunCompassIcon } from '../icons'
+import { LinkIcon, NewspaperIcon, SunCompassIcon } from '../icons'
 import { WeatherOverlay } from '../components/WeatherOverlay'
 import { NewsOverlay } from './NewsOverlay'
-import { LinkIcon } from '../icons'
 import { OverlayShell } from '../components/OverlayShell'
 import { zLayers } from '@shared/zLayers'
 
@@ -61,10 +60,13 @@ const BUILTINS: Record<BuiltinKey, Builtin> = {
 
 export function builtinFor(tile: Tile): Builtin | undefined {
   const key = tile.type === 'builtin' ? tile.builtinKey : undefined
+  const registered =
+    key && (BUILTIN_TILE_KEYS as readonly string[]).includes(key)
+      ? BUILTINS[key as BuiltinKey]
+      : undefined
+  if (registered) return registered
   // A backup can retain media tiles from another setup. Until the media views
-  // exist, keep a calm route back Home instead of a tile that does nothing.
+  // are registered, keep a calm route back Home instead of a tile that does nothing.
   if (key === 'photos' || key === 'music') return MEDIA_NOT_SETUP
-  return key && (BUILTIN_TILE_KEYS as readonly string[]).includes(key)
-    ? BUILTINS[key as BuiltinKey]
-    : undefined
+  return undefined
 }
