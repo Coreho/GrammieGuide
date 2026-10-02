@@ -6,3 +6,11 @@ export const MEDIA_LIBRARY_FOLDERS: Readonly<Record<MediaLibrary, string>> = {
   music: join('media', 'music'),
   photos: join('media', 'photos')
 }
+
+export function libraryPaths(
+  userData: string,
+  library: MediaLibrary
+): { folder: string; index: string } {
+  const folder = join(userData, MEDIA_LIBRARY_FOLDERS[library])
+  return { folder, index: join(folder, 'index.json') }
+}

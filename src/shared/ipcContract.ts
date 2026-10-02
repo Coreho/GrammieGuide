@@ -2,6 +2,7 @@ import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
 import type { PageProblem } from './browser/loadFailure'
+import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -88,6 +89,13 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'library:list': { request: LibraryRequest; response: LibraryEntry[] }
+  'library:import': { request: LibraryRequest; response: LibraryEntry[] }
+  'library:update': {
+    request: LibraryRequest & { id: string; patch: LibraryMetadata }
+    response: LibraryEntry
+  }
+  'library:remove': { request: LibraryRequest & { id: string }; response: boolean }
   // News takes a tile id, never a URL: main fetches only the feed the caregiver
   // saved, and opens only that site or a story it served (see newsIpc.ts).
   'news:get': { request: { tileId: string }; response: NewsResult }
