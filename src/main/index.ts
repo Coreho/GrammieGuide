@@ -29,6 +29,20 @@ import { startBrowserProtection, stopAdBlocker } from './services/browser/adBloc
 
 registerMediaScheme()
 
+/**
+ * Playwright drives the real app, and on an unattended machine Windows marks the
+ * window occluded. Chromium then stops delivering sizes to the page: innerWidth
+ * ignores setContentSize, requestAnimationFrame and ResizeObserver stall, and any
+ * test that resizes or waits on Buddy hangs rather than fails. Turning off native
+ * occlusion detection makes the window behave as if it were in the foreground.
+ *
+ * E2E only - on the kiosk the window really is fullscreen and on top, so this
+ * would change nothing, and it must be set before the app is ready.
+ */
+if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+}
+
 const INACTIVITY_CHECK_INTERVAL_MS = 30_000
 let inactivityTimer: NodeJS.Timeout | null = null
 

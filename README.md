@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-02_
+_Last updated: 2026-10-04_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -45,6 +45,11 @@ Buddy is the cat in sunglasses at the bottom right of Home.
 - **Caregiver settings** (admin, Buddy tab): whether chat is allowed at all, API key and model, chattiness, what her tap does, how much he moves, whether replies are read aloud, online vs Windows voice, and which voice (with a "Try this voice" button). Tap, motion and chat choices apply on Home immediately, without a restart. Turning chat off closes an open chat and removes every way into it, while Buddy stays on Home with his friendly tap reactions. Choose by watching what she enjoys and what distracts her; more animation is not automatically better. Existing settings migrate: strolling on becomes **Walks now and then**, and off becomes **Stays put**.
 - **Command Buddy** (admin, Buddy tab): play any of his 24 animation clips, ask him to take a walk, send a short message with a gesture and optional read-aloud, and save/remove quick messages. Commands work in every motion mode on Home, including at night, and are ignored while she is chatting. Each gesture plays once, with a 20-second recovery timeout. Read-aloud uses the existing online voice with Windows fallback. Message content is never written to the activity log.
 
+
+Buddy fills his floor and stays on screen whatever the screen size. The Stage is a
+fixed 1440x900 design scaled to fit, so his canvas measures its own layout size
+rather than the scaled box - otherwise the scale would be applied twice and he would
+roam only part of his floor, float, and drift out of reach at the ends.
 ### Rebuilding his model
 
 The model (`src/renderer/launcher/src/buddy/assets/buddy.glb`) is generated. The inputs are Meshy downloads in `CatModel/meshy/` (gitignored, ~390 MB, not in the repo): the auto-rigged cat plus library animations bought with `meshy animate create`. `sh scripts/blender/buildBuddy.sh` (Blender 5.2, ~70s) fixes the rig for his shape and bakes every clip into the GLB. See `CLAUDE.md` ("Buddy's model") for what the fix does and how to add a clip.

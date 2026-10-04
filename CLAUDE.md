@@ -80,6 +80,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 - **Voice:** `buddy:speak` → `services/speech/ttsService.ts` (Edge neural voices via `msedge-tts`, XML-escaped, 10s timeout). On any `ok:false` the renderer (`buddy/speech.ts`) falls back to `speechSynthesis`. Chat lines, tap reactions (when read-aloud is enabled) and explicitly requested caregiver messages can be spoken; unprompted remarks are bubble-only.
 - **Listening:** `buddy:listen` → `services/speech/sttService.ts`, Windows' offline System.Speech dictation through `runPowerShell`, one phrase per call. `buddy:canListen` gates the Talk button. Log that she spoke, never what she said.
 - **CSP:** the launcher allows `blob:` for img/media/connect (GLB textures, voice audio). `useGLTF` must be called with Draco and Meshopt off: one fetches from a CDN, the other compiles WebAssembly, which `script-src 'self'` blocks.
+- **Canvas sizing:** `<Canvas>` takes `resize={{ offsetSize: true }}` in `BuddyFloor.tsx`. The Stage scales a fixed 1440x900 design with a CSS transform, and R3F measures with `getBoundingClientRect`, which already includes that scale — so the canvas would be sized in scaled pixels and scaled again. Measuring layout (offset) size keeps his zoom, walking range and tap-target projection identical at every screen size; a transform change also fires no `ResizeObserver`, so without it the wrong size never recovers on resize.
 
 ### Buddy's model
 
