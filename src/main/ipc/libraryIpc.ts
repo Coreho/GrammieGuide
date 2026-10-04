@@ -1,6 +1,8 @@
 import { app, dialog, ipcMain } from 'electron'
+import { extname } from 'node:path'
 import type { IpcRequest, IpcResponse } from '@shared/ipcContract'
 import { isMediaLibrary, type MediaLibrary } from '@shared/media/mediaPath'
+import { LIBRARY_EXTENSIONS, isLibraryMediaExtension } from '@shared/media/mediaTypes'
 import { LibraryStore } from '../services/media/libraryStore'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 
@@ -44,11 +46,24 @@ export function registerLibraryIpc(): void {
     ): Promise<IpcResponse<'library:import'>> => {
       requireAdminUnlocked()
       const store = library(request)
+      const extensions = LIBRARY_EXTENSIONS[request.library]
       const selection = await dialog.showOpenDialog({
-        properties: ['openFile', 'multiSelections', 'dontAddToRecent']
+        properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
+        filters: [
+          { name: request.library === 'photos' ? 'Photos' : 'Music', extensions: [...extensions] }
+        ]
       })
       requireAdminUnlocked()
       if (selection.canceled) return []
+      // Picker filters are only a convenience. Validate the whole batch before the store
+      // can copy anything, and keep this useful message outside the filesystem-error catch.
+      if (
+        selection.filePaths.some((path) => !isLibraryMediaExtension(request.library, extname(path)))
+      ) {
+        throw new Error(
+          `No files were added. Choose ${request.library === 'photos' ? 'photo' : 'music'} files (${extensions.map((extension) => extension.toUpperCase()).join(', ')}).`
+        )
+      }
       try {
         return await store.import(selection.filePaths)
       } catch {
