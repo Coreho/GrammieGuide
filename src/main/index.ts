@@ -19,6 +19,7 @@ import {
 } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
+import { startBrowserProtection, stopAdBlocker } from './services/browser/adBlocker'
 
 /**
  * Thin bootstrap: wires services together and nothing else, unlike the old
@@ -56,6 +57,12 @@ app.whenReady().then(() => {
   startHeartbeat(join(app.getPath('userData'), 'heartbeat.txt'))
   startKioskServices()
 
+  // Deny-all permissions, blocked downloads and the ad blocker for the web
+  // session. Started without awaiting: the filter lists may need the network the
+  // first time, and Home must not wait on that. The cache makes later starts
+  // offline, and a failure here only means browsing is unfiltered.
+  void startBrowserProtection(app.getPath('userData'))
+
   // Playwright can't send a real Ctrl+Shift+A keypress to a kiosk-locked
   // window, so E2E tests need a way to open the admin window directly, a way
   // to run the idle check without waiting out the timeout, and a stand-in
@@ -73,6 +80,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   stopHeartbeat()
   stopKioskServices()
+  stopAdBlocker()
   if (inactivityTimer) clearInterval(inactivityTimer)
   unregisterAllShortcuts()
   if (process.platform !== 'darwin') app.quit()
