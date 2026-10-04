@@ -2,6 +2,7 @@
 export function Toast({ message }: { message: string }) {
   return (
     <div
+      data-toast
       style={{
         position: 'absolute',
         top: 40,
@@ -17,7 +18,11 @@ export function Toast({ message }: { message: string }) {
         fontSize: 'calc(32px * var(--font-scale, 1))',
         fontWeight: 700,
         color: 'var(--ai,#1F5A45)',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        // Purely informational, and it sits right over the tile grid. Without this
+        // it swallows the next tap on a tile for as long as it is on screen, which
+        // reads to her as a dead tile.
+        pointerEvents: 'none'
       }}
     >
       {message}

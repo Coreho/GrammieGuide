@@ -80,6 +80,19 @@ test.beforeAll(async () => {
   await admin.getByLabel('Website address').fill(deadUrl)
   await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Missing site', exact: true })).toBeVisible()
+
+  // Opening and closing six times in a row is exactly the "she is lost" signal the
+  // rapid-tap detector exists to catch. Stand it down for this spec (highest
+  // threshold, narrowest window) so the overlay can never appear mid-run;
+  // confusion detection itself is unit tested.
+  await admin.getByRole('button', { name: 'Confusion', exact: true }).click()
+  const ranges = admin.locator('input[type="range"]')
+  await ranges.nth(1).focus()
+  await ranges.nth(1).press('End')
+  await ranges.nth(2).focus()
+  await ranges.nth(2).press('Home')
+  await expect(admin.getByText(/Tap count threshold: 50/)).toBeVisible()
+  await expect(admin.getByText(/Time window \(ms\): 500/)).toBeVisible()
 })
 
 test.afterAll(async () => {
@@ -112,9 +125,8 @@ async function browserState(): Promise<{
 /** Every open web page, not just the audio fixture, so a dead tile still counts. */
 function openPageCount(): Promise<number> {
   return app.evaluate(({ webContents }) => {
-    return webContents
-      .getAllWebContents()
-      .filter((w) => w.getURL().startsWith('http://127.0.0.1')).length
+    return webContents.getAllWebContents().filter((w) => w.getURL().startsWith('http://127.0.0.1'))
+      .length
   })
 }
 
@@ -195,6 +207,15 @@ test('the idle timeout also closes the page and stops its sound, not just hides 
   )
   await expect(page.getByRole('button', { name: 'Quiet tone', exact: true })).toBeVisible()
   await expect.poll(browserState).toEqual(baseline)
+
+  // Going idle deliberately greets her with the confusion screen ("Let's take a
+  // breath"), which swallows taps until it clears. Dismiss it by tapping the
+  // backdrop (the card itself stops the click) so the next test starts on a plain
+  // Home instead of waiting out the ten-second auto-dismiss.
+  const greeting = page.getByText("Let's take a breath")
+  await expect(greeting).toBeVisible()
+  await page.mouse.click(30, 400)
+  await expect(greeting).toHaveCount(0)
 })
 
 test('leaving via the recovery screen closes the page instead of hiding it', async () => {
