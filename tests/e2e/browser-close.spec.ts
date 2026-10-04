@@ -10,6 +10,8 @@ let app: ElectronApplication
 let page: Page
 let server: Server
 let fixtureUrl: string
+/** Reserved then closed, so nothing answers there until a test starts a server. */
+let deadUrl: string
 
 const fixture = `<!doctype html>
 <title>Browser close audio fixture</title>
@@ -43,6 +45,10 @@ test.beforeAll(async () => {
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   fixtureUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/audio`
+  const probe = createServer()
+  await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve))
+  deadUrl = `http://127.0.0.1:${(probe.address() as AddressInfo).port}/gone`
+  await new Promise<void>((resolve) => probe.close(() => resolve()))
   app = await electron.launch({
     args: ['.', `--user-data-dir=${mkdtempSync(join(tmpdir(), 'grammieguide-browser-close-'))}`],
     cwd: process.cwd(),
@@ -68,6 +74,12 @@ test.beforeAll(async () => {
   await admin.getByLabel('Website address').fill(fixtureUrl)
   await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Quiet tone', exact: true })).toBeVisible()
+  // A second tile that cannot load, so the recovery screen's own Home is reachable.
+  await admin.getByLabel('Tile type').selectOption('web')
+  await admin.getByLabel('Tile label').fill('Missing site')
+  await admin.getByLabel('Website address').fill(deadUrl)
+  await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Missing site', exact: true })).toBeVisible()
 })
 
 test.afterAll(async () => {
@@ -95,6 +107,15 @@ async function browserState(): Promise<{
       audiblePages: contents.filter((w) => w.isCurrentlyAudible()).length
     }
   }, fixtureUrl)
+}
+
+/** Every open web page, not just the audio fixture, so a dead tile still counts. */
+function openPageCount(): Promise<number> {
+  return app.evaluate(({ webContents }) => {
+    return webContents
+      .getAllWebContents()
+      .filter((w) => w.getURL().startsWith('http://127.0.0.1')).length
+  })
 }
 
 test('Home stops audible playback, closes the page, and repeated opens leave no hidden pages', async () => {
@@ -174,4 +195,16 @@ test('the idle timeout also closes the page and stops its sound, not just hides 
   )
   await expect(page.getByRole('button', { name: 'Quiet tone', exact: true })).toBeVisible()
   await expect.poll(browserState).toEqual(baseline)
+})
+
+test('leaving via the recovery screen closes the page instead of hiding it', async () => {
+  await page.getByRole('button', { name: 'Missing site', exact: true }).click()
+  const screen = page.getByRole('alert')
+  await expect(screen).toBeVisible({ timeout: 15_000 })
+  // A live page exists underneath the recovery screen; Home must end it, not blank it.
+  await expect.poll(openPageCount).toBe(1)
+
+  await screen.getByRole('button', { name: '🏠 Home' }).click()
+  await expect(page.getByRole('button', { name: 'Missing site', exact: true })).toBeVisible()
+  await expect.poll(openPageCount).toBe(0)
 })
