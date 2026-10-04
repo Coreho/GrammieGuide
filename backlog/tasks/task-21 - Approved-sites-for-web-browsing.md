@@ -4,7 +4,7 @@ title: Approved sites for web browsing
 status: In Progress
 assignee: []
 created_date: '2026-09-29 05:54'
-updated_date: '2026-10-04 14:18'
+updated_date: '2026-10-04 15:23'
 labels: []
 milestone: m-10
 dependencies:
@@ -44,3 +44,13 @@ Protocol checks and popup blocking stop her escaping the kiosk, but they do not 
 6. New IPC: browser:blockedAttempts (recent, in-memory) and browser:approveSite (adds the host, clears the record). Admin gets a Browsing tab listing approved sites and blocked attempts with an 'Approve this site' button.
 7. E2E: follow a link to an unapproved domain and see the recovery screen; approve it in admin and follow it again.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-10-04 overnight, Codex. PARTIAL - stopped mid-implementation, foundation committed and pushed on branch wip/approved-sites-foundation (commit 28695c0). main is deliberately left green and does NOT include this.
+Done and tested: shared/browser/approvedSites.ts (19 unit tests, including the subdomain rule that notexample.com must not match example.com, and always-allow for loopback/private ranges); schema v8 browser.approvedSites with migration 008 defaulting to empty; the will-navigate guard rejecting unapproved hosts on the main frame only; the News single-story exception consumed by that first navigation.
+NOT DONE: browser:blockedAttempts and browser:approveSite IPC, the admin Browsing tab, and the e2e that follows an unapproved link to the recovery screen. ACs 2, 3, 5 and 7 are therefore unmet.
+Fixed along the way: tests/unit/migrations.test.ts pinned schemaVersion 7 absolutely, so it broke the moment an 008 migration existed. It now asserts CURRENT_SCHEMA_VERSION plus the chat setting surviving the upgrade, which was the real intent, and the 008 cases are covered in the same file.
+State when stopped: npm run typecheck, lint and 703 unit tests across 41 files all pass on that branch.
+<!-- SECTION:NOTES:END -->
