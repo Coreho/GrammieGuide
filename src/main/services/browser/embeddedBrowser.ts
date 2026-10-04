@@ -10,6 +10,15 @@ import { logReliabilityEvent } from '../reliability/reliabilityLog'
 import { isAllowedUrl } from './urlPolicy'
 import { WEB_PARTITION, hardenWebSession } from './webSession'
 import { WEB_VIEW_PREFERENCES, shouldPreventUnload } from '@shared/browser/webHardening'
+import {
+  hostFromUrl,
+  isApprovedHost,
+  matchesApprovedSite,
+  rememberAttempt,
+  tileHosts,
+  type BlockedAttempt
+} from '@shared/browser/approvedSites'
+import { getConfig } from '../../config/store'
 
 /**
  * Embedded web-tile browser. Ports the escape-guard/popup-block logic from
@@ -40,6 +49,59 @@ let navigationFailed = false
 let lastLoggedFailure: string | null = null
 let offlineRetryTimer: NodeJS.Timeout | null = null
 let isDeviceOnline = (): boolean => net.isOnline()
+
+/**
+ * Recent sites she was not allowed to reach, for the caregiver's Browsing tab.
+ * In memory only, like the activity log: it is a "what did she try" list, not a
+ * browsing history, and there is nothing here worth keeping across a restart.
+ */
+let blockedAttempts: BlockedAttempt[] = []
+
+/**
+ * The one host allowed regardless of the approved list, for the story page main
+ * just served from a News feed. Consumed by that first navigation, so any link or
+ * redirect *from* the story goes through the normal rules (TASK-21).
+ */
+let newsStoryHost: string | null = null
+
+/**
+ * The last page she was actually allowed to reach, so a blocked attempt can say
+ * where she was coming from. A host, never an address: this ends up in admin.
+ */
+let lastAllowedUrl: string | null = null
+
+export function getBlockedAttempts(): BlockedAttempt[] {
+  return blockedAttempts.map((item) => ({ ...item }))
+}
+
+export function clearBlockedAttempt(host: string): void {
+  blockedAttempts = blockedAttempts.filter((item) => item.host !== host)
+}
+
+/** The hosts she may currently reach: her tiles' own sites plus admin approvals. */
+function approvedHosts(): string[] {
+  const config = getConfig()
+  return [...tileHosts(config.tiles), ...config.browser.approvedSites]
+}
+
+/**
+ * Whether a main-frame navigation is allowed.
+ *
+ * Only the pages she *goes to* are checked. Images, scripts and frames a page pulls
+ * from other domains are untouched, or every approved site would break the moment
+ * it used a CDN.
+ */
+export function isNavigationAllowed(targetUrl: string): boolean {
+  if (!isAllowedUrl(targetUrl)) return false
+  const host = hostFromUrl(targetUrl)
+  if (!host) return false
+  if (newsStoryHost && matchesApprovedSite(host, newsStoryHost)) {
+    // Consumed: only the story page main served is exempt.
+    newsStoryHost = null
+    return true
+  }
+  return isApprovedHost(host, approvedHosts())
+}
 
 /** E2E only: Chromium's offline emulation stalls loads instead of failing them. */
 export function overrideOnlineCheckForTests(check: () => boolean): void {
@@ -105,22 +167,36 @@ export function openUrl(
     })
 
     view.webContents.on('will-navigate', (event, targetUrl) => {
-      if (!isAllowedUrl(targetUrl)) {
-        event.preventDefault()
-        logActivity('browser-navigation-blocked', privateNavigation ? undefined : targetUrl)
-        logReliabilityEvent({
-          op: 'browser-escape-guard',
-          ok: true,
-          detail: privateNavigation ? 'blocked navigation' : `blocked: ${targetUrl}`
-        })
-        hostWindow?.webContents.send('browser:blocked', { url: targetUrl })
-        // A tap that silently does nothing is confusing; say why, on the same screen.
-        showProblem('blocked')
+      if (isNavigationAllowed(targetUrl)) return
+      event.preventDefault()
+      // A News story is main's own doing: main fetched the feed and served this
+      // address, so the log records the tile and never the article's address.
+      logActivity('browser-navigation-blocked', privateNavigation ? undefined : targetUrl)
+      const host = hostFromUrl(targetUrl)
+      logReliabilityEvent({
+        op: 'browser-escape-guard',
+        ok: true,
+        detail: privateNavigation
+          ? 'blocked navigation'
+          : `blocked: ${host ?? 'unrecognised address'}`
+      })
+      hostWindow?.webContents.send('browser:blocked', { url: targetUrl })
+      // Only an unapproved site is something she could act on, so only that one
+      // is worth showing the caregiver with an "Approve this site" button. A
+      // disallowed protocol (a mailto: link) has nothing to approve.
+      if (isAllowedUrl(targetUrl) && host) {
+        const from = hostFromUrl(lastAllowedUrl ?? '')
+        blockedAttempts = rememberAttempt(blockedAttempts, { id: host, host, from }, Date.now())
+        hostWindow?.webContents.send('browser:blocked-attempt', { host, from })
       }
+      // A tap that silently does nothing is confusing; say why, on the same screen.
+      showProblem('blocked')
     })
 
     view.webContents.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) navigationFailed = false
+      if (!details.isMainFrame || details.isSameDocument) return
+      navigationFailed = false
+      if (isAllowedUrl(details.url)) lastAllowedUrl = details.url
     })
 
     view.webContents.on(
@@ -155,6 +231,11 @@ export function openUrl(
   }
 
   privateNavigation = Boolean(options.privateNavigation)
+  // A News story is the one page main serves that is not on the approved list. The
+  // exception covers that first navigation only, so any link or redirect from the
+  // article goes through the normal rules.
+  newsStoryHost = options.privateNavigation ? (hostFromUrl(url) ?? null) : null
+  lastAllowedUrl = isNavigationAllowed(url) ? url : lastAllowedUrl
   resetProblem()
   view.setVisible(true)
   // loadURL rejects on a failed load; did-fail-load below already owns what she

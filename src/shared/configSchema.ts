@@ -8,7 +8,7 @@ import { quickMessageSchema } from './buddy/commands'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 7
+export const CURRENT_SCHEMA_VERSION = 8
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
@@ -93,6 +93,16 @@ export const reliabilityConfigSchema = z.object({
   adminPinSalt: z.string().optional()
 })
 
+export const browserConfigSchema = z.object({
+  /**
+   * Hosts she may reach in the embedded browser, beyond the tiles' own sites.
+   * Subdomains of an entry count, so approving "example.com" covers
+   * "video.example.com". Keep it a plain host list: a full address here would be
+   * silently ineffective, and the admin form only asks for a host.
+   */
+  approvedSites: z.array(z.string().min(1).max(253)).max(200).default([])
+})
+
 export const configSchema = z.object({
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
   tiles: z.array(tileSchema).default([]),
@@ -100,7 +110,8 @@ export const configSchema = z.object({
   confusion: confusionConfigSchema,
   buddy: buddyConfigSchema,
   display: displayConfigSchema,
-  reliability: reliabilityConfigSchema
+  reliability: reliabilityConfigSchema,
+  browser: browserConfigSchema
 })
 
 export type Config = z.infer<typeof configSchema>
@@ -170,7 +181,8 @@ export function defaultConfig(): Config {
       ambientBackground: true,
       volumeCeiling: 70
     },
-    reliability: {}
+    reliability: {},
+    browser: { approvedSites: [] }
   })
 }
 

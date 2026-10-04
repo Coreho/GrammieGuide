@@ -1,10 +1,10 @@
 ---
 id: TASK-21
 title: Approved sites for web browsing
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-09-29 05:54'
-updated_date: '2026-09-29 09:25'
+updated_date: '2026-10-04 14:18'
 labels: []
 milestone: m-10
 dependencies:
@@ -32,3 +32,15 @@ Protocol checks and popup blocking stop her escaping the kiosk, but they do not 
 - [ ] #8 The News exception covers only the story page main served; links and redirects from that page follow the normal approved-sites rules
 - [ ] #9 Blocked-page logging never records addresses from private News navigation
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Pure shared/browser/approvedSites.ts: hostFromUrl, matchesApprovedSite (exact host or a subdomain of it, case-insensitive, no suffix trickery like notexample.com), isApprovedHost, and alwaysAllow (loopback and private ranges, so a caregiver's own local site and the e2e fixtures keep working). Unit tested, matching urlPolicy.ts/loadFailure.ts.
+2. Schema v8 adds browser.approvedSites with migration 008 (empty by default), following the 003-007 convention.
+3. embeddedBrowser: will-navigate now rejects an unapproved host as well as a non-http(s) URL, shows the existing blocked recovery screen, and records the attempt. Main-frame only, so images and scripts from other domains still load (AC 6). Loopback stays allowed.
+4. AC 1 needs no config: a tile's own site is approved by deriving hosts from the saved web tiles at check time.
+5. News exception: openUrl's privateNavigation flag allows the one story host main just served, consumed by that first navigation. Links and redirects from the story page go through the normal rules, and the log still omits the address (AC 4, 8, 9).
+6. New IPC: browser:blockedAttempts (recent, in-memory) and browser:approveSite (adds the host, clears the record). Admin gets a Browsing tab listing approved sites and blocked attempts with an 'Approve this site' button.
+7. E2E: follow a link to an unapproved domain and see the recovery screen; approve it in admin and follow it again.
+<!-- SECTION:PLAN:END -->
