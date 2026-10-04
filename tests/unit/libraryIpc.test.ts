@@ -26,6 +26,13 @@ vi.mock('../../src/main/services/media/libraryStore', () => ({
 }))
 import { registerLibraryIpc } from '../../src/main/ipc/libraryIpc'
 
+const photoExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico']
+const musicExtensions = ['mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'webm']
+const libraries = [
+  { library: 'photos', name: 'Photos', extensions: photoExtensions, other: musicExtensions },
+  { library: 'music', name: 'Music', extensions: musicExtensions, other: photoExtensions }
+] as const
+
 describe('admin library IPC', () => {
   const invoke = async (channel: string, request: unknown): Promise<unknown> =>
     mocks.handle.mock.calls.find(([name]) => name === channel)![1]({}, request)
@@ -107,6 +114,53 @@ describe('admin library IPC', () => {
     expect(JSON.stringify(result)).not.toContain('private')
     expect(mocks.unlock).toHaveBeenCalledTimes(2)
   })
+
+  for (const { library, name, extensions, other } of libraries) {
+    it(`offers only supported ${library} types in the native picker`, async () => {
+      mocks.dialog.mockResolvedValue({ canceled: true, filePaths: [] })
+      await invoke('library:import', { library })
+      expect(mocks.dialog).toHaveBeenCalledWith({
+        properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
+        filters: [{ name, extensions }]
+      })
+    })
+
+    it(`imports every supported ${library} extension, regardless of case`, async () => {
+      const paths = extensions.flatMap((ext) => [
+        `C:\\private\\family file.${ext}`,
+        `C:\\private\\family file.${ext.toUpperCase()}`
+      ])
+      const entries = paths.map((_, index) => ({ id: String(index) }))
+      mocks.dialog.mockResolvedValue({ canceled: false, filePaths: paths })
+      mocks.import.mockResolvedValue(entries)
+      expect(await invoke('library:import', { library })).toEqual(entries)
+      expect(mocks.import).toHaveBeenCalledExactlyOnceWith(paths)
+    })
+
+    it.each([
+      ...other.map((ext) => `.${ext}`),
+      '.exe',
+      '.svg',
+      '.heic',
+      '.tiff',
+      '.mp4',
+      '',
+      '.',
+      '.jpg.exe',
+      '.png ',
+      '.toString'
+    ])(`rejects a whole ${library} batch containing %s before importing`, async (ext) => {
+      const paths = [`C:\\private\\valid.${extensions[0]}`, `C:\\private\\rejected${ext}`]
+      mocks.dialog.mockResolvedValue({ canceled: false, filePaths: paths })
+      const error = await invoke('library:import', { library }).catch((error: Error) => error)
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).toBe(
+        `No files were added. Choose ${library === 'photos' ? 'photo' : 'music'} files (${extensions.map((ext) => ext.toUpperCase()).join(', ')}).`
+      )
+      expect((error as Error).message).not.toContain('private')
+      expect(mocks.import).not.toHaveBeenCalled()
+    })
+  }
 
   it('does not import after cancellation or if admin locks while the picker is open', async () => {
     mocks.dialog.mockResolvedValue({ canceled: true, filePaths: [] })

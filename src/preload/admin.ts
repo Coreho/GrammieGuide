@@ -1,9 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcChannel, IpcRequest, IpcResponse } from '@shared/ipcContract'
 import type { Config } from '@shared/configSchema'
+import { plainErrorMessage } from '@shared/ipcErrors'
 
+/**
+ * Re-throw with the message the main process actually wrote. Main throws plain,
+ * caregiver-readable sentences on purpose (see libraryIpc.ts), and Electron's
+ * "Error invoking remote method '...':" wrapper would otherwise bury them.
+ */
 function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<IpcResponse<C>> {
-  return ipcRenderer.invoke(channel, req)
+  return ipcRenderer.invoke(channel, req).catch((error: unknown) => {
+    throw new Error(plainErrorMessage(error))
+  })
 }
 
 const adminApi = {
