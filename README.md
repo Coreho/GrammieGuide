@@ -31,6 +31,8 @@ Built-in tiles each have their own view. **News** is wide by default. Tapping it
 
 Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors, seeded so upgrading doesn't repaint Home), 006 (Buddy tap and motion choices), and 007 (the chat switch, on for existing setups) preserve existing settings.
 
+Every config save is validated against the schema before anything is written, and the parsed result is what reaches disk. One unvalidated value used to cost everything: the next boot would fail validation, fall back to defaults, and wipe her tiles, the API key and the PIN hash - after which anyone at the kiosk could set a new PIN. If the config file itself is unreadable (truncated, zero-length or hand-edited), the app now copies it byte-for-byte to `config.corrupt-<timestamp>.json`, records a `config-reset` event in the reliability log, and starts from defaults instead of crash-looping. The reset log never contains config values or a parser message, because both can quote the file's contents. **After such a reset, set the PIN again straight away**, since the kiosk is running without one.
+
 Local media infrastructure is ready: `grammie-media://` streams images and seekable audio from `userData/media/music/` and `userData/media/photos/` to Home and admin, with strict filename validation and no renderer filesystem API. The caregiver-side library store is in place too. Each library keeps its own `index.json` beside its files, separate from config. Importing copies files in under generated names, and the original path is never kept. A damaged index is backed up and the library starts empty instead of stopping the kiosk. Admin can list, import (through the Windows file picker), caption and remove entries, but there is no admin screen for it yet, and nothing on Home uses it yet (TASK-07, TASK-09).
 
 Photo imports accept PNG, JPG/JPEG, GIF, WEBP, AVIF, BMP and ICO files. Music imports accept MP3, WAV, OGG/OGA, OPUS, M4A, AAC, FLAC and WEBM files. Extensions are checked without regard to case, and the picker offers only the chosen library's types. If any selected file has an unsupported extension (including a music file chosen for photos or a photo chosen for music), the whole batch is rejected before copying anything, with a plain message listing the accepted kinds. These extension checks do not verify a file's contents or encoding.
@@ -64,6 +66,17 @@ powershell -ExecutionPolicy Bypass -File scripts\kiosk\switch-to-grammieguide.ps
 Then set a PIN, run **Tiles → Import settings from Grandma's Launcher**, set up her tiles fresh, and add the Buddy API key. `scripts\kiosk\rollback-to-grandmas-launcher.ps1` goes back to the old launcher, which is never uninstalled.
 
 The switch keeps the old launcher's start-at-login on until GrammieGuide has set up its own. If the installer is cancelled or fails, the script stops, turns the old watchdog back on and reopens the old launcher, so she never signs in to neither. It also switches off any leftover startup entry from early builds of the old launcher (as Task Manager does); rollback turns back on only the entries the switch turned off.
+
+## Settings safety
+
+Every settings change is checked against the config schema before it is saved, and what reaches disk is the checked result - so a stray unknown key is dropped rather than accumulating in the file. A change that would not pass is refused outright and nothing is written: the form keeps its last good values and no change is pushed to her Home screen.
+
+If the settings file itself cannot be read - truncated by a power cut, emptied, or hand-edited - GrammieGuide copies it byte-for-byte to `config.corrupt-<timestamp>.json` next to the original, notes it under **admin -> Reliability**, and starts from default settings. It does this instead of crashing, because a crash loop on a kiosk is the one failure nobody is there to notice.
+
+Two things to know after such a reset:
+
+- **Set the PIN again straight away.** The reset cleared it, so until you do, anyone at the keyboard can open the admin panel and set one.
+- The copy beside the original is the only record of what was there. Nothing is logged from its contents - the note in Reliability deliberately names the file rather than quoting it, so the API key or PIN hash cannot end up in a log.
 
 ## Setup
 

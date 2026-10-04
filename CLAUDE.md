@@ -49,6 +49,7 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 
 - **Schema:** `src/shared/configSchema.ts` defines a zod schema, versioned by `CURRENT_SCHEMA_VERSION`. It is persisted through electron-store in `src/main/config/store.ts`.
 - **Secrets:** `toPublicConfig()` strips secrets (the Anthropic API key and the admin PIN hash and salt) before anything reaches a renderer. `setConfig` merges only one level deep, so `config:set` runs patches through `mergeAdminPatch()`, which always carries the current secrets forward. Secrets change only through `admin:setPin` / `admin:setApiKey`.
+- **Validation:** `config:set` goes through the pure `applyConfigPatch()` in `config/applyConfigPatch.ts` (one-level merge, then `configSchema.safeParse`) and saves the _parsed_ result, so unknown keys are dropped and defaults filled on the way to disk. An invalid patch throws `ConfigValidationError` before the cache or the file changes; `configIpc.ts` logs `config-updated` and pushes `config:changed` only after that succeeds, so a rejected save leaves no trace. Issues name field paths only, never values, because the message can reach the activity log. `store.ts` builds its `Store` lazily inside `loadConfig` - `electron-store` reads the file in its constructor and rethrows a `SyntaxError`, and `store.ts` is imported before `app.whenReady`, which used to crash-loop the kiosk on a truncated file. On `SyntaxError` the raw bytes are copied to `config.corrupt-<ts>.json` _before_ reopening with `clearInvalidConfig`; any other read failure (EPERM/EBUSY) is rethrown. Each reset records one `config-reset` reliability event naming the backup file; its reason is rebuilt from a fixed vocabulary because a JSON `SyntaxError` quotes the offending source and a migration's `TypeError` quotes its values.
 - **Old launcher import:** `config/importOldLauncher.ts` maps grandmas-launcher's `%APPDATA%\grandmas-launcher\config.json` (read-only) to weather, display and confusion settings. Tiles are deliberately not imported (Home's tiles are set up fresh), behind `admin:previewOldLauncherImport` / `admin:applyOldLauncherImport`. It never carries secrets.
 - **Schema changes:** bump `CURRENT_SCHEMA_VERSION`, then add a numbered pure migration file under `src/main/config/migrations/` (named `NNN-description.ts`) and list it in `migrations/index.ts`. The schema is at version 7: 003 adds tile sizes, 004 adds Buddy quick messages, and 005 gives each tile a saved `colorIndex`, seeded from its old position so upgrading doesn't repaint Home. 006 replaces `buddy.roaming` with `buddy.motion` (true → `roam`, false → `still`, missing → `roam`) and adds `buddy.tapAction` (default `reaction`). 007 adds `buddy.chatEnabled` (default true, so existing setups keep chat). Existing values win over defaults. `runner.ts` applies the migrations in order and validates the final result against the current schema. If validation fails, it backs up the corrupt config and falls back to defaults so the kiosk still boots.
 
@@ -119,10 +120,11 @@ When the page fails to load, or a link is blocked, the native view is hidden (it
 
 ## Style
 
-Prettier (`.prettierrc.yaml`) and `.editorconfig` define the formatting. Code comments explain *why*, often by contrasting with the old app. Match that density when adding non-obvious logic.
+Prettier (`.prettierrc.yaml`) and `.editorconfig` define the formatting. Code comments explain _why_, often by contrasting with the old app. Match that density when adding non-obvious logic.
 
 <!-- BACKLOG.MD GUIDELINES START -->
 <!-- backlog.md-instructions-version: 1.53.0 -->
+
 <CRITICAL_INSTRUCTION>
 
 ## Backlog.md Workflow
@@ -134,6 +136,7 @@ This project uses Backlog.md for task and project management.
 Use the overview to decide whether to search, read, create, or update Backlog tasks.
 
 Before task lifecycle actions, read the matching detailed guide:
+
 - `backlog instructions task-creation` before creating or splitting tasks
 - `backlog instructions task-execution` before planning, changing status or assignee, adding a plan or implementation notes, or implementing task work
 - `backlog instructions task-finalization` before checking acceptance criteria, writing final summaries, or moving tasks to terminal statuses

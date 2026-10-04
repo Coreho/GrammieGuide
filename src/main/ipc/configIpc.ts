@@ -25,8 +25,11 @@ export function registerConfigIpc(): void {
       for (const tile of tiles) tile.colorIndex ??= nextTileColor(tiles)
       sanitized.tiles = tileSchema.array().parse(tiles)
     }
-    logActivity('config-updated', Object.keys(sanitized).join(','))
+    // setConfig validates and throws before touching the cache or the file, so
+    // this log line - and the config:changed push below it - only ever describe a
+    // change that actually happened.
     const updated = toPublicConfig(setConfig(sanitized))
+    logActivity('config-updated', Object.keys(sanitized).join(','))
     // The launcher only reads config on mount - push admin edits to it so
     // a new tile or theme shows up on her screen without a restart.
     getLauncherWindow()?.webContents.send('config:changed', updated)

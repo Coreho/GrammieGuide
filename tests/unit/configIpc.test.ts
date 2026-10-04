@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultConfig, type Config } from '../../src/shared/configSchema'
+import { applyConfigPatch } from '../../src/main/config/applyConfigPatch'
 
 const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
   getConfig: vi.fn(),
   setConfig: vi.fn(),
   unlock: vi.fn(),
-  send: vi.fn()
+  send: vi.fn(),
+  logActivity: vi.fn()
 }))
 vi.mock('electron', () => ({ ipcMain: { handle: mocks.handle } }))
 vi.mock('../../src/main/config/store', () => ({
@@ -14,7 +16,9 @@ vi.mock('../../src/main/config/store', () => ({
   setConfig: mocks.setConfig
 }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlock }))
-vi.mock('../../src/main/services/activityLog/activityLog', () => ({ logActivity: vi.fn() }))
+vi.mock('../../src/main/services/activityLog/activityLog', () => ({
+  logActivity: mocks.logActivity
+}))
 vi.mock('../../src/main/windows/windowManager', () => ({
   getLauncherWindow: () => ({ webContents: { send: mocks.send } })
 }))
@@ -88,4 +92,55 @@ describe('caregiver tile colors', () => {
       expect(mocks.send).not.toHaveBeenCalled()
     }
   )
+})
+
+/**
+ * A rejected save must be completely invisible: no state change, nothing pushed to
+ * Home, and nothing in the activity log. `setConfig` is mocked to delegate to the
+ * real applyConfigPatch so the validation under test is the production one rather
+ * than a stand-in that always succeeds (TASK-39).
+ */
+describe('config:set rejects an invalid patch', () => {
+  let config: Config
+  const invoke = (patch: unknown): unknown =>
+    mocks.handle.mock.calls.find(([channel]) => channel === 'config:set')![1]({}, patch)
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    config = defaultConfig()
+    mocks.getConfig.mockImplementation(() => config)
+    mocks.setConfig.mockImplementation((patch: Partial<Config>) => {
+      const result = applyConfigPatch(config, patch)
+      if (!result.ok) throw result.error
+      config = result.config
+      return config
+    })
+    registerConfigIpc()
+  })
+
+  it.each([
+    ['an unknown theme', (d: Config) => ({ display: { ...d.display, theme: 'nope' } })],
+    [
+      'an out-of-range inactivity timeout',
+      (d: Config) => ({ confusion: { ...d.confusion, inactivityTimeoutMinutes: 0 } })
+    ],
+    ['weather with no locations', () => ({ weather: { units: 'metric' } })],
+    ['an unknown schemaVersion', () => ({ schemaVersion: 1 })]
+  ])('rejects %s and leaves no trace', (_label, build) => {
+    const before = structuredClone(config)
+    const patch = typeof build === 'function' ? (build as (d: Config) => unknown)(config) : build
+
+    expect(() => invoke(patch)).toThrow(/could not be saved/)
+
+    expect(config).toEqual(before)
+    expect(mocks.send).not.toHaveBeenCalled()
+    expect(mocks.logActivity).not.toHaveBeenCalledWith('config-updated', expect.anything())
+  })
+
+  it('still saves and publishes a valid non-tile patch', () => {
+    const result = invoke({ display: { ...config.display, volumeCeiling: 62 } }) as Config
+    expect(result.display.volumeCeiling).toBe(62)
+    expect(mocks.send).toHaveBeenCalledWith('config:changed', expect.anything())
+    expect(mocks.logActivity).toHaveBeenCalledWith('config-updated', 'display')
+  })
 })
