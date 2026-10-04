@@ -35,6 +35,8 @@ Local media infrastructure is ready: `grammie-media://` streams images and seeka
 
 Photo imports accept PNG, JPG/JPEG, GIF, WEBP, AVIF, BMP and ICO files. Music imports accept MP3, WAV, OGG/OGA, OPUS, M4A, AAC, FLAC and WEBM files. Extensions are checked without regard to case, and the picker offers only the chosen library's types. If any selected file has an unsupported extension (including a music file chosen for photos or a photo chosen for music), the whole batch is rejected before copying anything, with a plain message listing the accepted kinds. These extension checks do not verify a file's contents or encoding.
 
+On each library instance's first load, its operation queue removes leftover `.import.tmp` and `.index.tmp` files and, only when the index parses successfully, unlisted files with generated media names. Listed files, corrupt-index backups and unrelated files are preserved. After a corrupt index is backed up, only temporary files are removed; all media files are preserved, because a backup cannot tell us which files were in use. Cleanup is lazy, so it adds no kiosk startup work, and it is skipped if the index is unreadable, a corrupt index cannot be backed up, or the library has no index yet. Busy files are left for the next instance's load; cleanup failures do not stop library use.
+
 ## Buddy
 
 Buddy is the cat in sunglasses at the bottom right of Home.
