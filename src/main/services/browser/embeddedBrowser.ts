@@ -8,6 +8,8 @@ import {
 import { logActivity } from '../activityLog/activityLog'
 import { logReliabilityEvent } from '../reliability/reliabilityLog'
 import { isAllowedUrl } from './urlPolicy'
+import { WEB_PARTITION, hardenWebSession } from './webSession'
+import { WEB_VIEW_PREFERENCES, shouldPreventUnload } from '@shared/browser/webHardening'
 
 /**
  * Embedded web-tile browser. Ports the escape-guard/popup-block logic from
@@ -46,6 +48,7 @@ export function overrideOnlineCheckForTests(check: () => boolean): void {
 
 export function initEmbeddedBrowser(win: BrowserWindow): void {
   hostWindow = win
+  hardenWebSession()
   win.on('resize', () => layout())
   win.once('closed', () => {
     closeEmbeddedBrowser()
@@ -84,11 +87,22 @@ export function openUrl(
         preload: join(__dirname, '../preload/browserView.cjs'),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true
+        sandbox: true,
+        // Its own session, so the deny-all rules in webSession.ts (and the ad
+        // blocker) apply to web tiles without touching Home or admin.
+        partition: WEB_PARTITION,
+        // alert/confirm/prompt can never appear, so a page cannot loop dialogs
+        // over her screen or block on an answer nobody is there to give.
+        ...WEB_VIEW_PREFERENCES
       }
     })
     hostWindow.contentView.addChildView(view)
     layout()
+
+    view.webContents.on('will-prevent-unload', (event) => {
+      // A site's "leave this page?" prompt must never hold the page open.
+      if (shouldPreventUnload()) event.preventDefault()
+    })
 
     view.webContents.on('will-navigate', (event, targetUrl) => {
       if (!isAllowedUrl(targetUrl)) {
@@ -143,7 +157,9 @@ export function openUrl(
   privateNavigation = Boolean(options.privateNavigation)
   resetProblem()
   view.setVisible(true)
-  view.webContents.loadURL(url)
+  // loadURL rejects on a failed load; did-fail-load below already owns what she
+  // sees, so swallow it rather than leaving an unhandled rejection in main.
+  view.webContents.loadURL(url).catch(() => undefined)
   lastActivityAt = Date.now()
   logActivity('browser-open', privateNavigation ? undefined : url)
   return { ok: true }
@@ -171,7 +187,7 @@ export function dismissBlocked(): void {
 function reloadFailedPage(): void {
   if (!view || !failedUrl || problem === null || problem === 'blocked') return
   navigationFailed = false
-  view.webContents.loadURL(failedUrl)
+  view.webContents.loadURL(failedUrl).catch(() => undefined)
 }
 
 function showProblem(kind: PageProblem): void {
