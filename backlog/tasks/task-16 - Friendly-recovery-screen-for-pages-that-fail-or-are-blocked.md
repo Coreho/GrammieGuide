@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-09-29 05:53'
-updated_date: '2026-09-30 22:38'
+updated_date: '2026-10-05 05:09'
 labels: []
 milestone: m-10
 dependencies: []
@@ -41,4 +41,6 @@ When a web page fails to load (no internet, the site is down, a certificate prob
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented by Claude (2026-09-30). Pure shared/browser/loadFailure.ts (6 unit tests); embeddedBrowser hides the native view and sends browser:page-problem on a main-frame did-fail-load (ERR_ABORTED ignored) or a blocked link; PageRecovery on Home with plain words and big Try again / Back to the page and Home buttons; offline retries every 5 s once Windows reports a connection, not counted as her activity; activity log gets "domain: ERR_NAME". Chromium offline emulation stalls loads instead of failing them, so e2e stands in for Windows online state via __e2e__.setDeviceOnline. E2E page-recovery.spec: unreachable (screen, no error text, page hidden, log "127.0.0.1: ERR_CONNECTION_REFUSED"), Try again once reachable with the nav Home button in the same place, offline wording then automatic reopen, blocked link then Back to the page. Verified: typecheck, lint, unit 274, build, full e2e 31 passed. AC 3 left open: true for web pages and the recovery screen (same nav bar), but reader view does not exist yet (TASK-04 should reuse the nav bar).
+
+Still open 2026-10-05, and it is blocked rather than unfinished: AC3 covers the Home button on web pages, the recovery screen and reader view. Web pages and the recovery screen are done and proven (both use the same 72px nav bar; page-recovery.spec.ts asserts Home is in the same place). Reader view does not exist yet - it is TASK-04, which its own notes say should reuse the same nav bar. Everything else is verified: 4 unit tests over shared/browser/loadFailure.ts, page-recovery.spec.ts covering unreachable, offline-then-auto-reopen and blocked-link, and the domain plus error type in the activity log. Nothing to implement here until TASK-04 lands.
 <!-- SECTION:NOTES:END -->
