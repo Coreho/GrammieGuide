@@ -4,7 +4,7 @@ title: Offer OpenRouter as an alternative provider for Buddy chat
 status: In Progress
 assignee: []
 created_date: '2026-10-05 07:46'
-updated_date: '2026-10-05 07:56'
+updated_date: '2026-10-05 11:57'
 labels: []
 milestone: m-9
 dependencies: []
@@ -24,14 +24,14 @@ The safety constraint is the reason this is offerable at all. Left to itself Ope
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Anthropic stays the default, so a config saved before this feature still chats through Anthropic and needs no migration
-- [ ] #2 The caregiver can choose who answers Buddy chat in admin and the choice is stored in config
-- [ ] #3 Each provider keeps its own API key: the field stays write-only, neither key ever reaches a renderer, and saving other Buddy settings carries both keys forward
-- [ ] #4 An OpenRouter request is sent to openrouter.ai using the OpenRouter key and never the Anthropic key, and switching back uses the Anthropic key and leaves no OpenRouter routing behind
-- [ ] #5 Every OpenRouter request is pinned to Anthropic with no fallback and no data collection
-- [ ] #6 Model choices are per provider because ids are provider-specific; switching provider lands on a model that provider accepts, and a saved model the new provider does not offer is still shown rather than silently rewritten
-- [ ] #7 Effort is sent only to models that accept it, under either provider id format
-- [ ] #8 Unit tests cover the provider data, key-per-provider IPC routing and both keys surviving mergeAdminPatch; an e2e test proves the OpenRouter URL, the routing pin, the unchanged prompt and that neither key reaches a renderer
+- [x] #1 Anthropic stays the default, so a config saved before this feature still chats through Anthropic and needs no migration
+- [x] #2 The caregiver can choose who answers Buddy chat in admin and the choice is stored in config
+- [x] #3 Each provider keeps its own API key: the field stays write-only, neither key ever reaches a renderer, and saving other Buddy settings carries both keys forward
+- [x] #4 An OpenRouter request is sent to openrouter.ai using the OpenRouter key and never the Anthropic key, and switching back uses the Anthropic key and leaves no OpenRouter routing behind
+- [x] #5 Every OpenRouter request is pinned to Anthropic with no fallback and no data collection
+- [x] #6 Model choices are per provider because ids are provider-specific; switching provider lands on a model that provider accepts, and a saved model the new provider does not offer is still shown rather than silently rewritten
+- [x] #7 Effort is sent only to models that accept it, under either provider id format
+- [x] #8 Unit tests cover the provider data, key-per-provider IPC routing and both keys surviving mergeAdminPatch; an e2e test proves the OpenRouter URL, the routing pin, the unchanged prompt and that neither key reaches a renderer
 - [ ] #9 A check in the real app with a real OpenRouter key confirms a reply comes back
 <!-- AC:END -->
 
@@ -55,4 +55,8 @@ Work was started on main and is uncommitted, so this task exists to get it revie
 Committed to feat/buddy-chat-provider as two commits: a bookkeeping commit for the already-merged TASK-01/03/12/16/29 notes, then the feature. Verified on this branch: typecheck clean, lint clean, unit 41 files / 688 tests passed, build clean, full e2e 77 passed (6.1m). The new buddy-prompt-wiring.spec.ts stubs fetch in main to assert the OpenRouter URL, the routing pin, the identical frozen prompt and that neither key reaches a renderer; it also closes the gap TASK-11 left, which was that nothing had checked the real request carried the no-inventing rules.
 
 Still open: AC 9 needs a real OpenRouter key, which only the owner has. Until then the task stays In Progress and no acceptance criterion is checked on the claim that a live reply comes back.
+
+Merged to main 2026-10-05 as PR #30 (squash 42e0790), on top of PR #31 which carried the ad-blocker verification suite the OpenRouter branch had picked up by accident. Branch was rebased onto main after the squash and re-verified in full: typecheck clean, lint clean, unit 41 files / 688 tests, build clean, e2e 77 passed (4.5m). ACs 1-8 checked against that run; AC 9 stays unchecked and the task stays In Progress because it needs a real OpenRouter key only the owner has.
+
+A note on how this branch was untangled, since the same trap could recur: the deletion of anthropicClient.ts had been sitting staged in the index from the original uncommitted work, so a notes-only commit silently swallowed it and produced a commit that was broken in isolation. It passed every suite because the replacement file arrived in a later commit on the same branch. The swap is now atomic in one commit. Worth a pre-push \git diff --staged\ when unrelated work is already staged.
 <!-- SECTION:NOTES:END -->
