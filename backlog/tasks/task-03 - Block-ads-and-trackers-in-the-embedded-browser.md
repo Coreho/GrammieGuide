@@ -1,10 +1,11 @@
 ---
 id: TASK-03
 title: Block ads and trackers in the embedded browser
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-09-29 04:18'
-updated_date: '2026-09-29 05:51'
+updated_date: '2026-10-05 04:40'
 labels: []
 milestone: m-10
 dependencies:
