@@ -19,7 +19,11 @@ import {
 } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
-import { startBrowserProtection, stopAdBlocker } from './services/browser/adBlocker'
+import {
+  refreshAdBlockerLists,
+  startBrowserProtection,
+  stopAdBlocker
+} from './services/browser/adBlocker'
 
 /**
  * Thin bootstrap: wires services together and nothing else, unlike the old
@@ -86,7 +90,10 @@ app.whenReady().then(() => {
     ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
       createAdminWindow,
       closeBrowserIfIdle,
-      setDeviceOnline: (online: boolean) => overrideOnlineCheckForTests(() => online)
+      setDeviceOnline: (online: boolean) => overrideOnlineCheckForTests(() => online),
+      // The real refresh interval is 24 hours; a test needs to run one now, with
+      // the network already broken, to prove a failed update changes nothing.
+      refreshAdBlockerLists
     }
   }
 })

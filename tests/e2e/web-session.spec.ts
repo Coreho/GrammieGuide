@@ -60,6 +60,9 @@ const fixture = `<!doctype html>
     link.click()
     return 'clicked'
   }
+
+  window.remember = (value) => { window.localStorage.setItem('grammieguide-login', value); return value }
+  window.recall = () => window.localStorage.getItem('grammieguide-login')
 </script>`
 
 test.beforeAll(async () => {
@@ -200,4 +203,40 @@ test('a download is cancelled and logged as browser-download-blocked', async () 
     String(entry).includes('free-money')
   )
   expect(stray).toEqual([])
+})
+
+/**
+ * `persist:` is the only reason a site login would still be there tomorrow, and
+ * that is exactly what moving off the default session costs her. So prove it
+ * across a real restart rather than inferring it from the partition name.
+ *
+ * Last in the file: it closes and relaunches the app, so the admin page and the
+ * `page` handle every earlier test relies on are gone afterwards.
+ */
+test('a site login survives an app restart, because the session is persistent', async () => {
+  // Stand in for signing in: site state a site would keep for a logged-in user.
+  expect(await inFixture<string>("window.remember('still-here')")).toBe('still-here')
+
+  await app.close()
+  app = await electron.launch({
+    args: ['.', `--user-data-dir=${userDataDir}`],
+    cwd: process.cwd(),
+    env: { ...process.env, GRAMMIEGUIDE_E2E: '1' }
+  })
+  page = await app.firstWindow()
+  await page.waitForLoadState('domcontentloaded')
+
+  // The tile was saved in the config, so Home still offers it after the restart.
+  await page.getByRole('button', { name: 'Shady site', exact: true }).click()
+  await expect(page.getByRole('button', { name: '🏠 Home', exact: true })).toBeVisible()
+  await expect
+    .poll(() =>
+      app.evaluate(({ webContents }, url) => {
+        const found = webContents.getAllWebContents().find((w) => w.getURL() === url)
+        return found ? !found.isLoading() : false
+      }, fixtureUrl)
+    )
+    .toBe(true)
+
+  expect(await inFixture<string | null>('window.recall()')).toBe('still-here')
 })

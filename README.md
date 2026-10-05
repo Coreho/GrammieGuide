@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-04_
+_Last updated: 2026-10-05_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -26,6 +26,8 @@ If a web page won't load, she never sees Chromium's technical error page. A calm
 Text size is set only by the caregiver, in **admin → Display**, and Home follows it immediately. Home no longer has its own text-size buttons (the A-/A+ in the bottom-left corner), so a stray tap can't change it.
 
 A web page closes by itself after the caregiver's idle time (admin → Confusion). Each tap, key press or scroll inside the page restarts that timer. Reading without touching anything doesn't, so a page she only reads still closes once the time is up. Before 2026-09-30 input inside the page didn't count at all, because the page's small activity-reporting script never loaded. Events a page fakes with its own scripts are ignored. Home, admin and web pages all run in Chromium's sandbox, which limits what a misbehaving page could do to the computer.
+
+Web pages run in their own browser session, separate from Home and admin, so nothing a site asks for reaches the rest of the app. Every permission is denied (camera, microphone, location, notifications, clipboard), downloads are cancelled and logged as `browser-download-blocked`, and a page cannot put an alert, a prompt or a "leave this page?" question on her screen. Ads and trackers are blocked in that session too; the filter lists are downloaded once and cached, so it keeps working with no internet. If blocking ever can't start at all, browsing carries on unfiltered and admin → Activity records `adblocker-unavailable`. One consequence worth knowing: the first time after this change, she is signed out of websites, because the session moved.
 
 Built-in tiles each have their own view. **News** is wide by default. Tapping it shows today's stories as long cards (headline, a two-line summary, how long ago, and a small picture when the feed has one) so she can see what's there before choosing. Tapping a story opens it in the kiosk browser. The caregiver sets the feed address (NPR's top stories by default) and, optionally, the news website. If the feed can't be read, she sees "The news isn't ready right now." and a button to open that website instead, never an error. The top headline is deliberately not shown on the tile itself, so Home never displays upsetting news she didn't ask for. Music, games and photos built-ins remain future work.
 
