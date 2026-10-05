@@ -21,16 +21,29 @@ export function registerAdminIpc(): void {
   ipcMain.handle('admin:unlock', (_e, req: { pin: string }) => unlockAdmin(req.pin))
   ipcMain.handle('admin:lock', () => lockAdmin())
   ipcMain.handle('admin:isUnlocked', () => isAdminUnlocked())
-  ipcMain.handle('admin:hasApiKey', () => {
+  ipcMain.handle('admin:hasApiKey', (_e, req: { provider?: unknown }) => {
     requireAdminUnlocked()
-    return Boolean(getConfig().buddy.anthropicApiKey)
+    const provider = req?.provider === 'openrouter' ? 'openrouter' : 'anthropic'
+    const { anthropicApiKey, openrouterApiKey } = getConfig().buddy
+    return Boolean(provider === 'openrouter' ? openrouterApiKey : anthropicApiKey)
   })
-  ipcMain.handle('admin:setApiKey', (_e, req: { apiKey: string }) => {
+  ipcMain.handle('admin:setApiKey', (_e, req: { provider?: unknown; apiKey?: unknown }) => {
     requireAdminUnlocked()
+    // An unknown provider falls back to Anthropic rather than writing to neither
+    // key, so a malformed call can't leave the caregiver with no way in.
+    const provider = req?.provider === 'openrouter' ? 'openrouter' : 'anthropic'
     const apiKey = typeof req?.apiKey === 'string' ? req.apiKey.trim() : ''
     const buddy = getConfig().buddy
-    setConfig({ buddy: { ...buddy, anthropicApiKey: apiKey || undefined } })
-    logActivity(apiKey ? 'buddy-api-key-set' : 'buddy-api-key-cleared')
+    setConfig({
+      buddy: {
+        ...buddy,
+        [provider === 'openrouter' ? 'openrouterApiKey' : 'anthropicApiKey']:
+          apiKey || undefined
+      }
+    })
+    logActivity(
+      apiKey ? `buddy-api-key-set-${provider}` : `buddy-api-key-cleared-${provider}`
+    )
     return { ok: true }
   })
 

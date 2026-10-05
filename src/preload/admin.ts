@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcChannel, IpcRequest, IpcResponse } from '@shared/ipcContract'
 import type { Config } from '@shared/configSchema'
+import type { BuddyProvider } from '@shared/buddy/providers'
 import { plainErrorMessage } from '@shared/ipcErrors'
 
 /**
@@ -28,8 +29,9 @@ const adminApi = {
   unlock: (pin: string) => invoke('admin:unlock', { pin }),
   lock: () => invoke('admin:lock'),
   isUnlocked: () => invoke('admin:isUnlocked'),
-  hasApiKey: () => invoke('admin:hasApiKey'),
-  setApiKey: (apiKey: string) => invoke('admin:setApiKey', { apiKey }),
+  hasApiKey: (provider: BuddyProvider) => invoke('admin:hasApiKey', { provider }),
+  setApiKey: (provider: BuddyProvider, apiKey: string) =>
+    invoke('admin:setApiKey', { provider, apiKey }),
   /** "Try this voice": same synthesis Buddy uses, so what the caregiver hears is what she'll hear. */
   previewVoice: (text: string, voice: string) => invoke('buddy:speak', { text, voice }),
   previewOldLauncherImport: () => invoke('admin:previewOldLauncherImport'),
