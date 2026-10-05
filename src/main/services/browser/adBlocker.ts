@@ -75,37 +75,46 @@ export async function startAdBlocker(userDataPath: string): Promise<boolean> {
   blocker = engine
   logReliabilityEvent({ op: 'adblocker-start', ok: true, detail: 'ads and tracking blocked' })
   logActivity('adblocker-enabled')
-  scheduleRefresh(engine)
+  scheduleRefresh()
   return true
 }
 
 /**
- * Refresh the lists later. A failed update is logged and dropped: the engine
- * already in memory keeps working, which is the whole point of never letting list
- * freshness affect browsing.
+ * Refresh the lists now, off the same path the timer uses. A failed update is
+ * logged and dropped: the engine already in memory keeps working, which is the
+ * whole point of never letting list freshness affect browsing.
+ *
+ * Returns whether the lists were updated. `scheduleRefresh` calls this on a
+ * timer; e2e calls it directly, because the real interval is 24 hours and the
+ * failure it has to survive is the interesting half.
  */
-function scheduleRefresh(engine: ElectronBlocker): void {
+export async function refreshAdBlockerLists(): Promise<boolean> {
+  if (!blocker) return false
+  try {
+    const lists = await fetchLists(fetch, adsAndTrackingLists)
+    // Comments and unsupported lines are dropped here rather than at parse time.
+    const added = lists.flatMap((list) => [...getLinesWithFilters(list)])
+    const changed = blocker.updateFromDiff({ added })
+    logReliabilityEvent({
+      op: 'adblocker-update',
+      ok: true,
+      detail: changed ? 'lists updated' : 'lists unchanged'
+    })
+    return true
+  } catch (error) {
+    logReliabilityEvent({
+      op: 'adblocker-update',
+      ok: false,
+      detail: `keeping current lists: ${String(error)}`
+    })
+    return false
+  }
+}
+
+function scheduleRefresh(): void {
   if (refreshTimer) clearInterval(refreshTimer)
   refreshTimer = setInterval(() => {
-    void (async () => {
-      try {
-        const lists = await fetchLists(fetch, adsAndTrackingLists)
-        // Comments and unsupported lines are dropped here rather than at parse time.
-        const added = lists.flatMap((list) => [...getLinesWithFilters(list)])
-        const changed = engine.updateFromDiff({ added })
-        logReliabilityEvent({
-          op: 'adblocker-update',
-          ok: true,
-          detail: changed ? 'lists updated' : 'lists unchanged'
-        })
-      } catch (error) {
-        logReliabilityEvent({
-          op: 'adblocker-update',
-          ok: false,
-          detail: `keeping current lists: ${String(error)}`
-        })
-      }
-    })()
+    void refreshAdBlockerLists()
   }, REFRESH_INTERVAL_MS)
   // Never hold the app open just to refresh a list.
   refreshTimer.unref?.()

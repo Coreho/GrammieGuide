@@ -8,6 +8,8 @@ import type { AddressInfo } from 'node:net'
 
 let app: ElectronApplication
 let page: Page
+/** Reassigned after the relaunch, which closes the original window. */
+let admin: Page
 let server: Server
 let fixtureUrl: string
 let userDataDir: string
@@ -71,7 +73,7 @@ test.beforeAll(async () => {
       globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }
     ).__e2e__.createAdminWindow()
   })
-  const admin = await opened
+  admin = await opened
   await admin.waitForLoadState('domcontentloaded')
   await admin.getByPlaceholder('4-8 digit PIN').fill('2468')
   await admin.getByPlaceholder('Confirm PIN').fill('2468')
@@ -170,6 +172,36 @@ test('the launcher and admin windows are not filtered', async () => {
     String(entry).includes('adblocker')
   )
   expect(stray).toEqual(['adblocker-engine.bin'])
+})
+
+/**
+ * The 24-hour refresh must not be able to break browsing. Its real failure mode is
+ * the list host being unreachable, so this makes fetch fail for one cycle and
+ * restores it straight after. A dead HTTP_PROXY would not do: the ad blocker's
+ * fetch is the global one, and Node's fetch does not read the proxy variables.
+ */
+test('a failed list refresh leaves blocking exactly as it was', async () => {
+  type E2eHooks = { __e2e__: { refreshAdBlockerLists: () => Promise<boolean> } }
+  const refreshed = await app.evaluate(async () => {
+    const realFetch = globalThis.fetch
+    globalThis.fetch = () => Promise.reject(new Error('e2e: the list host is unreachable'))
+    try {
+      return await (globalThis as unknown as E2eHooks).__e2e__.refreshAdBlockerLists()
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
+  expect(refreshed).toBe(false)
+
+  // Recorded, so a caregiver asking "why is this site full of ads" has an answer.
+  const reliability = await admin.evaluate(() => window.admin.getReliabilityLog())
+  const failedUpdate = reliability.find((event) => event.op === 'adblocker-update')
+  expect(failedUpdate?.ok).toBe(false)
+  expect(failedUpdate?.detail).toContain('keeping current lists')
+
+  // Still blocked: a stale engine is better than no engine.
+  const event = await requestAndReport(TRACKER_URL)
+  expect(event.error).toBe('net::ERR_BLOCKED_BY_CLIENT')
 })
 
 /**
