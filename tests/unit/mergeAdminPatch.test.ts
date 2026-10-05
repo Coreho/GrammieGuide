@@ -4,17 +4,42 @@ import { defaultConfig, mergeAdminPatch, toPublicConfig, type Config } from '../
 function configWithSecrets(): Config {
   const cfg = defaultConfig()
   cfg.buddy.anthropicApiKey = 'sk-ant-secret'
+  cfg.buddy.openrouterApiKey = 'sk-or-secret'
   cfg.reliability.adminPinHash = 'hash'
   cfg.reliability.adminPinSalt = 'salt'
   return cfg
 }
 
 describe('mergeAdminPatch', () => {
-  it('keeps the API key when the admin saves Buddy settings from PublicConfig', () => {
+  it('keeps both API keys when the admin saves Buddy settings from PublicConfig', () => {
     const current = configWithSecrets()
     const publicBuddy = toPublicConfig(current).buddy
     const merged = mergeAdminPatch(current, { buddy: { ...publicBuddy, model: 'claude-sonnet-5' } })
-    expect(merged.buddy).toMatchObject({ model: 'claude-sonnet-5', anthropicApiKey: 'sk-ant-secret' })
+    expect(merged.buddy).toMatchObject({
+      model: 'claude-sonnet-5',
+      anthropicApiKey: 'sk-ant-secret',
+      openrouterApiKey: 'sk-or-secret'
+    })
+  })
+
+  it('keeps the keys when the admin switches provider and model together', () => {
+    const current = configWithSecrets()
+    const publicBuddy = toPublicConfig(current).buddy
+    const merged = mergeAdminPatch(current, {
+      buddy: { ...publicBuddy, provider: 'openrouter', model: 'anthropic/claude-sonnet-5.5' }
+    })
+    expect(merged.buddy).toMatchObject({
+      provider: 'openrouter',
+      model: 'anthropic/claude-sonnet-5.5',
+      anthropicApiKey: 'sk-ant-secret',
+      openrouterApiKey: 'sk-or-secret'
+    })
+  })
+
+  it('never sends either key to a renderer', () => {
+    const serialised = JSON.stringify(toPublicConfig(configWithSecrets()))
+    expect(serialised).not.toContain('sk-ant-secret')
+    expect(serialised).not.toContain('sk-or-secret')
   })
 
   it('keeps the PIN hash/salt when the admin saves reliability settings', () => {
@@ -26,10 +51,15 @@ describe('mergeAdminPatch', () => {
   it('ignores secrets supplied in the patch itself', () => {
     const current = configWithSecrets()
     const merged = mergeAdminPatch(current, {
-      buddy: { ...current.buddy, anthropicApiKey: 'attacker-key' },
+      buddy: {
+        ...current.buddy,
+        anthropicApiKey: 'attacker-key',
+        openrouterApiKey: 'attacker-or-key'
+      },
       reliability: { adminPinHash: 'x', adminPinSalt: 'y' }
     })
     expect(merged.buddy?.anthropicApiKey).toBe('sk-ant-secret')
+    expect(merged.buddy?.openrouterApiKey).toBe('sk-or-secret')
     expect(merged.reliability).toMatchObject({ adminPinHash: 'hash', adminPinSalt: 'salt' })
   })
 

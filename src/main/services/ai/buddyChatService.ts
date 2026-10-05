@@ -1,5 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { BuddyChatTurn, BuddyChatResult } from '@shared/ipcContract'
+import {
+  OPENROUTER_PROVIDER_PREFERENCES,
+  modelAcceptsEffort,
+  type BuddyProvider
+} from '@shared/buddy/providers'
 import { BUDDY_SYSTEM_PROMPT } from './buddyPrompt'
 
 /**
@@ -23,6 +28,20 @@ export const REPLIES = {
 } as const
 
 type MessagesClient = Pick<Anthropic, 'messages'>
+
+/**
+ * Extra body fields OpenRouter understands and Anthropic does not. They are
+ * stripped from the type by the SDK, hence the assertion - the same trick the
+ * SDK's own passthrough support needs.
+ */
+type OpenRouterRouting = { provider?: unknown }
+
+/** OpenRouter's routing preference, or nothing when talking to Anthropic. */
+function routingFor(provider: BuddyProvider): OpenRouterRouting {
+  return provider === 'openrouter'
+    ? ({ provider: { ...OPENROUTER_PROVIDER_PREFERENCES } } satisfies OpenRouterRouting)
+    : {}
+}
 
 /**
  * Makes renderer-supplied history safe to send: drops blanks, caps length
@@ -53,7 +72,7 @@ export function toApiMessages(turns: BuddyChatTurn[]): Anthropic.MessageParam[] 
 
 /** Haiku 4.5 rejects `effort`; newer models accept it and default higher than a chat needs. */
 function supportsEffort(model: string): boolean {
-  return !model.startsWith('claude-haiku')
+  return modelAcceptsEffort(model)
 }
 
 export async function buddyChat(
@@ -61,6 +80,7 @@ export async function buddyChat(
   opts: {
     chatEnabled: boolean
     apiKey: string | undefined
+    provider: BuddyProvider
     model: string
     client: MessagesClient | null
     log: (type: string, detail?: string) => void
@@ -85,7 +105,8 @@ export async function buddyChat(
       max_tokens: 4096,
       system: BUDDY_SYSTEM_PROMPT,
       messages,
-      ...(supportsEffort(opts.model) ? { output_config: { effort: 'low' as const } } : {})
+      ...(supportsEffort(opts.model) ? { output_config: { effort: 'low' as const } } : {}),
+      ...routingFor(opts.provider)
     })
 
     if (response.stop_reason === 'refusal') {

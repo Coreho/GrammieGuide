@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
 import { TILE_COLOR_COUNT } from './tileColors'
 import { quickMessageSchema } from './buddy/commands'
+import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
@@ -54,11 +55,18 @@ export const confusionConfigSchema = z.object({
 })
 
 export const buddyConfigSchema = z.object({
+  /** Who answers chat. Anthropic direct is the default and needs no migration:
+   *  existing setups have an Anthropic key and keep it. */
+  provider: z.enum(BUDDY_PROVIDERS).default(DEFAULT_BUDDY_PROVIDER),
   anthropicApiKey: z.string().optional(),
+  /** Only used when provider is 'openrouter'. Kept separate so switching back
+   *  and forth never costs her a key she already entered. */
+  openrouterApiKey: z.string().optional(),
   /** Chat can be switched off while Buddy's presence and friendly reactions stay available. */
   chatEnabled: z.boolean().default(true),
   /** Sonnet 5.5, not the cheaper Haiku 4.5: live checks found Haiku still agreeing with
-   * confused statements ("I'm sure it will be nice to see her") despite the prompt. */
+   * confused statements ("I'm sure it will be nice to see her") despite the prompt.
+   *  The id is provider-specific, so shared/buddy/providers.ts owns both lists. */
   model: z.string().default('claude-sonnet-5-5'),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
   /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
@@ -107,18 +115,18 @@ export type Config = z.infer<typeof configSchema>
 export type Tile = z.infer<typeof tileSchema>
 
 /**
- * Never sent to any renderer as-is - secrets (the Anthropic API key, PIN
- * hash+salt) are stripped. Matches the old app's security model: the
+ * Never sent to any renderer as-is - secrets (the Anthropic and OpenRouter API
+ * keys, PIN hash+salt) are stripped. Matches the old app's security model: the
  * caregiver can *set* the API key/PIN but the app never reads it back to
  * any renderer afterward.
  */
 export type PublicConfig = Omit<Config, 'buddy' | 'reliability'> & {
-  buddy: Omit<Config['buddy'], 'anthropicApiKey'>
+  buddy: Omit<Config['buddy'], 'anthropicApiKey' | 'openrouterApiKey'>
   reliability: Omit<Config['reliability'], 'adminPinHash' | 'adminPinSalt'>
 }
 
 export function toPublicConfig(cfg: Config): PublicConfig {
-  const { anthropicApiKey: _key, ...publicBuddy } = cfg.buddy
+  const { anthropicApiKey: _key, openrouterApiKey: _orKey, ...publicBuddy } = cfg.buddy
   const { adminPinHash: _hash, adminPinSalt: _salt, ...publicReliability } = cfg.reliability
   return { ...cfg, buddy: publicBuddy, reliability: publicReliability }
 }
@@ -126,15 +134,19 @@ export function toPublicConfig(cfg: Config): PublicConfig {
 /**
  * Applies an admin-panel patch without ever touching secrets. The admin
  * renderer only holds PublicConfig, so a patch like { buddy: {...} } built
- * from it has no anthropicApiKey - and store.ts's setConfig merges one level
- * deep, so passing that through as-is would silently wipe the key (same for
+ * from it has neither API key - and store.ts's setConfig merges one level
+ * deep, so passing that through as-is would silently wipe them (same for
  * the PIN hash/salt under reliability). Secrets always come from `current`;
  * they only change via their own dedicated admin:* channels.
  */
 export function mergeAdminPatch(current: Config, patch: Partial<Config>): Partial<Config> {
   const merged: Partial<Config> = { ...patch }
   if (patch.buddy) {
-    merged.buddy = { ...patch.buddy, anthropicApiKey: current.buddy.anthropicApiKey }
+    merged.buddy = {
+      ...patch.buddy,
+      anthropicApiKey: current.buddy.anthropicApiKey,
+      openrouterApiKey: current.buddy.openrouterApiKey
+    }
   }
   if (patch.reliability) {
     merged.reliability = {
