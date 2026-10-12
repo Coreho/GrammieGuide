@@ -91,6 +91,17 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'backup:save': {
+    request: void
+    response: { ok: true } | { ok: false; canceled: true } | { ok: false; message: string }
+  }
+  'backup:restore': {
+    request: void
+    response:
+      | { ok: true; config: PublicConfig }
+      | { ok: false; canceled: true }
+      | { ok: false; message: string }
+  }
   'photos:listVisible': { request: void; response: Photo[] }
   'photos:listAll': { request: void; response: Photo[] }
   /** Open the viewer, record only that action, and return caregiver-approved photos. */

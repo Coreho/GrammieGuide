@@ -16,6 +16,8 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  saveBackup: () => invoke('backup:save'),
+  restoreBackup: () => invoke('backup:restore'),
   onPhotosChanged: (cb: () => void): (() => void) => {
     const listener = (): void => cb()
     ipcRenderer.on('photos:changed', listener)
