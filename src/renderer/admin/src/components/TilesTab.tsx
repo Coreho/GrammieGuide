@@ -15,6 +15,7 @@ import {
   type HomeLayoutName
 } from '@shared/homeLayout'
 import { useConfigStore } from '../state/useConfigStore'
+import { TilePhotoPicker } from './TilePhotoPicker'
 
 const ICONS = ['🌐', '🌤️', '📷', '🎵', '🎲', '📰', '📺', '💌', '👪', '🌷', '📚', '💻']
 const BUILTIN_LABELS: Record<(typeof BUILTIN_TILE_KEYS)[number], string> = {
@@ -521,6 +522,10 @@ export function TilesTab() {
               </button>
             ))}
           </div>
+          <TilePhotoPicker
+            photoId={draft.photoId}
+            onChange={(photoId) => setDraft({ ...draft, photoId })}
+          />
           <label>
             Custom icon{' '}
             <input

@@ -10,14 +10,19 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   remove: vi.fn(),
   decode: vi.fn(),
-  logActivity: vi.fn()
+  logActivity: vi.fn(),
+  getConfig: vi.fn(),
+  windows: vi.fn(),
+  windowSend: vi.fn()
 }))
 vi.mock('electron', () => ({
+  BrowserWindow: { getAllWindows: mocks.windows },
   ipcMain: { handle: mocks.handle },
   app: { getPath: mocks.getPath },
   dialog: { showOpenDialog: mocks.dialog },
   nativeImage: { createFromPath: mocks.decode }
 }))
+vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.getConfig }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlock }))
 vi.mock('../../src/main/services/activityLog/activityLog', () => ({
   logActivity: mocks.logActivity
@@ -48,6 +53,9 @@ describe('photo IPC boundaries', () => {
     vi.resetAllMocks()
     sender.isDestroyed.mockReturnValue(false)
     mocks.getPath.mockReturnValue('private/userData')
+    mocks.getConfig.mockReturnValue({ tiles: [] })
+    mocks.windows.mockReturnValue([{ webContents: { send: mocks.windowSend } }])
+    sender.send.mockClear()
     mocks.list.mockResolvedValue([])
     mocks.addImage.mockResolvedValue(entry)
     mocks.decode.mockReturnValue({
@@ -56,6 +64,40 @@ describe('photo IPC boundaries', () => {
       toJPEG: () => Buffer.from('jpeg')
     })
     registerLibraryIpc()
+  })
+
+  it('returns thumbnails only for caregiver-selected tile photos, including an explicit hidden selection', async () => {
+    mocks.getConfig.mockReturnValue({
+      tiles: [
+        { id: 'home', photoId: 'generated' },
+        { id: 'missing', photoId: 'gone' },
+        { id: 'icon' }
+      ]
+    })
+    mocks.list.mockResolvedValue([
+      { ...entry, metadata: { caption: 'Private', showToHer: false } },
+      { ...entry, id: 'unselected', fileName: 'other.jpg', metadata: { caption: 'Secret' } }
+    ])
+    await expect(invoke('photos:tileImages')).resolves.toEqual({
+      home: 'grammie-media://photos/generated.thumb.jpg'
+    })
+    expect(mocks.unlock).not.toHaveBeenCalled()
+    expect(mocks.logActivity).not.toHaveBeenCalled()
+  })
+
+  it('does not read the library when no tiles use photos', async () => {
+    await expect(invoke('photos:tileImages')).resolves.toEqual({})
+    expect(mocks.list).not.toHaveBeenCalled()
+  })
+
+  it('notifies Home after a successful deletion, without photo content', async () => {
+    mocks.remove.mockResolvedValue(true)
+    await invoke('photos:remove', { id: 'generated' })
+    expect(mocks.windowSend).toHaveBeenCalledExactlyOnceWith('photos:changed', {})
+    mocks.windowSend.mockClear()
+    mocks.remove.mockRejectedValue(new Error('disk'))
+    await expect(invoke('photos:remove', { id: 'generated' })).rejects.toThrow('Could not remove')
+    expect(mocks.windowSend).not.toHaveBeenCalled()
   })
 
   it.each(['listAll', 'import', 'update', 'remove'])(

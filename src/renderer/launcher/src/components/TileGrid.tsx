@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Tile as TileType } from '@shared/configSchema'
 import { HOME_LAYOUTS, tilesInHome, type HomeLayoutName } from '@shared/homeLayout'
 import { Tile } from './Tile'
@@ -11,6 +12,28 @@ export function TileGrid({
   layout: HomeLayoutName
   onActivate: (tile: TileType) => void
 }) {
+  const [images, setImages] = useState<Record<string, string>>({})
+  useEffect(() => {
+    let live = true
+    let request = 0
+    const refresh = (): void => {
+      const sequence = ++request
+      window.launcher.getTileImages().then(
+        (result) => {
+          if (live && sequence === request) setImages(result)
+        },
+        () => {
+          if (live && sequence === request) setImages({})
+        }
+      )
+    }
+    refresh()
+    const off = window.launcher.onPhotosChanged(refresh)
+    return () => {
+      live = false
+      off()
+    }
+  }, [tiles])
   const layout = HOME_LAYOUTS[layoutName]
   const visibleTiles = tilesInHome(layoutName, tiles)
 
@@ -32,6 +55,7 @@ export function TileGrid({
         <Tile
           key={tile.id}
           tile={tile}
+          photoUrl={images[tile.id]}
           slot={tile.slot}
           columns={layout.columns}
           compact

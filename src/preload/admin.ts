@@ -16,6 +16,11 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  onPhotosChanged: (cb: () => void): (() => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('photos:changed', listener)
+    return () => ipcRenderer.removeListener('photos:changed', listener)
+  },
   listPhotos: () => invoke('photos:listAll'),
   importPhotos: () => invoke('photos:import'),
   updatePhoto: (request: IpcRequest<'photos:update'>) => invoke('photos:update', request),
