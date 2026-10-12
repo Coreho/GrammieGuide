@@ -1,11 +1,11 @@
 ---
 id: TASK-07
 title: Photo library with captions
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-09-29 04:19'
-updated_date: '2026-10-12 08:17'
+updated_date: '2026-10-12 14:22'
 labels: []
 milestone: m-8
 dependencies:
@@ -25,11 +25,11 @@ Family photos are something for her to enjoy: large pictures with a caption the 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The admin Photos tab imports jpg, png and webp (and heic where Windows can decode it); each photo is downscaled to a 1600px long edge, saved as JPEG, and given a 320px thumbnail
-- [ ] #2 Files that fail to decode are reported as failed without stopping the batch, and large imports show a progress count
-- [ ] #3 Each photo has an optional caption, a "show to her" switch, and a caregiver-set order
-- [ ] #4 The launcher can list only photos marked to show; listing all, editing and removing are admin-only
-- [ ] #5 Tests cover import and the admin-only boundaries
+- [x] #1 The admin Photos tab imports jpg, png and webp (and heic where Windows can decode it); each photo is downscaled to a 1600px long edge, saved as JPEG, and given a 320px thumbnail
+- [x] #2 Files that fail to decode are reported as failed without stopping the batch, and large imports show a progress count
+- [x] #3 Each photo has an optional caption, a "show to her" switch, and a caregiver-set order
+- [x] #4 The launcher can list only photos marked to show; listing all, editing and removing are admin-only
+- [x] #5 Tests cover import and the admin-only boundaries
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -38,6 +38,8 @@ Family photos are something for her to enjoy: large pictures with a caption the 
 1. Extend the queued media store to atomically publish a JPEG and its managed thumbnail, preserving recovery and cleanup behavior. 2. Add a photo service with an injectable nativeImage-compatible codec, longer-edge resizing, per-file failures and progress counts, and validated caption/show-to-her/order metadata in the library index. 3. Add typed photo IPC and preload APIs: admin-only list-all/import/update/remove and launcher visible-only ordered listing; prevent generic photo mutation channels from bypassing the pipeline and keep errors path-free. 4. Add the Photos admin tab using existing admin conventions, with batch progress, captions, visibility, order and removal. 5. Add node-environment unit coverage for sizing, thumbnails, failure continuation/progress, persistence and IPC boundaries. Run typecheck, lint, all unit tests and build; append implementation notes without changing task status or acceptance checkboxes.
 
 Native decoder verification found direct nativeImage decoding is PNG/JPEG-only. Add an injectable nativeImage adapter that falls back to its Windows Shell thumbnail decoder for WebP/HEIC, then bounds both JPEG outputs by their longer edge. Cover fallback success, failure, and platform guards in node tests.
+
+Continuation: verify the existing implementation in built Electron, add Photos-tab end-to-end coverage for batch failures, progress, image dimensions, saved metadata, visibility, order, removal and restart persistence; verify the real Windows WebP decoder and conditional HEIC failure behavior. Address defects found, run project checks, and update only acceptance criteria supported by evidence.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -50,6 +52,8 @@ Validation: npm run typecheck passed (exit 0); npm run lint passed with 0 errors
 Handoff: tests/e2e/mediaProtocol.spec.ts was updated for the new photo bridge and thumbnail URLs, but no Playwright or Electron e2e run was performed as requested. Real Windows WebP/HEIC decoder behavior and full Electron UI integration remain for device/e2e verification. No commit, push, branch creation, task status changes, or acceptance checkbox changes in this continuation; the prior run had already left TASK-07 In Progress with @codex assigned.
 
 Claude review (2026-10-12): read every changed line. One change: LibraryStore.addImage named its temp files .<id>.jpg.import.tmp / .<id>.thumb.jpg.import.tmp; it now uses the store's existing .<uuid>.import.tmp shape, because PR #35 narrows load()'s cleanup to exactly that shape and an interrupted photo import would otherwise leave temp files forever. The rollback unit test now fails the second image write by order instead of by name. Codex's first run (gpt-6.1-sol) stopped on a model-capacity error mid-task; a second session (gpt-6-astra) finished from the partial work. Note for the owner: new imports default to Show to her = on; older raw entries stay hidden until approved. Not verifiable here: real WebP and HEIC decoding through Windows' Shell thumbnail decoders (the e2e import uses a PNG through nativeImage).
+
+Continuation verification (2026-10-12): all 725 unit tests, lint, typecheck and production build pass; full built-Electron E2E suite passes 83/83. Added six Photos-tab E2E tests using real Chromium-generated JPG/PNG/WebP fixtures through the native picker boundary, IPC and native decoder. They prove portrait/landscape/square 1600px outputs and 320px thumbnails with source-picture pixels (not Shell icons), batch continuation and rendered progress, caption/visibility/order changes, persistence after restart, removal of both managed files while originals survive, locked-admin rejection and visible-only Home APIs. Captured the real Photos UI without renderer errors. Fixed the existing media protocol PNG fixture: its IDAT CRC was invalid; Chromium tolerated it but nativeImage correctly rejected it. The replacement has valid chunk checksums. A valid libheif example.heic was checked manually: the Windows Shell decoder on this dev machine rejects it, and import returns 0 imported/1 failed with no placeholder. Conditional HEIC success is covered by injectable-codec tests, but still depends on the decoder installed on each kiosk.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -60,3 +64,9 @@ created: 2026-09-29 08:19
 The spec 04 recipe `resize({ width: 1600 })` is wrong for portrait photos: a 3:4 portrait would stay about 2133px tall. Resize by whichever edge is longer, for the 320px thumbnail as well. (Greptile review of PR #5.)
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+The caregiver photo library is implemented and verified in real Electron. Imports decode and resize photos, retain captions/visibility/order, preserve originals, continue after failed files, and enforce admin-only management. Verified 725 unit tests, lint/typecheck/build, and all 83 E2E tests. Real JPG/PNG/WebP imports and image pixels were checked; this machine lacks a working HEIC decoder and rejects HEIC cleanly.
+<!-- SECTION:FINAL_SUMMARY:END -->

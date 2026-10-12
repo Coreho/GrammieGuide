@@ -10,7 +10,9 @@ let launcher: Page
 let admin: Page
 let userData: string
 const png = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aE1sAAAAASUVORK5CYII=',
+  // A valid RGBA PNG: Chromium tolerated the old fixture's bad IDAT checksum,
+  // but the native decoder correctly rejected it when photo import was added.
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP438DwHwAGgAJ/EEwb4QAAAABJRU5ErkJggg==',
   'base64'
 )
 
