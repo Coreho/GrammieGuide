@@ -134,8 +134,10 @@ export function getConfig(): Config {
 export function setConfig(patch: Partial<Config>): Config {
   const result = applyConfigPatch(getConfig(), patch)
   if (!result.ok) throw result.error
-  cached = result.config
+  // Disk first: if the write fails (disk full, file locked), the cache must not
+  // keep a change that was never saved, or the next good save would persist it.
   store().set(result.config as unknown as Record<string, unknown>)
+  cached = result.config
   return result.config
 }
 

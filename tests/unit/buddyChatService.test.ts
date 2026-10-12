@@ -167,4 +167,25 @@ describe('buddyChat', () => {
     expect(result.ok).toBe(false)
     expect(create).not.toHaveBeenCalled()
   })
+
+  it('names the provider that could not be reached, so an OpenRouter outage is not blamed on Anthropic', async () => {
+    for (const [provider, name] of [
+      ['anthropic', 'Anthropic'],
+      ['openrouter', 'OpenRouter']
+    ] as const) {
+      const log = vi.fn()
+      const { client } = fakeClient(() => {
+        throw new Anthropic.APIConnectionError({ message: 'offline' })
+      })
+      await buddyChat(greetingThenUser, {
+        chatEnabled: true,
+        apiKey: 'k',
+        provider,
+        model: 'claude-sonnet-5-5',
+        client,
+        log
+      })
+      expect(log).toHaveBeenCalledWith('buddy-chat-error', `no connection to the ${name} API`)
+    }
+  })
 })

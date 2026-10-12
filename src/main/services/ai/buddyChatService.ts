@@ -132,7 +132,9 @@ export async function buddyChat(
     } else if (err instanceof Anthropic.RateLimitError) {
       opts.log('buddy-chat-error', 'rate limited')
     } else if (err instanceof Anthropic.APIConnectionError) {
-      opts.log('buddy-chat-error', 'no connection to the Anthropic API')
+      // Both providers share Anthropic's client, so name the one actually configured.
+      const service = opts.provider === 'openrouter' ? 'OpenRouter' : 'Anthropic'
+      opts.log('buddy-chat-error', `no connection to the ${service} API`)
     } else if (err instanceof Anthropic.APIError) {
       opts.log('buddy-chat-error', `API error ${err.status}: ${err.message}`)
     } else {

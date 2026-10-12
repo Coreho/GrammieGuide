@@ -31,6 +31,26 @@ import {
  * timer and window-creation detail inline.
  */
 
+/**
+ * One GrammieGuide at a time. A second launch (the desktop shortcut, the
+ * installer's "run now", the logon task firing while she's already in) would
+ * otherwise open a second kiosk over the first, both writing the config, the
+ * media indexes and the heartbeat. It exits at once, before touching anything,
+ * and the running one comes to the front. This never blocks recovery: the
+ * watchdog kills the old process before it relaunches. Electron keys the lock on
+ * the userData folder, so e2e runs in their own temp profiles don't collide.
+ */
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0)
+} else {
+  app.on('second-instance', () => {
+    const win = getLauncherWindow()
+    if (!win) return
+    if (win.isMinimized()) win.restore()
+    win.focus()
+  })
+}
+
 registerMediaScheme()
 
 /**
