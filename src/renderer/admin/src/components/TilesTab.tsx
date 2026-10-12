@@ -17,6 +17,11 @@ import {
 import { useConfigStore } from '../state/useConfigStore'
 
 const ICONS = ['🌐', '🌤️', '📷', '🎵', '🎲', '📰', '📺', '💌', '👪', '🌷', '📚', '💻']
+const BUILTIN_LABELS: Record<(typeof BUILTIN_TILE_KEYS)[number], string> = {
+  weather: 'Weather',
+  news: 'News',
+  photos: 'Photos'
+}
 type TileDraft = Omit<Tile, 'colorIndex'> & { colorIndex?: number }
 const emptyDraft = (): TileDraft => ({
   id: crypto.randomUUID(),
@@ -360,16 +365,20 @@ export function TilesTab() {
               <select
                 value={draft.builtinKey ?? 'weather'}
                 onChange={(e) => {
-                  const builtinKey = e.target.value
+                  const builtinKey = e.target.value as keyof typeof BUILTIN_LABELS
                   setDraft({
                     ...draft,
                     builtinKey,
+                    // Update stock names, but keep the caregiver's own wording.
+                    label:
+                      !draft.label || Object.values(BUILTIN_LABELS).includes(draft.label)
+                        ? BUILTIN_LABELS[builtinKey]
+                        : draft.label,
+                    // Each built-in supplies its own line icon on Home.
+                    icon: undefined,
                     ...(builtinKey === 'news'
                       ? {
-                          label: draft.label || 'News',
                           size: 'wide' as const,
-                          // No emoji: Home draws its newspaper line icon, like Weather's.
-                          icon: undefined,
                           feedUrl: DEFAULT_NEWS_FEED,
                           url: DEFAULT_NEWS_SITE
                         }
@@ -379,7 +388,7 @@ export function TilesTab() {
               >
                 {BUILTIN_TILE_KEYS.map((key) => (
                   <option key={key} value={key}>
-                    {key === 'news' ? 'News' : 'Weather'}
+                    {BUILTIN_LABELS[key]}
                   </option>
                 ))}
               </select>

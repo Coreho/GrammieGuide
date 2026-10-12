@@ -8,6 +8,7 @@ import { PhotoLibrary, validatePhotoPatch } from '../services/photos/photoLibrar
 import { createNativePhotoCodec } from '../services/photos/nativePhotoCodec'
 import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
+import { logActivity } from '../services/activityLog/activityLog'
 
 /**
  * The store's own errors are plain messages, but filesystem errors (EPERM, ENOSPC...) name
@@ -58,6 +59,11 @@ export function registerLibraryIpc(): void {
     }
   }
 
+  ipcMain.handle('photos:open', (): Promise<IpcResponse<'photos:open'>> => {
+    // Opening is the only viewer activity recorded. Never log a photo, caption or path.
+    logActivity('photos-viewer-opened')
+    return photoWork(() => photos().listVisible(), 'Could not read the photos')
+  })
   ipcMain.handle('photos:listVisible', (): Promise<IpcResponse<'photos:listVisible'>> =>
     photoWork(() => photos().listVisible(), 'Could not read the photos')
   )

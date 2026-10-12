@@ -9,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   addImage: vi.fn(),
   update: vi.fn(),
   remove: vi.fn(),
-  decode: vi.fn()
+  decode: vi.fn(),
+  logActivity: vi.fn()
 }))
 vi.mock('electron', () => ({
   ipcMain: { handle: mocks.handle },
@@ -18,6 +19,9 @@ vi.mock('electron', () => ({
   nativeImage: { createFromPath: mocks.decode }
 }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlock }))
+vi.mock('../../src/main/services/activityLog/activityLog', () => ({
+  logActivity: mocks.logActivity
+}))
 vi.mock('../../src/main/services/media/libraryStore', () => ({
   LibraryStore: class {
     list = mocks.list
@@ -115,6 +119,19 @@ describe('photo IPC boundaries', () => {
     expect(await invoke('photos:remove', { id: entry.id })).toBe(true)
     expect(mocks.remove).toHaveBeenCalledWith(entry.id)
     expect(mocks.unlock).toHaveBeenCalledTimes(3)
+  })
+
+  it('opens only visible photos and records no photo content or captions', async () => {
+    mocks.list.mockResolvedValue([
+      entry,
+      { ...entry, id: 'hidden', metadata: { caption: 'Private caption', showToHer: false } }
+    ])
+    const result = await invoke('photos:open')
+    expect(result).toEqual([expect.objectContaining({ id: entry.id, caption: 'Family' })])
+    expect(mocks.unlock).not.toHaveBeenCalled()
+    expect(mocks.logActivity).toHaveBeenCalledExactlyOnceWith('photos-viewer-opened')
+    expect(JSON.stringify(mocks.logActivity.mock.calls)).not.toContain('Family')
+    expect(JSON.stringify(result)).not.toContain('Private caption')
   })
 
   it('uses only native-picker paths and pushes path-free progress to the requesting renderer', async () => {
