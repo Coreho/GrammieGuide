@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, nativeImage } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage } from 'electron'
 import { extname } from 'node:path'
 import type { IpcRequest, IpcResponse } from '@shared/ipcContract'
 import { isMediaLibrary, type MediaLibrary } from '@shared/media/mediaPath'
@@ -9,6 +9,7 @@ import { createNativePhotoCodec } from '../services/photos/nativePhotoCodec'
 import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { logActivity } from '../services/activityLog/activityLog'
+import { getConfig } from '../config/store'
 
 /**
  * The store's own errors are plain messages, but filesystem errors (EPERM, ENOSPC...) name
@@ -24,6 +25,12 @@ async function withoutPaths<T>(work: Promise<T>, message: string): Promise<T> {
 }
 
 export function registerLibraryIpc(): void {
+  function photosChanged(): void {
+    // Only a change notification: private captions and paths never enter this event.
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send('photos:changed', {})
+    }
+  }
   const stores = new Map<MediaLibrary, LibraryStore>()
   function library(request: { library: MediaLibrary }): LibraryStore {
     if (!request || !isMediaLibrary(request.library)) throw new Error('Invalid media library')
@@ -67,6 +74,21 @@ export function registerLibraryIpc(): void {
   ipcMain.handle('photos:listVisible', (): Promise<IpcResponse<'photos:listVisible'>> =>
     photoWork(() => photos().listVisible(), 'Could not read the photos')
   )
+  ipcMain.handle('photos:tileImages', (): Promise<IpcResponse<'photos:tileImages'>> =>
+    photoWork(async () => {
+      const tiles = getConfig().tiles.filter((tile) => tile.photoId)
+      if (!tiles.length) return {}
+      const images = new Map(
+        (await photos().listAll()).map((photo) => [photo.id, photo.thumbnailUrl])
+      )
+      return Object.fromEntries(
+        tiles.flatMap((tile) => {
+          const url = images.get(tile.photoId!)
+          return url ? [[tile.id, url]] : []
+        })
+      )
+    }, 'Could not read the tile photos')
+  )
   ipcMain.handle('photos:listAll', (): Promise<IpcResponse<'photos:listAll'>> => {
     requireAdminUnlocked()
     return photoWork(() => photos().listAll(), 'Could not read the photos')
@@ -87,32 +109,44 @@ export function registerLibraryIpc(): void {
       )
       requireAdminUnlocked()
       if (selection.canceled) return { imported: 0, failed: 0 }
-      return await photoWork(
+      const result = await photoWork(
         () =>
           photos().import(selection.filePaths, (count) => {
             if (!event.sender.isDestroyed()) event.sender.send('photos:importProgress', count)
           }),
         'Could not import photos'
       )
+      if (result.imported) photosChanged()
+      return result
     } finally {
       importingPhotos = false
     }
   })
   ipcMain.handle(
     'photos:update',
-    (_event, request: IpcRequest<'photos:update'>): Promise<IpcResponse<'photos:update'>> => {
+    async (_event, request: IpcRequest<'photos:update'>): Promise<IpcResponse<'photos:update'>> => {
       requireAdminUnlocked()
       if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
       const patch = validatePhotoPatch(request.patch)
-      return photoWork(() => photos().update(request.id, patch), 'Could not save the photo')
+      const result = await photoWork(
+        () => photos().update(request.id, patch),
+        'Could not save the photo'
+      )
+      photosChanged()
+      return result
     }
   )
   ipcMain.handle(
     'photos:remove',
-    (_event, request: IpcRequest<'photos:remove'>): Promise<IpcResponse<'photos:remove'>> => {
+    async (_event, request: IpcRequest<'photos:remove'>): Promise<IpcResponse<'photos:remove'>> => {
       requireAdminUnlocked()
       if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
-      return photoWork(() => photos().remove(request.id), 'Could not remove the photo')
+      const result = await photoWork(
+        () => photos().remove(request.id),
+        'Could not remove the photo'
+      )
+      if (result) photosChanged()
+      return result
     }
   )
 

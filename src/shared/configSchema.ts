@@ -10,7 +10,7 @@ import { HOME_LAYOUT_NAMES } from './homeLayout'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 9
+export const CURRENT_SCHEMA_VERSION = 10
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos'] as const
@@ -29,6 +29,8 @@ export const tileSchema = z.object({
     .min(0)
     .max(TILE_COLOR_COUNT - 1),
   icon: z.string().optional(),
+  /** Managed photo ID only; paths and image URLs never enter tile configuration. */
+  photoId: z.string().uuid().optional(),
   url: z.string().optional(),
   /** Optional so existing tiles keep their version-4 shape; News validates it before fetching. */
   feedUrl: z.string().optional(),

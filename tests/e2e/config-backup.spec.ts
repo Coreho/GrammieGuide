@@ -71,7 +71,9 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
       url: 'https://example.com',
       size: 'wide',
       slot: 0,
-      colorIndex: 3
+      colorIndex: 3,
+      photoId: '4c5fe7c6-76c4-4d8b-b19c-598d109fbccf',
+      icon: '🌷'
     },
     {
       id: 'photos',
@@ -126,6 +128,10 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
   await admin.getByRole('button', { name: 'Restore backup', exact: true }).click()
   await expect(admin.getByRole('status')).toContainText('Settings restored.')
   await expect(home.getByRole('button', { name: 'Family', exact: true })).toBeVisible()
+  await expect(
+    home.getByRole('button', { name: 'Family', exact: true }).locator('img')
+  ).toHaveCount(0)
+  await expect(home.getByRole('button', { name: 'Family', exact: true })).toContainText('🌷')
   await expect
     .poll(() => home.evaluate(() => window.launcher.getConfig().then((c) => c.display.fontStep)))
     .toBe(3)

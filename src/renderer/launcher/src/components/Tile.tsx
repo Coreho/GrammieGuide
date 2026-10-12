@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { Tile as TileType } from '@shared/configSchema'
 import { TILE_SHADOW, TILE_SHADOW_ACTIVE, WELL_SHADOW, tileBackground, tileInk } from '../clay'
 import { LinkIcon } from '../icons'
@@ -55,12 +55,29 @@ function TileIcon({ tile }: { tile: TileType }) {
   return builtinFor(tile)?.icon() ?? <LinkIcon />
 }
 
+function TilePicture({ tile, url }: { tile: TileType; url?: string }) {
+  const [failed, setFailed] = useState(false)
+  // Keyed by URL below, so a new selection can recover from an earlier missing file.
+  return url && !failed ? (
+    <img
+      src={url}
+      alt=""
+      draggable={false}
+      onError={() => setFailed(true)}
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+    />
+  ) : (
+    <TileIcon tile={tile} />
+  )
+}
+
 export function Tile({
   tile,
   slot,
   columns,
   compact = false,
   dense = false,
+  photoUrl,
   onActivate
 }: {
   tile: TileType
@@ -68,23 +85,30 @@ export function Tile({
   columns: number
   /** Icon beside the label instead of above it - used when tiles share the height across rows. */
   compact?: boolean
-  /** Label only, no icon - for the narrowest (4-column, multi-row) layout. */
+  /** Label only unless a photo is selected, for the narrowest four-column layout. */
   dense?: boolean
+  photoUrl?: string
   onActivate: (tile: TileType) => void
 }) {
   // A tile turning wide or dense changes the room its words have.
-  const labelRef = useLabelFit(tile.label, `${tile.size}-${compact}-${dense}`)
-  const wellSize = compact
-    ? {
-        height: 'min(calc(112px - 24px * var(--font-scale, 1)), 100%)',
-        aspectRatio: '1',
-        borderRadius: 28
-      }
-    : {
-        width: 'calc(152px - 40px * var(--font-scale, 1))',
-        height: 'calc(152px - 40px * var(--font-scale, 1))',
-        borderRadius: 34
-      }
+  const labelRef = useLabelFit(
+    tile.label,
+    `${tile.size}-${compact}-${dense}-${Boolean(tile.photoId)}`
+  )
+  const picturedDense = dense && Boolean(tile.photoId)
+  const wellSize = dense
+    ? { width: 48, height: 48, borderRadius: 16 }
+    : compact
+      ? {
+          height: 'min(calc(112px - 24px * var(--font-scale, 1)), 100%)',
+          aspectRatio: '1',
+          borderRadius: 28
+        }
+      : {
+          width: 'calc(152px - 40px * var(--font-scale, 1))',
+          height: 'calc(152px - 40px * var(--font-scale, 1))',
+          borderRadius: 34
+        }
 
   return (
     <button
@@ -102,8 +126,8 @@ export function Tile({
         flexDirection: compact ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: compact ? 22 : 18,
-        padding: compact ? '14px 24px' : '18px 12px',
+        gap: picturedDense ? 12 : compact ? 22 : 18,
+        padding: picturedDense ? '10px 12px' : compact ? '14px 24px' : '18px 12px',
         border: 'none',
         borderRadius: 40,
         cursor: 'pointer',
@@ -122,10 +146,11 @@ export function Tile({
         e.currentTarget.style.boxShadow = TILE_SHADOW
       }}
     >
-      {!dense && (
+      {(!dense || tile.photoId) && (
         <div
           style={{
             ...wellSize,
+            overflow: 'hidden',
             flex: 'none',
             color: 'var(--wi, var(--ai, #1F5A45))',
             background:
@@ -136,7 +161,7 @@ export function Tile({
             justifyContent: 'center'
           }}
         >
-          <TileIcon tile={tile} />
+          <TilePicture key={photoUrl ?? 'icon'} tile={tile} url={photoUrl} />
         </div>
       )}
       <div
