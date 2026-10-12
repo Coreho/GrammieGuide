@@ -1,5 +1,6 @@
 These are original test fixtures: 0.4 seconds of a synthetic 440 Hz tone,
-encoded with FFmpeg into MP3, MP4 AAC, ADTS AAC, FLAC, Ogg Vorbis and PCM WAV.
+encoded with FFmpeg into MP3, MP4 AAC, ADTS AAC, FLAC, Ogg Vorbis (OGG/OGA),
+Ogg Opus, WebM Opus and PCM WAV.
 No music recording or copyrighted sample is included. Tags say
 "Familiar test song" and "Test artist" wherever the container supports them.
 The MP3 includes the tiny original solid-color PNG as cover art.

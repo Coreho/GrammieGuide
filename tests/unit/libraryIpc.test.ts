@@ -75,7 +75,7 @@ describe('admin library IPC', () => {
     expect(mocks.update).toHaveBeenCalledWith('id', { title: 'Family' })
     expect(await invoke('library:remove', { library: 'music', id: 'id' })).toBe(true)
     expect(mocks.remove).toHaveBeenCalledWith('id')
-    expect(mocks.unlock).toHaveBeenCalledTimes(3)
+    expect(mocks.unlock).toHaveBeenCalledTimes(4)
   })
 
   it('keeps filesystem paths out of list, update and remove errors', async () => {

@@ -9,6 +9,7 @@ import { MusicLibrary } from '../services/music/musicLibrary'
 import { createTrackMetadataReader } from '../services/music/readTrackMetadata'
 import { removeTrackReferences, saveMusicSettings } from '../services/music/musicSettings'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
+import { runMusicOperation } from '../services/music/musicOperations'
 
 export function registerMusicIpc(getStore: (kind: MediaLibrary) => LibraryStore): void {
   let library: MusicLibrary | undefined
@@ -17,9 +18,8 @@ export function registerMusicIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       getStore('music'),
       createTrackMetadataReader((bytes) => nativeImage.createFromBuffer(bytes))
     ))
-  let queue: Promise<unknown> = Promise.resolve()
   function run<T>(work: () => Promise<T>, message: string): Promise<T> {
-    const pending = queue.then(async () => {
+    return runMusicOperation(async () => {
       // A queued request might have waited behind a native picker while admin locked.
       requireAdminUnlocked()
       try {
@@ -28,8 +28,6 @@ export function registerMusicIpc(getStore: (kind: MediaLibrary) => LibraryStore)
         throw new Error(message)
       }
     })
-    queue = pending.catch(() => undefined)
-    return pending
   }
   ipcMain.handle('music:list', (): Promise<IpcResponse<'music:list'>> => {
     requireAdminUnlocked()

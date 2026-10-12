@@ -1,3 +1,5 @@
+import { LIBRARY_EXTENSIONS } from '../media/mediaTypes'
+
 export interface MusicTrack {
   id: string
   url: string
@@ -16,4 +18,4 @@ export interface MusicImportProgress extends MusicImportResult {
   total: number
 }
 
-export const MUSIC_EXTENSIONS = ['mp3', 'm4a', 'aac', 'flac', 'ogg', 'wav'] as const
+export const MUSIC_EXTENSIONS = LIBRARY_EXTENSIONS.music

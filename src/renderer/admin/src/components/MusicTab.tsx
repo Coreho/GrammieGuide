@@ -102,7 +102,9 @@ export function MusicTab() {
         <button type="button" onClick={() => void run(importSongs)}>
           Add music files…
         </button>
-        {tracks.length === 0 && <p>No songs yet. Add MP3, M4A, AAC, FLAC, OGG or WAV files.</p>}
+        {tracks.length === 0 && (
+          <p>No songs yet. Add MP3, M4A, AAC, FLAC, OGG/OGA, Opus, WAV or WebM files.</p>
+        )}
         <ul className="music-tracks" aria-label="Imported songs">
           {tracks.map((track) => (
             <li key={track.id}>

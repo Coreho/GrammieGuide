@@ -11,7 +11,7 @@ let admin: Page
 let root: string
 let tracks: MusicTrack[]
 const errors: string[] = []
-const extensions = ['mp3', 'm4a', 'aac', 'flac', 'ogg', 'wav']
+const extensions = ['mp3', 'm4a', 'aac', 'flac', 'ogg', 'wav', 'opus', 'oga', 'webm']
 test.describe.configure({ mode: 'serial' })
 
 async function launch(): Promise<void> {
@@ -50,7 +50,7 @@ test.afterAll(async () => {
   }
 })
 
-test('imports six real audio formats, extracts tags, duration and JPEG art, and continues after a broken file', async () => {
+test('imports all nine supported audio formats, extracts tags, duration and JPEG art, and continues after a broken file', async () => {
   const paths = extensions.map((extension) => resolve(`tests/fixtures/music/tone.${extension}`))
   const originals = paths.map((path) => readFileSync(path))
   const broken = join(root, 'broken.mp3')
@@ -64,10 +64,10 @@ test('imports six real audio formats, extracts tags, duration and JPEG art, and 
     }
   }, paths)
   await admin.getByRole('button', { name: 'Add music files…', exact: true }).click()
-  await expect(admin.getByRole('status')).toContainText('6 imported, 1 failed.')
+  await expect(admin.getByRole('status')).toContainText('9 imported, 1 failed.')
   await expect(
     admin.getByRole('list', { name: 'Imported songs' }).getByRole('listitem')
-  ).toHaveCount(6)
+  ).toHaveCount(9)
   tracks = await admin.evaluate(() =>
     window.admin.getMusicLibrary().then((library) => library.tracks)
   )
@@ -75,6 +75,9 @@ test('imports six real audio formats, extracts tags, duration and JPEG art, and 
     'Familiar test song',
     'Familiar test song',
     'tone',
+    'Familiar test song',
+    'Familiar test song',
+    'Familiar test song',
     'Familiar test song',
     'Familiar test song',
     'Familiar test song'
@@ -184,7 +187,7 @@ test('removes a song and its cover from disk and every playlist while keeping or
   await expect(admin.getByRole('status')).toContainText('Song removed')
   await expect(
     admin.getByRole('list', { name: 'Imported songs' }).getByRole('listitem')
-  ).toHaveCount(5)
+  ).toHaveCount(8)
   const snapshot = await admin.evaluate(() => window.admin.getMusicLibrary())
   expect(snapshot.settings.playlists.every((list) => !list.trackIds.includes(tracks[0]!.id))).toBe(
     true
@@ -203,7 +206,7 @@ test('persists library and playlists over restart and locks every music channel'
   await admin.getByRole('button', { name: 'Music', exact: true }).click()
   await expect(
     admin.getByRole('list', { name: 'Imported songs' }).getByRole('listitem')
-  ).toHaveCount(5)
+  ).toHaveCount(8)
   await expect(
     admin
       .getByRole('region', { name: 'Playlist Favorites', exact: true })

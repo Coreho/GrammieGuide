@@ -11,6 +11,7 @@ import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { logActivity } from '../services/activityLog/activityLog'
 import { getConfig } from '../config/store'
 import { removeTrackReferences } from '../services/music/musicSettings'
+import { runMusicOperation } from '../services/music/musicOperations'
 
 /**
  * The store's own errors are plain messages, but filesystem errors (EPERM, ENOSPC...) name
@@ -207,8 +208,14 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     (_event, request: IpcRequest<'library:remove'>): Promise<IpcResponse<'library:remove'>> => {
       requireAdminUnlocked()
       const store = mutableLibrary(request)
-      removeTrackReferences(request.id)
-      return withoutPaths(store.remove(request.id), 'Could not remove the media file')
+      return withoutPaths(
+        runMusicOperation(async () => {
+          requireAdminUnlocked()
+          removeTrackReferences(request.id)
+          return store.remove(request.id)
+        }),
+        'Could not remove the media file'
+      )
     }
   )
   return (kind) => library({ library: kind })
