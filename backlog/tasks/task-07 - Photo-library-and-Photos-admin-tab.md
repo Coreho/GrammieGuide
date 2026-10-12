@@ -5,12 +5,14 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-09-29 04:19'
-updated_date: '2026-10-12 14:29'
+updated_date: '2026-10-12 14:57'
 labels: []
 milestone: m-8
 dependencies:
   - TASK-05
   - TASK-06
+references:
+  - 'https://github.com/Coreho/GrammieGuide/pull/36#discussion_r4249196987'
 documentation:
   - docs/specs/04-photo-games.md
 priority: medium
@@ -56,6 +58,8 @@ Claude review (2026-10-12): read every changed line. One change: LibraryStore.ad
 Continuation verification (2026-10-12): all 725 unit tests, lint, typecheck and production build pass; full built-Electron E2E suite passes 83/83. Added six Photos-tab E2E tests using real Chromium-generated JPG/PNG/WebP fixtures through the native picker boundary, IPC and native decoder. They prove portrait/landscape/square 1600px outputs and 320px thumbnails with source-picture pixels (not Shell icons), batch continuation and rendered progress, caption/visibility/order changes, persistence after restart, removal of both managed files while originals survive, locked-admin rejection and visible-only Home APIs. Captured the real Photos UI without renderer errors. Fixed the existing media protocol PNG fixture: its IDAT CRC was invalid; Chromium tolerated it but nativeImage correctly rejected it. The replacement has valid chunk checksums. A valid libheif example.heic was checked manually: the Windows Shell decoder on this dev machine rejects it, and import returns 0 imported/1 failed with no placeholder. Conditional HEIC success is covered by injectable-codec tests, but still depends on the decoder installed on each kiosk.
 
 Stacked on feat/task-13-fixed-home-layouts to reserve migration 008 for fixed Home and keep the next photo-viewer setting at 009. Rebase resolved only the README paragraph, keeping both photo-library copy and the fixed-layout migration description. Post-rebase verification: 726 unit tests, lint/typecheck/build, and all 13 photo/media E2E tests pass.
+
+PR #36 review found that process-local photo transactions need single-instance enforcement. Merged the existing tested PR #35 fixes into this branch: app.requestSingleInstanceLock runs before initialization, secondary instances exit immediately, and library temp cleanup recognizes only app-generated UUID names. Verification on the combined branch: 736 unit tests, lint, typecheck and build pass; all 18 photo/media/recovery/single-instance E2E tests pass. Merge PR #35 before fixed Home layouts (#34) and this photo library (#36).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
