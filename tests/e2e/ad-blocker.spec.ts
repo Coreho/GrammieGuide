@@ -1,6 +1,13 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from 'playwright'
-import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer, type Server } from 'node:http'
@@ -121,6 +128,9 @@ function networkEvents(): Promise<NetworkEvent[]> {
  */
 async function requestAndReport(url: string): Promise<NetworkEvent> {
   const host = new URL(url).hostname
+  // Earlier tests probe the same hosts and __adRequests is never cleared, so only
+  // events recorded after this probe count; otherwise an old block would pass.
+  const seenBefore = (await networkEvents()).length
   await app.evaluate(
     async ({ webContents }, payload) => {
       const contents = webContents.getAllWebContents().find((w) => w.getURL() === payload.page)
@@ -129,13 +139,10 @@ async function requestAndReport(url: string): Promise<NetworkEvent> {
     },
     { page: fixtureUrl, url }
   )
-  await expect
-    .poll(async () => (await networkEvents()).some((event) => event.url.includes(host)), {
-      timeout: 15_000
-    })
-    .toBe(true)
-  const event = (await networkEvents()).find((item) => item.url.includes(host))
-  return event!
+  const fresh = async (): Promise<NetworkEvent | undefined> =>
+    (await networkEvents()).slice(seenBefore).find((event) => event.url.includes(host))
+  await expect.poll(async () => (await fresh()) !== undefined, { timeout: 15_000 }).toBe(true)
+  return (await fresh())!
 }
 
 test('the blocker starts and caches its engine on disk', async () => {
@@ -205,12 +212,47 @@ test('a failed list refresh leaves blocking exactly as it was', async () => {
 })
 
 /**
+ * A refresh used to append rules to the running engine only, so rules the lists
+ * had dropped stayed active and every restart went back to the first day's cache.
+ * Now it builds a whole new engine and saves it, and the next start loads that.
+ */
+test('a successful refresh rebuilds the engine and saves it for the next start', async () => {
+  type E2eHooks = { __e2e__: { refreshAdBlockerLists: () => Promise<boolean> } }
+  const cache = join(userDataDir, 'adblocker-engine.bin')
+  const savedBefore = statSync(cache).mtimeMs
+
+  const refreshed = await app.evaluate(() =>
+    (globalThis as unknown as E2eHooks).__e2e__.refreshAdBlockerLists()
+  )
+  expect(refreshed).toBe(true)
+
+  expect(statSync(cache).mtimeMs).toBeGreaterThan(savedBefore)
+  // Written beside the cache and renamed over it, so no temp file is left behind.
+  const files = readdirSync(userDataDir).filter((name) => name.includes('adblocker'))
+  expect(files).toEqual(['adblocker-engine.bin'])
+  const reliability = await admin.evaluate(() => window.admin.getReliabilityLog())
+  // Oldest first: the failed refresh above is in here too, so take the newest.
+  const update = reliability.filter((event) => event.op === 'adblocker-update').at(-1)
+  expect(update).toMatchObject({ ok: true, detail: 'lists updated' })
+
+  // The swapped-in engine is the one filtering now.
+  const event = await requestAndReport(AD_URL)
+  expect(event.error).toBe('net::ERR_BLOCKED_BY_CLIENT')
+})
+
+/**
  * Startup must not depend on the network. Relaunch against the same userDataDir
  * with the proxy pointed at a dead port, so nothing can be fetched: blocking has to
  * come from the serialized engine on disk.
  */
 test('a relaunch with no network still blocks, from the cached engine', async () => {
   await app.close()
+  const cache = join(userDataDir, 'adblocker-engine.bin')
+  const saved = readFileSync(cache)
+  const abandoned = `${cache}.tmp`
+  // Simulate a power cut between the cache write and rename. An offline start
+  // must sweep the leftover without replacing the engine it is about to load.
+  writeFileSync(abandoned, 'partial engine')
   app = await electron.launch({
     args: ['.', `--user-data-dir=${userDataDir}`],
     cwd: process.cwd(),
@@ -224,12 +266,16 @@ test('a relaunch with no network still blocks, from the cached engine', async ()
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await expect.poll(() => existsSync(abandoned)).toBe(false)
+  expect(readFileSync(cache)).toEqual(saved)
   await app.evaluate(({ session }) => {
     const seen: NetworkEvent[] = []
     ;(globalThis as unknown as { __adRequests: NetworkEvent[] }).__adRequests = seen
     session
       .fromPartition('persist:web')
-      .webRequest.onErrorOccurred((details) => seen.push({ url: details.url, error: details.error }))
+      .webRequest.onErrorOccurred((details) =>
+        seen.push({ url: details.url, error: details.error })
+      )
   })
 
   // The same web tile, already saved in the config from the first launch.

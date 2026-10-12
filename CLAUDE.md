@@ -10,7 +10,7 @@ Work is organized into milestones (M1 reliability spine, M2 Home + admin, M3 3D 
 
 Planned work lives in Backlog.md (`backlog task list --plain`; the CLI is not an npm dependency, so install it once with `npm i -g backlog.md`), grouped into milestones such as Predictable Home, Contact family and Protected browsing. The older V2 feature specs in `docs/specs/` (read `00-overview.md` first) are background for some tasks. They predate M4 and the News tile, and their scam scoring, photo games and presence features are on hold as drafts. Where a task and its spec disagree, the task wins.
 
-`@ghostery/adblocker-electron` is installed, but nothing in `src/` imports it yet; it is there for planned work, so don't assume it is wired up. (`msedge-tts` and `xstate` are now used by Buddy's voice and behavior machine.)
+`@ghostery/adblocker-electron` blocks ads and trackers in the embedded browser's session (`services/browser/adBlocker.ts`). Startup loads the engine from its on-disk cache, so it never needs the network after the first run; a refresh builds a whole new engine from the lists, swaps it in and saves it over the cache (adding lines to the running engine kept rules the lists had dropped). (`msedge-tts` and `xstate` are used by Buddy's voice and behavior machine.)
 
 ## Commands
 
@@ -31,7 +31,7 @@ Shortcuts: `Ctrl+Shift+Q` always quits. `Ctrl+Shift+A` opens the admin window, a
 
 Three processes, each with its own electron-vite entry. The `@shared` alias resolves to `src/shared` in the main process, the preloads, the renderers and Vitest.
 
-- **Main** (`src/main`): `index.ts` is a deliberately thin bootstrap. It loads config, registers IPC, creates the launcher window, starts the embedded browser and inactivity watch, and starts the watchdog heartbeat. Put logic in `services/`, not in `index.ts`.
+- **Main** (`src/main`): `index.ts` is a deliberately thin bootstrap. It takes Electron's single-instance lock first: a second launch exits before touching anything and focuses the running Home (the watchdog kills the old process before relaunching, so this never blocks recovery). It loads config, registers IPC, creates the launcher window, starts the embedded browser and inactivity watch, and starts the watchdog heartbeat. Put logic in `services/`, not in `index.ts`.
 - **Preloads** (`src/preload`): `launcher.ts` and `admin.ts` expose typed APIs through `contextBridge` (`window.launcher`, admin equivalent). `browserView.ts` runs inside embedded web pages and reports user activity for the inactivity timeout. Both windows and the web view run with `sandbox: true`, so all three preloads are built as CommonJS (`.cjs`, set in `electron.vite.config.ts`): a sandboxed preload runs as a plain script and fails on an ES module `import`. At runtime a preload may load only `electron`'s renderer APIs (plus `events`, `timers`, `url`), so shared code has to stay `import type`. Until TASK-31 the web view's preload was an ES module and silently never loaded; `tests/e2e/sandbox.spec.ts` guards this.
 - **Renderers** (`src/renderer/launcher`, `src/renderer/admin`): two separate React apps. The launcher is the kiosk Home screen, which includes tiles, weather, help and confusion overlays, and the Three.js Buddy cat in `buddy/`. The admin app is a tabbed caregiver panel behind `PinGate`, using a zustand store.
 
