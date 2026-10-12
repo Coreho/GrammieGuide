@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-05_
+_Last updated: 2026-10-12_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -19,7 +19,11 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Home tiles
 
-In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather or News). Pick an icon, a color and normal or wide size. Edit, remove and move-up/down controls update Home immediately. Each tile keeps its own color when tiles are moved, added or removed, because the color is part of how she recognizes it; new tiles start with a color Home isn't using yet. Colors look different only in the two "Tiles" themes; the four clay themes share one tile color. Wide tiles span two columns. Labels wrap without truncation; extra rows scroll within the tile area while the footer stays 150px tall. Leaving a web page, by the Home button or the idle timeout, closes it completely, so a video or radio stream stops instead of playing on out of sight.
+In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather or News). Pick an icon, a color, normal or wide size, and a position on Home. Changes reach Home immediately.
+
+Home has a fixed layout chosen in **admin → Tiles → Home layout**: **Simple four** (four large tiles in two rows, labels up to 28 characters) or **More choices** (eight smaller tiles in two rows, labels up to 18 characters). Where a tile sits is part of how she finds it, so every tile keeps its position: adding, editing or removing another tile never moves it, and removing a tile leaves a gap rather than sliding the others over. A wide tile takes two neighbouring spaces in the same row. Home always fits on one screen at every text size, with no scrolling. Labels never break in the middle of a word; if a long word doesn't fit its tile at a large text size (say "photographs" in More choices at the largest size), only that label's text shrinks, just enough to fit. When the layout is full, admin says so; a tile that doesn't fit is kept and listed as "Not shown on Home" instead of being deleted, and admin flags labels longer than the layout allows. Space is reserved at the bottom of Home for a future "Ask {name} to call" button and beside the date for a now-playing chip, so adding those later won't reshuffle the tiles.
+
+Each tile also keeps its own color when tiles are added or removed, because the color is part of how she recognizes it; new tiles start with a color Home isn't using yet. Colors look different only in the two "Tiles" themes; the four clay themes share one tile color. Leaving a web page, by the Home button or the idle timeout, closes it completely, so a video or radio stream stops instead of playing on out of sight.
 
 If a web page won't load, she never sees Chromium's technical error page. A calm screen says "This page won't open right now." with big **Try again** and **Home** buttons. When the internet is down it says so, and the page opens by itself once the connection is back. A link the kiosk won't follow gets the same screen with **Back to the page**. The Home button stays in its usual place at the top, and admin → Activity shows which site failed and why.
 
@@ -31,7 +35,7 @@ Web pages run in their own browser session, separate from Home and admin, so not
 
 Built-in tiles each have their own view. **News** is wide by default. Tapping it shows today's stories as long cards (headline, a two-line summary, how long ago, and a small picture when the feed has one) so she can see what's there before choosing. Tapping a story opens it in the kiosk browser. The caregiver sets the feed address (NPR's top stories by default) and, optionally, the news website. If the feed can't be read, she sees "The news isn't ready right now." and a button to open that website instead, never an error. The top headline is deliberately not shown on the tile itself, so Home never displays upsetting news she didn't ask for. Music, games and photos built-ins remain future work.
 
-Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors, seeded so upgrading doesn't repaint Home), 006 (Buddy tap and motion choices), and 007 (the chat switch, on for existing setups) preserve existing settings.
+Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors, seeded so upgrading doesn't repaint Home), 006 (Buddy tap and motion choices), 007 (the chat switch, on for existing setups), and 008 (fixed Home layouts: Simple four when her tiles fit in four spaces, otherwise More choices, with tiles placed in their current order and none dropped) preserve existing settings.
 
 Every config save is validated against the schema before anything is written, and the parsed result is what reaches disk. One unvalidated value used to cost everything: the next boot would fail validation, fall back to defaults, and wipe her tiles, the API key and the PIN hash - after which anyone at the kiosk could set a new PIN. If the config file itself is unreadable (truncated, zero-length or hand-edited), the app now copies it byte-for-byte to `config.corrupt-<timestamp>.json`, records a `config-reset` event in the reliability log, and starts from defaults instead of crash-looping. The reset log never contains config values or a parser message, because both can quote the file's contents. **After such a reset, set the PIN again straight away**, since the kiosk is running without one.
 

@@ -321,64 +321,118 @@ test('caregiver commands and quick messages persist without logging their conten
   await expect(admin.getByText('No saved messages yet.')).toBeVisible()
 })
 
+// Every label sits exactly at its layout's limit (28 and 18 characters), so this
+// proves the limit admin enforces is one Home can actually show in full.
+const FULL_LENGTH_LABELS = {
+  simple4: [
+    'Family photos from the beach',
+    "Grandchildren's school plays",
+    'Weather forecast for the day',
+    'Favorite hymns and old songs'
+  ],
+  more8: [
+    'Family photographs',
+    'Crossword puzzles!',
+    'Grandchildren news',
+    'Favorite old songs',
+    'Weather this week!',
+    'Garden photographs',
+    'Morning devotional',
+    'Daily news stories'
+  ]
+} as const
+
 test('both fixed layouts stay on one screen at every text size', async () => {
   for (const homeLayout of ['simple4', 'more8'] as const) {
+    const labels = FULL_LENGTH_LABELS[homeLayout]
+    for (const label of labels) expect(label).toHaveLength(homeLayout === 'simple4' ? 28 : 18)
     for (let fontStep = 0; fontStep < 5; fontStep += 1) {
-      const count = homeLayout === 'simple4' ? 4 : 8
+      const count = labels.length
       await admin.evaluate(
-        async ({ count, fontStep, homeLayout, url }) => {
+        async ({ fontStep, homeLayout, labels, url }) => {
           const config = await window.admin.getConfig()
           await window.admin.setConfig({
             display: { ...config.display, fontStep, homeLayout },
-            tiles: Array.from({ length: count }, (_, i) => ({
+            tiles: labels.map((label, i) => ({
               id: `layout-${i}`,
               type: 'web',
               size: 'normal',
               slot: i,
-              label: [
-                'Family photos',
-                'Local weather',
-                'Favorite music',
-                'Word games',
-                'Daily news',
-                'Family videos',
-                'Garden photos',
-                'Favorite books'
-              ][i]!,
+              label,
               icon: '🌷',
               url
             }))
           })
         },
-        { count, fontStep, homeLayout, url }
+        { fontStep, homeLayout, labels: [...labels], url }
       )
+      // Home applies the saved text size asynchronously; measuring before it
+      // lands would check the previous step. Values mirror FONT_STEPS.
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            getComputedStyle(document.documentElement).getPropertyValue('--font-scale').trim()
+          )
+        )
+        .toBe(String([1, 1.15, 1.3, 1.45, 1.6][fontStep]))
       const grid = page.getByRole('main', { name: 'Home tiles' })
       await expect(grid.getByRole('button')).toHaveCount(count)
-      const layout = await grid.evaluate((el) => {
-        const buttons = Array.from(el.querySelectorAll('button'))
-        return {
-          footerHeight: document.querySelector('footer')!.offsetHeight,
-          floorWidth: (document.querySelector('[data-buddy-floor]') as HTMLElement).offsetWidth,
-          noScroll: el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1,
-          contactReserved: Boolean(document.querySelector('[data-home-contact-slot]')),
-          nowPlayingReserved: Boolean(document.querySelector('[data-home-now-playing-slot]')),
-          tiles: buttons.map((button) => ({
-            unclipped: button.scrollHeight <= button.clientHeight + 1,
-            insideGrid:
-              button.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 1 &&
-              button.getBoundingClientRect().right <= el.getBoundingClientRect().right + 1
-          }))
-        }
-      })
+      // Labels re-fit a frame after the text size changes, so retry until settled.
+      await expect
+        .poll(
+          () =>
+            grid.evaluate((el) =>
+              Array.from(el.querySelectorAll('button')).flatMap((button) => {
+                const label = button.lastElementChild as HTMLElement
+                const text = label.firstChild as Text
+                const problems: string[] = []
+                if (
+                  button.scrollHeight > button.clientHeight + 1 ||
+                  button.scrollWidth > button.clientWidth + 1
+                ) {
+                  problems.push('clipped')
+                }
+                // A word broken across lines ("Grandchildre / n") is unclipped
+                // but no longer recognizable, so each word must sit on one line.
+                let index = 0
+                for (const word of text.data.split(' ')) {
+                  const range = document.createRange()
+                  range.setStart(text, index)
+                  range.setEnd(text, index + word.length)
+                  index += word.length + 1
+                  const lines = new Set(
+                    Array.from(range.getClientRects())
+                      .filter((rect) => rect.width > 0)
+                      .map((rect) => Math.round(rect.top))
+                  )
+                  if (lines.size > 1) problems.push(`"${word}" split across lines`)
+                }
+                const box = button.getBoundingClientRect()
+                const area = el.getBoundingClientRect()
+                if (box.bottom > area.bottom + 1 || box.right > area.right + 1) {
+                  problems.push('outside the tile area')
+                }
+                return problems.map(
+                  (problem) =>
+                    `${text.data}: ${problem} (content ${button.scrollWidth}x${button.scrollHeight} in ${button.clientWidth}x${button.clientHeight}, font ${getComputedStyle(label).fontSize})`
+                )
+              })
+            ),
+          { message: `${homeLayout} at text step ${fontStep}` }
+        )
+        .toEqual([])
+      const layout = await grid.evaluate((el) => ({
+        footerHeight: document.querySelector('footer')!.offsetHeight,
+        floorWidth: (document.querySelector('[data-buddy-floor]') as HTMLElement).offsetWidth,
+        noScroll: el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1,
+        contactReserved: Boolean(document.querySelector('[data-home-contact-slot]')),
+        nowPlayingReserved: Boolean(document.querySelector('[data-home-now-playing-slot]'))
+      }))
       expect(layout.footerHeight).toBe(150)
       expect(layout.floorWidth).toBe(1440)
       expect(layout.noScroll).toBe(true)
       expect(layout.contactReserved).toBe(true)
       expect(layout.nowPlayingReserved).toBe(true)
-      for (const tile of layout.tiles) {
-        expect(tile.unclipped).toBe(true)
-        expect(tile.insideGrid).toBe(true)
-      }
     }
   }
   await page.screenshot({ path: 'test-results/handoff-eight-tiles.png' })

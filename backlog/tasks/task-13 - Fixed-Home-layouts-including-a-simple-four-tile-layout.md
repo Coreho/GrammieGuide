@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-09-29 05:53'
-updated_date: '2026-10-12 07:19'
+updated_date: '2026-10-12 07:47'
 labels: []
 milestone: m-6
 dependencies: []
@@ -64,4 +64,6 @@ The real-device Definition of Done cannot be proven on this development machine;
 Implemented schema v8 fixed Home layouts. Added the shared Simple four and More choices definitions, permanent nullable tile slots, wide-tile adjacency rules, deterministic placement/preservation helpers, migration 008, and main-process normalization for legacy callers and layout-only changes. Home now renders explicit two-row grids without scrolling, leaves holes in place, keeps overflow off Home but in config, and reserves structural contact/now-playing areas. Admin now exposes layout capacity and label guidance, compatible position selection, full-layout errors, and clearly marked overflow entries. Added restrained hover/press motion to launcher and admin buttons with a prefers-reduced-motion fallback. Verification: typecheck and production build pass; lint passes; 689 unit tests pass. The full built-app E2E run reached 74 passing with one stale wide-tile CSS assertion; after correcting that assertion, all 3 News E2E tests and both changed Home/admin interaction tests pass. Both layouts were exercised at all five font steps with no tile-region scrolling. The real-device Definition of Done remains open.
 
 Review (2026-10-12, Claude): fixed a stale TASK-31 reference on the reserved now-playing area (it is TASK-37), and admin now flags saved labels longer than the current layout's limit, since switching to More choices lowers the limit under existing labels (AC #7). Scope note: buttonMotion.css (global hover/press motion for launcher and admin buttons) is outside this task's criteria; it ships in this PR and is called out there so it can be dropped on request.
+
+Label fit (2026-10-12, Claude): the layout e2e now uses labels at exactly each layout's limit (28 / 18 characters) and checks that no word is split across lines. Against the original code it failed: in More choices at the largest text step 'Family photographs' and 'Garden photographs' lost their last line (content 168px in a 156px tile), and 'Grandchildren news' broke mid-word at steps 3 and 4 because the label used overflow-wrap: anywhere. Tile labels now never break inside a word; useLabelFit shrinks only an overflowing label (in 4% steps, never below 60% of her text size) until its whole words fit, re-fitting a frame after the text size or web font changes. The test also now waits for Home to apply each text step before measuring and retries until the fit settles. Verification on feat/task-13-fixed-home-layouts: typecheck, lint, 689 unit tests, build; full e2e 77/77 before this change; after it, full e2e 75/77 with the two m2-smoke tests timing out on Wi-Fi adapter discovery while Codex ran in parallel, and m2-smoke then passed 4/4 alone; handoff.spec 9/9.
 <!-- SECTION:NOTES:END -->
