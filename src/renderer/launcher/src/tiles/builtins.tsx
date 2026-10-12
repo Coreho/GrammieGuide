@@ -1,8 +1,9 @@
 import type { ComponentType, ReactNode } from 'react'
 import { BUILTIN_TILE_KEYS, type PublicConfig, type Tile } from '@shared/configSchema'
-import { NewspaperIcon, SunCompassIcon } from '../icons'
+import { NewspaperIcon, SunCompassIcon, PhotoIcon } from '../icons'
 import { WeatherOverlay } from '../components/WeatherOverlay'
 import { NewsOverlay } from './NewsOverlay'
+import { PhotoViewer } from './PhotoViewer'
 
 export type BuiltinKey = (typeof BUILTIN_TILE_KEYS)[number]
 
@@ -33,7 +34,8 @@ function WeatherView({ config, onClose }: BuiltinViewProps) {
  */
 const BUILTINS: Record<BuiltinKey, Builtin> = {
   weather: { icon: () => <SunCompassIcon />, View: WeatherView },
-  news: { icon: () => <NewspaperIcon />, View: NewsOverlay }
+  news: { icon: () => <NewspaperIcon />, View: NewsOverlay },
+  photos: { icon: () => <PhotoIcon />, View: PhotoViewer }
 }
 
 export function builtinFor(tile: Tile): Builtin | undefined {

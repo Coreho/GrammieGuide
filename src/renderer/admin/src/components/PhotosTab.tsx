@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Photo, PhotoImportProgress } from '@shared/media/photoTypes'
 import './PhotosTab.css'
+import { useConfigStore } from '../state/useConfigStore'
 
 function PhotoEditor({
   photo,
@@ -122,12 +123,28 @@ function PhotoEditor({
 }
 
 export function PhotosTab() {
+  const config = useConfigStore((state) => state.config)
+  const saveConfig = useConfigStore((state) => state.save)
+  const [savingSlideshow, setSavingSlideshow] = useState(false)
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState<PhotoImportProgress | null>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+
+  const changeSlideshow = async (slideshowEnabled: boolean): Promise<void> => {
+    setSavingSlideshow(true)
+    setError('')
+    try {
+      await saveConfig({ photos: { slideshowEnabled } })
+      setStatus('Slideshow setting saved.')
+    } catch {
+      setError('Could not save the slideshow setting. Try again.')
+    } finally {
+      setSavingSlideshow(false)
+    }
+  }
 
   const load = async (): Promise<void> => {
     setLoading(true)
@@ -176,6 +193,16 @@ export function PhotosTab() {
         appear.
       </p>
       <p>JPG, PNG and WebP are supported. HEIC works when this Windows device can decode it.</p>
+      <label className="photo-slideshow-setting">
+        <input
+          type="checkbox"
+          checked={config?.photos.slideshowEnabled ?? false}
+          disabled={!config || savingSlideshow}
+          onChange={(event) => void changeSlideshow(event.target.checked)}
+        />
+        Gentle slideshow: advance photos every 30 seconds
+      </label>
+      <p>Off keeps each photo still until she taps Back or Next. She can pause the slideshow.</p>
       <div className="photo-actions">
         <button disabled={loading || importing} onClick={() => void importPhotos()}>
           {importing ? 'Importing…' : 'Add photos…'}

@@ -93,6 +93,8 @@ export type OldLauncherImportPreview =
 export interface IpcApi {
   'photos:listVisible': { request: void; response: Photo[] }
   'photos:listAll': { request: void; response: Photo[] }
+  /** Open the viewer, record only that action, and return caregiver-approved photos. */
+  'photos:open': { request: void; response: Photo[] }
   'photos:import': { request: void; response: PhotoImportResult }
   'photos:update': { request: { id: string; patch: PhotoPatch }; response: Photo }
   'photos:remove': { request: { id: string }; response: boolean }

@@ -57,6 +57,12 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.photo-slideshow-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .photos-tab button {
   padding: 8px 12px;
   cursor: pointer;

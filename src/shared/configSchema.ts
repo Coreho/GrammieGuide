@@ -10,10 +10,10 @@ import { HOME_LAYOUT_NAMES } from './homeLayout'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 8
+export const CURRENT_SCHEMA_VERSION = 9
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
-export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
+export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos'] as const
 
 export const tileSchema = z.object({
   id: z.string(),
@@ -111,6 +111,9 @@ export const configSchema = z.object({
   weather: weatherConfigSchema,
   confusion: confusionConfigSchema,
   buddy: buddyConfigSchema,
+  photos: z
+    .object({ slideshowEnabled: z.boolean().default(false) })
+    .default({ slideshowEnabled: false }),
   display: displayConfigSchema,
   reliability: reliabilityConfigSchema
 })
