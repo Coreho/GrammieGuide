@@ -24,6 +24,8 @@ let configPath: string
 let optionsSeen: Record<string, unknown>[] = []
 /** Set to make the next constructor throw a non-SyntaxError, like EPERM would. */
 let nextConstructorError: Error | null = null
+/** Set to make the next write fail, like a full disk or a locked file would. */
+let nextSetError: Error | null = null
 
 class FakeStore {
   constructor(options: Record<string, unknown>) {
@@ -62,6 +64,11 @@ class FakeStore {
   }
 
   set(value: Record<string, unknown>): void {
+    if (nextSetError) {
+      const error = nextSetError
+      nextSetError = null
+      throw error
+    }
     this.value = value
     writeFileSync(configPath, JSON.stringify(value), 'utf8')
   }
@@ -84,6 +91,7 @@ beforeEach(() => {
   reliability.length = 0
   optionsSeen = []
   nextConstructorError = null
+  nextSetError = null
   resetConfigCacheForTests()
   userData = mkdtempSync(join(tmpdir(), 'grammieguide-store-'))
   configPath = join(userData, 'grammieguide-config.json')
@@ -280,6 +288,24 @@ describe('config store recovery', () => {
 
     expect(readFileSync(configPath, 'utf8')).toBe(before)
     expect(getConfig().display.volumeCeiling).not.toBe(9999)
+  })
+
+  it('keeps a change that failed to reach disk out of the cache and later saves', () => {
+    loadConfig()
+    const ceiling = getConfig().display.volumeCeiling
+    nextSetError = Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' })
+
+    expect(() => setConfig({ display: { ...getConfig().display, volumeCeiling: 12 } })).toThrow(
+      /ENOSPC/
+    )
+    // Home and admin must not keep showing a setting that was never saved...
+    expect(getConfig().display.volumeCeiling).toBe(ceiling)
+
+    // ...and the next successful save must not quietly write it after all.
+    setConfig({ display: { ...getConfig().display, fontStep: 2 } })
+    const saved = JSON.parse(readFileSync(configPath, 'utf8'))
+    expect(saved.display.fontStep).toBe(2)
+    expect(saved.display.volumeCeiling).toBe(ceiling)
   })
 
   it('does not create a corrupt-copy when there was never a file', () => {

@@ -122,7 +122,10 @@ export class LibraryStore {
         .catch(() => [])
       for (const file of files) {
         if (!file.isFile() || listed.has(file.name)) continue
-        const temporary = file.name.endsWith('.import.tmp') || file.name.endsWith('.index.tmp')
+        // Exactly the names import() and save() create, so a lookalike such as
+        // "family.import.tmp" that someone put here is never deleted.
+        const temporaryId = /^\.([0-9a-f-]{36})\.(?:import|index)\.tmp$/.exec(file.name)?.[1]
+        const temporary = temporaryId !== undefined && UUID.test(temporaryId)
         const imported =
           UUID.test(file.name.slice(0, 36)) && /^[0-9a-f-]{36}\.[a-z0-9]{1,10}$/.test(file.name)
         if (temporary || (indexTrusted && imported)) {

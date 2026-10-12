@@ -48,6 +48,9 @@ describe('media library store', () => {
       await fs.writeFile(join(paths.folder, name), 'leftover')
       await fs.writeFile(join(paths.folder, 'index.json.corrupt-old'), '{corrupt')
       await fs.writeFile(join(paths.folder, 'notes.txt'), 'keep')
+      // Only the app's own UUID temp names are leftovers; a lookalike is someone's file.
+      await fs.writeFile(join(paths.folder, 'family.import.tmp'), 'keep')
+      await fs.writeFile(join(paths.folder, '.not-a-uuid.index.tmp'), 'keep')
       await fs.mkdir(join(paths.folder, '.directory.import.tmp'))
       await fs.writeFile(join(paths.folder, '.directory.import.tmp', 'child'), 'keep')
       const restarted = new LibraryStore(userData, library)
@@ -62,6 +65,8 @@ describe('media library store', () => {
         '{corrupt'
       )
       expect(await fs.readFile(join(paths.folder, 'notes.txt'), 'utf8')).toBe('keep')
+      expect(await fs.readFile(join(paths.folder, 'family.import.tmp'), 'utf8')).toBe('keep')
+      expect(await fs.readFile(join(paths.folder, '.not-a-uuid.index.tmp'), 'utf8')).toBe('keep')
       expect(await fs.readFile(join(paths.folder, '.directory.import.tmp', 'child'), 'utf8')).toBe(
         'keep'
       )
