@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-09-29 04:19'
-updated_date: '2026-10-12 14:22'
+updated_date: '2026-10-12 14:29'
 labels: []
 milestone: m-8
 dependencies:
@@ -54,6 +54,8 @@ Handoff: tests/e2e/mediaProtocol.spec.ts was updated for the new photo bridge an
 Claude review (2026-10-12): read every changed line. One change: LibraryStore.addImage named its temp files .<id>.jpg.import.tmp / .<id>.thumb.jpg.import.tmp; it now uses the store's existing .<uuid>.import.tmp shape, because PR #35 narrows load()'s cleanup to exactly that shape and an interrupted photo import would otherwise leave temp files forever. The rollback unit test now fails the second image write by order instead of by name. Codex's first run (gpt-6.1-sol) stopped on a model-capacity error mid-task; a second session (gpt-6-astra) finished from the partial work. Note for the owner: new imports default to Show to her = on; older raw entries stay hidden until approved. Not verifiable here: real WebP and HEIC decoding through Windows' Shell thumbnail decoders (the e2e import uses a PNG through nativeImage).
 
 Continuation verification (2026-10-12): all 725 unit tests, lint, typecheck and production build pass; full built-Electron E2E suite passes 83/83. Added six Photos-tab E2E tests using real Chromium-generated JPG/PNG/WebP fixtures through the native picker boundary, IPC and native decoder. They prove portrait/landscape/square 1600px outputs and 320px thumbnails with source-picture pixels (not Shell icons), batch continuation and rendered progress, caption/visibility/order changes, persistence after restart, removal of both managed files while originals survive, locked-admin rejection and visible-only Home APIs. Captured the real Photos UI without renderer errors. Fixed the existing media protocol PNG fixture: its IDAT CRC was invalid; Chromium tolerated it but nativeImage correctly rejected it. The replacement has valid chunk checksums. A valid libheif example.heic was checked manually: the Windows Shell decoder on this dev machine rejects it, and import returns 0 imported/1 failed with no placeholder. Conditional HEIC success is covered by injectable-codec tests, but still depends on the decoder installed on each kiosk.
+
+Stacked on feat/task-13-fixed-home-layouts to reserve migration 008 for fixed Home and keep the next photo-viewer setting at 009. Rebase resolved only the README paragraph, keeping both photo-library copy and the fixed-layout migration description. Post-rebase verification: 726 unit tests, lint/typecheck/build, and all 13 photo/media E2E tests pass.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
