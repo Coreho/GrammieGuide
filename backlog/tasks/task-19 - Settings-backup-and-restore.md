@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-09-29 05:54'
-updated_date: '2026-10-12 17:55'
+updated_date: '2026-10-12 18:00'
 labels: []
 milestone: m-11
 dependencies: []
@@ -40,4 +40,6 @@ Rebuilding her setup after a reinstall, a new device or a bad change means re-en
 
 <!-- SECTION:NOTES:BEGIN -->
 Left: (1) Red flag: out-of-scope change in src/renderer/launcher/src/tiles/builtins.tsx:30 adds MediaNotSetup overlay and makes photos/music builtin tiles return it (builtinFor), new imports OverlayShell, zLayers, LinkIcon; changes launcher behavior, reviewer to confirm. (2) Not reviewed because checks were still failing.
+
+Integrated the current Home, photo viewer and provider changes into PR #26. Resolved conflicts by keeping both backup and photo APIs, retaining the registered Photos viewer, and reserving the temporary not-set-up view for Music. Fixed stale fixtures to use permanent slots and provider-scoped setApiKey; expanded secret checks to both Anthropic and OpenRouter. Validation before tile-photo integration: 777 unit tests, lint, typecheck and build; 11 Electron tests covering save/restore, rejection without writes, destination-secret retention, missing media and the full photo viewer. The former out-of-scope concern is covered by AC7 and the registered Photos view is preserved.
 <!-- SECTION:NOTES:END -->
