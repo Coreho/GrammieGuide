@@ -25,11 +25,8 @@ export function HelpButton({ onClick }: { onClick: () => void }) {
         color: '#fff',
         boxShadow:
           'inset 0 3px 1px rgba(255,255,255,.35), inset 0 -5px 10px rgba(0,0,0,.15), 0 0 0 7px var(--s1,#FBFAF7), 0 0 0 10px #BC3A36, 0 18px 34px rgba(150,40,40,.35)',
-        transition: 'transform .12s'
+        transition: 'translate .14s, scale .14s'
       }}
-      onPointerDown={(e) => (e.currentTarget.style.transform = 'translateY(3px) scale(.98)')}
-      onPointerUp={(e) => (e.currentTarget.style.transform = '')}
-      onPointerLeave={(e) => (e.currentTarget.style.transform = '')}
     >
       <div
         style={{
@@ -47,10 +44,24 @@ export function HelpButton({ onClick }: { onClick: () => void }) {
         <PhoneIcon />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <div style={{ fontSize: 'calc(40px * var(--font-scale, 1))', fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap' }}>
+        <div
+          style={{
+            fontSize: 'calc(40px * var(--font-scale, 1))',
+            fontWeight: 800,
+            lineHeight: 1,
+            whiteSpace: 'nowrap'
+          }}
+        >
           Get help
         </div>
-        <div style={{ fontSize: 'calc(22px * var(--font-scale, 1))', fontWeight: 600, lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+        <div
+          style={{
+            fontSize: 'calc(22px * var(--font-scale, 1))',
+            fontWeight: 600,
+            lineHeight: 1.2,
+            whiteSpace: 'nowrap'
+          }}
+        >
           Notifies a caregiver
         </div>
       </div>

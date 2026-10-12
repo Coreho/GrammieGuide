@@ -66,6 +66,7 @@ describe('tile and quick-message migrations', () => {
         type: 'builtin',
         builtinKey: 'weather',
         size: 'wide',
+        slot: 0,
         colorIndex: 0
       }
     ]

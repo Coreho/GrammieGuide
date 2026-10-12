@@ -7,6 +7,7 @@ import { BuddyFloor } from '../buddy/BuddyFloor'
 import type { ChatPhase, Chattiness, BuddyMotion } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand } from '@shared/buddy/commands'
+import type { HomeLayoutName } from '@shared/homeLayout'
 
 export type HomeBuddyProps = {
   chatInvitation: 'visible' | 'fading' | null
@@ -26,6 +27,7 @@ export function HomeView({
   date,
   weather,
   tiles,
+  layout,
   onActivateTile,
   onBuddyTap,
   buddy
@@ -35,6 +37,7 @@ export function HomeView({
   date: string
   weather: WeatherSnapshot | null
   tiles: TileType[]
+  layout: HomeLayoutName
   onActivateTile: (tile: TileType) => void
   onBuddyTap: () => void
   buddy: HomeBuddyProps
@@ -121,6 +124,10 @@ export function HomeView({
         </div>
         <div
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 24,
             fontSize: 'calc(36px * var(--font-scale, 1))',
             fontWeight: 600,
             color: 'var(--ink2,#3E3D3A)',
@@ -128,15 +135,23 @@ export function HomeView({
             whiteSpace: 'nowrap'
           }}
         >
-          {date}
+          <span>{date}</span>
+          {/* TASK-37's now-playing chip can fill this bounded utility area without shrinking or moving the clock. */}
+          <div data-home-now-playing-slot aria-hidden="true" style={{ width: 440, flex: 'none' }} />
         </div>
       </header>
 
-      <TileGrid tiles={tiles} onActivate={onActivateTile} />
+      <TileGrid tiles={tiles} layout={layout} onActivate={onActivateTile} />
 
       <footer
         style={{ flex: 'none', height: 150, display: 'flex', alignItems: 'flex-end', gap: 32 }}
       >
+        {/* TASK-22 owns the control; reserving its footprint prevents a later Home reshuffle. */}
+        <div
+          data-home-contact-slot
+          aria-hidden="true"
+          style={{ width: 420, height: 112, flex: 'none', pointerEvents: 'none' }}
+        />
         {/*
           The floor spans the Stage while the footer reserves exactly 150px.
           No text-size buttons here: the caregiver sets text size in admin's

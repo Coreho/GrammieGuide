@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buddyConfigSchema, defaultConfig } from '../../src/shared/configSchema'
+import {
+  buddyConfigSchema,
+  CURRENT_SCHEMA_VERSION,
+  defaultConfig
+} from '../../src/shared/configSchema'
 import { migrations } from '../../src/main/config/migrations'
 import { runMigrations } from '../../src/main/config/migrations/runner'
 
@@ -26,7 +30,7 @@ describe('Buddy chat setting and migration 007', () => {
     const before = structuredClone(raw)
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
-    expect(result.config.schemaVersion).toBe(7)
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config.buddy).toMatchObject({ ...raw.buddy, chatEnabled: true })
     expect(raw).toEqual(before)
     expect(runMigrations(result.config).config).toEqual(result.config)
@@ -41,7 +45,7 @@ describe('Buddy chat setting and migration 007', () => {
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
     expect(result.config.buddy).toEqual(raw.buddy)
-    expect(result.config.schemaVersion).toBe(7)
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
   })
 
   it('registers a pure migration that handles absent Buddy settings', () => {
@@ -51,5 +55,57 @@ describe('Buddy chat setting and migration 007', () => {
       schemaVersion: 7,
       buddy: { chatEnabled: true }
     })
+  })
+})
+
+describe('fixed Home layout migration 008', () => {
+  it('selects a layout, assigns slots in saved order, preserves wide adjacency, and keeps overflow', () => {
+    const migration = migrations.find((candidate) => candidate.version === 8)!
+    const raw = {
+      schemaVersion: 7,
+      display: { theme: 'tilesBold' },
+      tiles: [
+        { id: 'wide', size: 'wide' },
+        { id: 'a', size: 'normal' },
+        { id: 'b', size: 'normal' },
+        { id: 'c', size: 'normal' },
+        { id: 'd', size: 'normal' },
+        { id: 'e', size: 'normal' },
+        { id: 'overflow', size: 'wide' }
+      ]
+    }
+    const before = structuredClone(raw)
+    const migrated = migration.migrate(raw) as {
+      schemaVersion: number
+      display: { homeLayout: string }
+      tiles: Array<{ id: string; slot: number | null }>
+    }
+
+    expect(migrated.schemaVersion).toBe(8)
+    expect(migrated.display.homeLayout).toBe('more8')
+    expect(migrated.tiles.map(({ id, slot }) => ({ id, slot }))).toEqual([
+      { id: 'wide', slot: 0 },
+      { id: 'a', slot: 2 },
+      { id: 'b', slot: 3 },
+      { id: 'c', slot: 4 },
+      { id: 'd', slot: 5 },
+      { id: 'e', slot: 6 },
+      { id: 'overflow', slot: null }
+    ])
+    expect(raw).toEqual(before)
+  })
+
+  it('uses Simple four when the saved tiles consume no more than four spaces', () => {
+    const migration = migrations.find((candidate) => candidate.version === 8)!
+    const migrated = migration.migrate({
+      schemaVersion: 7,
+      display: {},
+      tiles: [
+        { id: 'wide', size: 'wide' },
+        { id: 'normal', size: 'normal' }
+      ]
+    }) as { display: { homeLayout: string }; tiles: Array<{ slot: number | null }> }
+    expect(migrated.display.homeLayout).toBe('simple4')
+    expect(migrated.tiles.map(({ slot }) => slot)).toEqual([0, 2])
   })
 })

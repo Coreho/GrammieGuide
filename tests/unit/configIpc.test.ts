@@ -33,8 +33,8 @@ describe('caregiver tile colors', () => {
     vi.resetAllMocks()
     config = defaultConfig()
     config.tiles = [
-      { id: 'a', label: 'Family', type: 'web', size: 'normal', colorIndex: 3 },
-      { id: 'b', label: 'Weather', type: 'builtin', size: 'wide', colorIndex: 0 }
+      { id: 'a', label: 'Family', type: 'web', size: 'normal', slot: 0, colorIndex: 3 },
+      { id: 'b', label: 'Weather', type: 'builtin', size: 'wide', slot: 2, colorIndex: 0 }
     ]
     mocks.getConfig.mockImplementation(() => config)
     mocks.setConfig.mockImplementation((patch: Partial<Config>) => {
@@ -82,6 +82,30 @@ describe('caregiver tile colors', () => {
       ]
     })
     expect(result.tiles.map((tile) => tile.colorIndex)).toEqual([2, 3, 0, 1])
+  })
+
+  it('places old callers in the first hole and preserves an explicit overflow choice', () => {
+    const result = invoke({
+      tiles: [
+        config.tiles[0],
+        { id: 'new', label: 'News', type: 'web', size: 'normal' },
+        { ...config.tiles[1], slot: null }
+      ]
+    })
+    expect(result.tiles.map(({ id, slot }) => ({ id, slot }))).toEqual([
+      { id: 'a', slot: 0 },
+      { id: 'new', slot: 1 },
+      { id: 'b', slot: null }
+    ])
+  })
+
+  it('reflows deterministically when a caller changes only the layout', () => {
+    const result = invoke({ display: { ...config.display, homeLayout: 'more8' } })
+    expect(result.display.homeLayout).toBe('more8')
+    expect(result.tiles.map(({ id, slot }) => ({ id, slot }))).toEqual([
+      { id: 'a', slot: 0 },
+      { id: 'b', slot: 1 }
+    ])
   })
 
   it.each([-1, 4, 0.5, 'blue'])(

@@ -3,13 +3,14 @@ import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
 import { TILE_COLOR_COUNT } from './tileColors'
 import { quickMessageSchema } from './buddy/commands'
 import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
+import { HOME_LAYOUT_NAMES } from './homeLayout'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 7
+export const CURRENT_SCHEMA_VERSION = 8
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
@@ -19,6 +20,8 @@ export const tileSchema = z.object({
   type: z.enum(['web', 'app', 'builtin']),
   label: z.string(),
   size: z.enum(['normal', 'wide']).default('normal'),
+  /** Permanent position in the selected Home layout. Null keeps overflow configured but hidden. */
+  slot: z.number().int().min(0).max(7).nullable().default(null),
   // Store the palette slot so theme changes keep the caregiver's selection.
   colorIndex: z
     .number()
@@ -91,6 +94,7 @@ export const displayConfigSchema = z.object({
     .max(FONT_STEP_COUNT - 1)
     .default(DEFAULT_FONT_STEP),
   theme: z.enum(THEME_NAMES).default('tilesBold'),
+  homeLayout: z.enum(HOME_LAYOUT_NAMES).default('simple4'),
   ambientBackground: z.boolean().default(true),
   volumeCeiling: z.number().min(0).max(100).default(70)
 })
@@ -179,10 +183,10 @@ export function defaultConfig(): Config {
     display: {
       fontStep: DEFAULT_FONT_STEP,
       theme: 'tilesBold',
+      homeLayout: 'simple4',
       ambientBackground: true,
       volumeCeiling: 70
     },
     reliability: {}
   })
 }
-
