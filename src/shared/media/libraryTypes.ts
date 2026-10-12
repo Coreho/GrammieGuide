@@ -6,6 +6,7 @@ export type LibraryMetadata = Record<string, string | number | boolean | null>
 export interface LibraryEntry {
   id: string
   fileName: string
+  thumbFileName?: string
   metadata: LibraryMetadata
 }
 
