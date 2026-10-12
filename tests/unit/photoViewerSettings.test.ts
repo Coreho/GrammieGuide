@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { configSchema, defaultConfig } from '../../src/shared/configSchema'
+import { configSchema, defaultConfig, CURRENT_SCHEMA_VERSION } from '../../src/shared/configSchema'
 import { migrations } from '../../src/main/config/migrations'
 import { runMigrations } from '../../src/main/config/migrations/runner'
 
@@ -29,7 +29,7 @@ describe('photo viewer settings and migration 009', () => {
     const before = structuredClone(raw)
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
-    expect(result.config.schemaVersion).toBe(9)
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config).toHaveProperty('photos.slideshowEnabled', false)
     expect(result.config.tiles).toEqual(raw.tiles)
     expect(result.config.buddy.anthropicApiKey).toBe('private-key')

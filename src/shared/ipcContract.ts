@@ -98,6 +98,8 @@ export interface IpcApi {
   'photos:import': { request: void; response: PhotoImportResult }
   'photos:update': { request: { id: string; patch: PhotoPatch }; response: Photo }
   'photos:remove': { request: { id: string }; response: boolean }
+  /** Only photos explicitly chosen for saved Home tiles, without captions or paths. */
+  'photos:tileImages': { request: void; response: Record<string, string> }
   'library:list': { request: LibraryRequest; response: LibraryEntry[] }
   'library:import': { request: LibraryRequest; response: LibraryEntry[] }
   'library:update': {
@@ -170,6 +172,7 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'photos:changed': Record<string, never>
   'photos:importProgress': PhotoImportProgress
   'buddy:command': BuddyCommand
   'browser:blocked': { url: string }
