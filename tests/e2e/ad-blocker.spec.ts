@@ -1,6 +1,13 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from 'playwright'
-import { existsSync, mkdtempSync, readdirSync, statSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer, type Server } from 'node:http'
@@ -240,6 +247,12 @@ test('a successful refresh rebuilds the engine and saves it for the next start',
  */
 test('a relaunch with no network still blocks, from the cached engine', async () => {
   await app.close()
+  const cache = join(userDataDir, 'adblocker-engine.bin')
+  const saved = readFileSync(cache)
+  const abandoned = `${cache}.tmp`
+  // Simulate a power cut between the cache write and rename. An offline start
+  // must sweep the leftover without replacing the engine it is about to load.
+  writeFileSync(abandoned, 'partial engine')
   app = await electron.launch({
     args: ['.', `--user-data-dir=${userDataDir}`],
     cwd: process.cwd(),
@@ -253,12 +266,16 @@ test('a relaunch with no network still blocks, from the cached engine', async ()
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await expect.poll(() => existsSync(abandoned)).toBe(false)
+  expect(readFileSync(cache)).toEqual(saved)
   await app.evaluate(({ session }) => {
     const seen: NetworkEvent[] = []
     ;(globalThis as unknown as { __adRequests: NetworkEvent[] }).__adRequests = seen
     session
       .fromPartition('persist:web')
-      .webRequest.onErrorOccurred((details) => seen.push({ url: details.url, error: details.error }))
+      .webRequest.onErrorOccurred((details) =>
+        seen.push({ url: details.url, error: details.error })
+      )
   })
 
   // The same web tile, already saved in the config from the first launch.

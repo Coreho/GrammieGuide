@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, rename, stat } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, rename, stat, unlink } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { session } from 'electron'
 import { ElectronBlocker, adsAndTrackingLists } from '@ghostery/adblocker-electron'
@@ -51,8 +51,15 @@ async function writeCache(path: string, buffer: Uint8Array): Promise<void> {
   // Write beside it, then rename: a power cut mid-write must not leave a truncated
   // engine that the next offline start would fail to load.
   const temporary = `${path}.tmp`
-  await writeFile(temporary, buffer)
-  await rename(temporary, path)
+  try {
+    await writeFile(temporary, buffer)
+    await rename(temporary, path)
+  } catch (error) {
+    // A partial write or failed rename must not leave another engine on disk.
+    // Cleanup is best effort; preserve the original error and the saved cache.
+    await unlink(temporary).catch(() => {})
+    throw error
+  }
 }
 
 /**
@@ -64,6 +71,9 @@ export async function startAdBlocker(userDataPath: string): Promise<boolean> {
   const ses = session.fromPartition(WEB_PARTITION)
 
   cachePath = join(userDataPath, ENGINE_CACHE)
+  // A power cut can skip writeCache's cleanup. Remove only our exact temp file,
+  // even on offline starts that never write; a locked leftover must not stop blocking.
+  await unlink(`${cachePath}.tmp`).catch(() => {})
   let engine: ElectronBlocker
   try {
     engine = await ElectronBlocker.fromPrebuiltAdsAndTracking(undefined, {
