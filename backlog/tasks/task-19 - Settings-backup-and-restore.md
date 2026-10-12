@@ -1,11 +1,11 @@
 ---
 id: TASK-19
 title: Settings backup and restore
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-09-29 05:54'
-updated_date: '2026-10-12 18:00'
+updated_date: '2026-10-12 18:04'
 labels: []
 milestone: m-11
 dependencies: []
@@ -21,13 +21,13 @@ Rebuilding her setup after a reinstall, a new device or a bad change means re-en
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The caregiver can save a backup file of all settings and tiles from admin, and restore it on this or another device
-- [ ] #2 Backups never contain secrets (the API key, the PIN hash and salt, or contact channel tokens), and restoring keeps the device's existing secrets
-- [ ] #3 An older backup is upgraded through the config migrations; an invalid file is rejected in plain words and changes nothing
-- [ ] #4 The backup says plainly that photo and music files are not included
-- [ ] #5 Backup and restore are admin-only (requireAdminUnlocked)
-- [ ] #6 Tests cover secret stripping, upgrading an old backup, and rejecting a bad file
-- [ ] #7 Restoring on a device that lacks the photo or music files shows those items as not set up yet, never as broken
+- [x] #1 The caregiver can save a backup file of all settings and tiles from admin, and restore it on this or another device
+- [x] #2 Backups never contain secrets (the API key, the PIN hash and salt, or contact channel tokens), and restoring keeps the device's existing secrets
+- [x] #3 An older backup is upgraded through the config migrations; an invalid file is rejected in plain words and changes nothing
+- [x] #4 The backup says plainly that photo and music files are not included
+- [x] #5 Backup and restore are admin-only (requireAdminUnlocked)
+- [x] #6 Tests cover secret stripping, upgrading an old backup, and rejecting a bad file
+- [x] #7 Restoring on a device that lacks the photo or music files shows those items as not set up yet, never as broken
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -42,4 +42,12 @@ Rebuilding her setup after a reinstall, a new device or a bad change means re-en
 Left: (1) Red flag: out-of-scope change in src/renderer/launcher/src/tiles/builtins.tsx:30 adds MediaNotSetup overlay and makes photos/music builtin tiles return it (builtinFor), new imports OverlayShell, zLayers, LinkIcon; changes launcher behavior, reviewer to confirm. (2) Not reviewed because checks were still failing.
 
 Integrated the current Home, photo viewer and provider changes into PR #26. Resolved conflicts by keeping both backup and photo APIs, retaining the registered Photos viewer, and reserving the temporary not-set-up view for Music. Fixed stale fixtures to use permanent slots and provider-scoped setApiKey; expanded secret checks to both Anthropic and OpenRouter. Validation before tile-photo integration: 777 unit tests, lint, typecheck and build; 11 Electron tests covering save/restore, rejection without writes, destination-secret retention, missing media and the full photo viewer. The former out-of-scope concern is covered by AC7 and the registered Photos view is preserved.
+
+Final combined validation after TASK-14 integration: 787 unit tests, lint, typecheck, production build, and 6 Electron tests (backup workflow plus all tile-photo flows). Restoring a saved tile-photo UUID on a device without that photo uses the icon; empty Photos uses the real viewer with calm wording, and unimplemented Music keeps its not-set-up fallback. Native-dialog save/restore writes and actual persisted config were checked; malformed JSON leaves the saved settings byte-equivalent. Unit tests verify version-1 migration, unknown/invalid/future backups, all secrets stripped, hand-edited incoming keys ignored, and lock rechecks after dialog/read awaits. Earlier 11 Electron checks also verified the entire photo viewer. No kiosk or real user profile was modified.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Caregivers can save and restore settings and tiles through native dialogs. Older backups migrate; invalid backups change nothing; both AI keys and PIN credentials remain local. Media is explicitly excluded and missing media stays calm. Verified 787 unit tests, lint/typecheck/build, 11 photo-viewer/backup and 6 final backup/tile-photo Electron checks.
+<!-- SECTION:FINAL_SUMMARY:END -->
