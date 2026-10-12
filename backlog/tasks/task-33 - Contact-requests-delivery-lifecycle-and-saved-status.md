@@ -4,11 +4,13 @@ title: 'Contact requests: delivery lifecycle and saved status'
 status: To Do
 assignee: []
 created_date: '2026-09-29 09:24'
-updated_date: '2026-09-30 15:26'
+updated_date: '2026-10-05 21:29'
 labels: []
 milestone: m-7
 dependencies:
   - TASK-17
+references:
+  - decision-02
 priority: high
 ordinal: 32000
 ---
@@ -29,3 +31,9 @@ Split from TASK-22 after Codex's review. Stopping duplicate taps is not enough: 
 - [ ] #6 Every request outcome is available to the caregiver dashboard
 - [ ] #7 Unit tests cover the lifecycle, including restart, the app stopping after the channel accepted a request but before the result was saved, unknown delivery and late-answer cases
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Channel fixed by accepted decision-02: Twilio SMS using REST polling so the kiosk needs no publicly reachable webhook. Persist the Twilio outbound Message SID with the local request before treating submission as complete; poll that resource for queued/sent/delivered/undelivered/failed. Poll inbound Messages filtered by the Twilio number and configured contact number, and accept an acknowledgement only when it is newer than the request and its normalized body is the allowed confirmation (initially YES). Device delivery and human acknowledgement are distinct states. Store enough cursors/SIDs to survive restart, reject stale or duplicate replies, preserve late replies after fallback, and never resend merely because the local save outcome is uncertain. Use a restricted Twilio API key for production rather than the main Auth Token; all credentials stay main-process-only and are redacted from logs.
+<!-- SECTION:NOTES:END -->
