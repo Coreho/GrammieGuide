@@ -217,6 +217,55 @@ export class LibraryStore {
     })
   }
 
+  /** Audio and its derived cover commit as one entry, rather than a copy followed by a metadata write. */
+  addFile(
+    source: string,
+    initialMetadata: LibraryMetadata,
+    thumbnail?: Buffer
+  ): Promise<LibraryEntry> {
+    return this.run(async () => {
+      const current = await this.load()
+      if (this.recoveryError) throw new Error('Library index recovery failed')
+      const extension = extname(source).toLowerCase()
+      if (!/^\.[a-z0-9]{1,10}$/.test(extension)) throw new Error('Invalid media extension')
+      const id = randomUUID()
+      const entry: LibraryEntry = {
+        id,
+        fileName: `${id}${extension}`,
+        ...(thumbnail ? { thumbFileName: `${id}.thumb.jpg` } : {}),
+        metadata: metadata(initialMetadata)
+      }
+      const cleanup: string[] = []
+      try {
+        const destination = join(this.paths.folder, entry.fileName)
+        const temporary = join(this.paths.folder, `.${id}.import.tmp`)
+        cleanup.push(temporary, destination)
+        await this.io.copyFile(source, temporary)
+        const file = await this.io.open(temporary, 'r+')
+        try {
+          await file.sync()
+        } finally {
+          await file.close()
+        }
+        await this.io.rename(temporary, destination)
+        if (thumbnail && entry.thumbFileName) {
+          const cover = join(this.paths.folder, entry.thumbFileName)
+          const coverTemp = join(this.paths.folder, `.${randomUUID()}.import.tmp`)
+          cleanup.push(coverTemp, cover)
+          await this.io.writeFile(coverTemp, thumbnail)
+          await this.io.rename(coverTemp, cover)
+        }
+        await this.save([...current, entry])
+        return structuredClone(entry)
+      } catch (error) {
+        await Promise.all(
+          cleanup.map((path) => this.io.rm(path, { force: true }).catch(() => undefined))
+        )
+        throw error
+      }
+    })
+  }
+
   /** Publish both encoded images before the index; a failed save leaves neither listed. */
   addImage(
     jpeg: Buffer,

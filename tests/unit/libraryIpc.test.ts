@@ -16,6 +16,7 @@ vi.mock('electron', () => ({
   dialog: { showOpenDialog: mocks.dialog }
 }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlock }))
+vi.mock('../../src/main/services/music/musicSettings', () => ({ removeTrackReferences: vi.fn() }))
 vi.mock('../../src/main/services/media/libraryStore', () => ({
   LibraryStore: class {
     list = mocks.list

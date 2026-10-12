@@ -10,6 +10,7 @@ import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { logActivity } from '../services/activityLog/activityLog'
 import { getConfig } from '../config/store'
+import { removeTrackReferences } from '../services/music/musicSettings'
 
 /**
  * The store's own errors are plain messages, but filesystem errors (EPERM, ENOSPC...) name
@@ -24,7 +25,7 @@ async function withoutPaths<T>(work: Promise<T>, message: string): Promise<T> {
   }
 }
 
-export function registerLibraryIpc(): void {
+export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
   function photosChanged(): void {
     // Only a change notification: private captions and paths never enter this event.
     for (const window of BrowserWindow.getAllWindows()) {
@@ -205,10 +206,10 @@ export function registerLibraryIpc(): void {
     'library:remove',
     (_event, request: IpcRequest<'library:remove'>): Promise<IpcResponse<'library:remove'>> => {
       requireAdminUnlocked()
-      return withoutPaths(
-        mutableLibrary(request).remove(request.id),
-        'Could not remove the media file'
-      )
+      const store = mutableLibrary(request)
+      removeTrackReferences(request.id)
+      return withoutPaths(store.remove(request.id), 'Could not remove the media file')
     }
   )
+  return (kind) => library({ library: kind })
 }
