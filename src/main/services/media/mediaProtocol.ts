@@ -3,29 +3,10 @@ import { open, realpath, type FileHandle } from 'node:fs/promises'
 import { extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { MEDIA_SCHEME, parseMediaUrl } from '@shared/media/mediaPath'
+import { MEDIA_CONTENT_TYPES } from '@shared/media/mediaTypes'
 import { parseByteRange } from '@shared/media/byteRange'
 import { logActivity } from '../activityLog/activityLog'
 import { MEDIA_LIBRARY_FOLDERS } from './libraryPaths'
-
-const CONTENT_TYPES: Readonly<Record<string, string>> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.bmp': 'image/bmp',
-  '.ico': 'image/x-icon',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.ogg': 'audio/ogg',
-  '.oga': 'audio/ogg',
-  '.opus': 'audio/ogg',
-  '.m4a': 'audio/mp4',
-  '.aac': 'audio/aac',
-  '.flac': 'audio/flac',
-  '.webm': 'audio/webm'
-}
 
 export function registerMediaScheme(): void {
   protocol.registerSchemesAsPrivileged([
@@ -54,7 +35,7 @@ async function serveMedia(request: Request): Promise<Response> {
   if (!media || (request.method !== 'GET' && request.method !== 'HEAD')) {
     return notFound('invalid-request')
   }
-  const contentType = CONTENT_TYPES[extname(media.fileName).toLowerCase()]
+  const contentType = MEDIA_CONTENT_TYPES[extname(media.fileName).toLowerCase()]
   if (!contentType) return notFound('unsupported-type')
 
   const folder = resolve(app.getPath('userData'), MEDIA_LIBRARY_FOLDERS[media.library])

@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useConfigStore } from '../state/useConfigStore'
 import { BuddyCommands } from './BuddyCommands'
+import {
+  BUDDY_PROVIDERS,
+  defaultModelFor,
+  modelsFor,
+  type BuddyProvider
+} from '@shared/buddy/providers'
 
 // Edge neural voices. Aria first: it's the voice the old app used, so it's the one she knows.
 const VOICES: { id: string; label: string }[] = [
@@ -14,21 +20,22 @@ const VOICES: { id: string; label: string }[] = [
 
 const PREVIEW_LINE = "Hi there! It's so nice to see you today."
 
-const MODELS: { id: string; label: string }[] = [
-  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 - gentlest with confused statements (recommended)' },
-  {
-    id: 'claude-haiku-4-5',
-    label: 'Claude Haiku 4.5 - fastest, lowest cost, more likely to play along with confused statements'
-  },
-  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 - more thoughtful, slower' },
-  { id: 'claude-opus-5', label: 'Claude Opus 5 - most capable, highest cost' }
-]
+const PROVIDER_LABELS: Record<BuddyProvider, string> = {
+  anthropic: 'Anthropic directly (default)',
+  openrouter: 'OpenRouter (Claude, pinned to Anthropic)'
+}
+
+const KEY_HINTS: Record<BuddyProvider, { heading: string; placeholder: string }> = {
+  anthropic: { heading: 'Anthropic API key', placeholder: 'sk-ant-...' },
+  openrouter: { heading: 'OpenRouter API key', placeholder: 'sk-or-v1-...' }
+}
 
 /**
  * The API key field is write-only: the admin renderer can learn whether a
  * key is set (admin:hasApiKey) but never read it back, matching the old
  * app's security model. Saving other Buddy settings can't wipe the key -
- * config:set carries secrets forward (see mergeAdminPatch).
+ * config:set carries secrets forward (see mergeAdminPatch). Each provider has
+ * its own key, so the status shown here is the one for the provider in use.
  */
 export function BuddyTab() {
   const config = useConfigStore((s) => s.config)
@@ -38,20 +45,35 @@ export function BuddyTab() {
   const [status, setStatus] = useState('')
   const [voiceStatus, setVoiceStatus] = useState('')
 
+  const provider: BuddyProvider = config?.buddy.provider === 'openrouter' ? 'openrouter' : 'anthropic'
+
   useEffect(() => {
-    window.admin.hasApiKey().then(setHasKey)
-  }, [])
+    // Re-read whenever the provider changes: the answer is about that provider's key.
+    window.admin.hasApiKey(provider).then(setHasKey)
+    setKeyDraft('')
+  }, [provider])
 
   if (!config) return null
   const { buddy } = config
-  const models = MODELS.some((m) => m.id === buddy.model)
-    ? MODELS
-    : [...MODELS, { id: buddy.model, label: buddy.model }]
+  const choices = modelsFor(provider)
+  // A model saved under the other provider is not valid here, so keep it visible
+  // rather than silently rewriting the caregiver's choice out of the dropdown.
+  const models = choices.some((m) => m.id === buddy.model)
+    ? choices
+    : [...choices, { id: buddy.model, label: `${buddy.model} (saved, not offered)` }]
   const voices = VOICES.some((v) => v.id === buddy.ttsVoice)
     ? VOICES
     : [...VOICES, { id: buddy.ttsVoice, label: buddy.ttsVoice }]
   const saveBuddy = (patch: Partial<typeof buddy>): void =>
     void save({ buddy: { ...buddy, ...patch } })
+
+  /**
+   * Model ids are provider-specific, so switching provider lands on that
+   * provider's default rather than leaving an id the new API will reject.
+   */
+  const changeProvider = (next: BuddyProvider): void => {
+    void save({ buddy: { ...buddy, provider: next, model: defaultModelFor(next) } })
+  }
 
   const previewVoice = async (): Promise<void> => {
     setVoiceStatus('Playing…')
@@ -73,8 +95,8 @@ export function BuddyTab() {
   }
 
   const saveKey = async (value: string): Promise<void> => {
-    await window.admin.setApiKey(value)
-    setHasKey(await window.admin.hasApiKey())
+    await window.admin.setApiKey(provider, value)
+    setHasKey(await window.admin.hasApiKey(provider))
     setKeyDraft('')
     setStatus(
       value ? 'API key saved.' : 'API key removed - Buddy will say chatting is not set up yet.'
@@ -96,7 +118,30 @@ export function BuddyTab() {
         Turn this off if chatting confuses or upsets her. Buddy stays on Home with friendly tap
         reactions. Changes take effect right away, including closing an open chat.
       </p>
-      <h3>Anthropic API key</h3>
+      <h3>Who answers Buddy's chat</h3>
+      <select
+        aria-label="Who answers Buddy"
+        value={provider}
+        onChange={(e) => changeProvider(e.target.value as BuddyProvider)}
+      >
+        {BUDDY_PROVIDERS.map((id) => (
+          <option key={id} value={id}>
+            {PROVIDER_LABELS[id]}
+          </option>
+        ))}
+      </select>
+      {provider === 'openrouter' ? (
+        <p>
+          Sends Claude to Anthropic through OpenRouter, using your OpenRouter key and billing. OpenRouter
+          can normally serve Claude from other companies too; this app pins every request to Anthropic's
+          own endpoint and refuses fallbacks, so her conversations do not leave Anthropic. The trade is
+          that if Anthropic is unavailable, Buddy says he is having trouble rather than switching to a
+          different company's model.
+        </p>
+      ) : (
+        <p>Anthropic's own service, billed on your Anthropic account.</p>
+      )}
+      <h3>{KEY_HINTS[provider].heading}</h3>
       <p>
         Status:{' '}
         {hasKey === null ? '…' : hasKey ? 'A key is set.' : 'No key set - Buddy cannot chat yet.'}
@@ -104,7 +149,9 @@ export function BuddyTab() {
       <input
         type="password"
         autoComplete="off"
-        placeholder={hasKey ? 'Enter a new key to replace the current one' : 'sk-ant-...'}
+        placeholder={
+          hasKey ? 'Enter a new key to replace the current one' : KEY_HINTS[provider].placeholder
+        }
         value={keyDraft}
         onChange={(e) => setKeyDraft(e.target.value)}
         style={{ width: 420 }}
@@ -115,7 +162,11 @@ export function BuddyTab() {
       {hasKey && <button onClick={() => saveKey('')}>Remove key</button>}
       {status && <p>{status}</p>}
       <h3>Model</h3>
+      {/* aria-label, not a wrapping <label>: a select's accessible name taken from
+          a wrapping label swallows every <option>'s text, which is useless to a
+          screen reader and impossible to select in a test. */}
       <select
+        aria-label="Model"
         value={buddy.model}
         onChange={(e) => save({ buddy: { ...buddy, model: e.target.value } })}
       >

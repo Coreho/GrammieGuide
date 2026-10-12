@@ -26,6 +26,12 @@ vi.mock('../../src/main/services/media/libraryStore', () => ({
 }))
 import { registerLibraryIpc } from '../../src/main/ipc/libraryIpc'
 
+const photoExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico']
+const musicExtensions = ['mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'webm']
+const libraries = [
+  { library: 'music', name: 'Music', extensions: musicExtensions, other: photoExtensions }
+] as const
+
 describe('admin library IPC', () => {
   const invoke = async (channel: string, request: unknown): Promise<unknown> =>
     mocks.handle.mock.calls.find(([name]) => name === channel)![1]({}, request)
@@ -63,10 +69,10 @@ describe('admin library IPC', () => {
     mocks.remove.mockResolvedValue(true)
     expect(await invoke('library:list', { library: 'photos' })).toEqual([])
     expect(
-      await invoke('library:update', { library: 'photos', id: 'id', patch: { caption: 'Family' } })
+      await invoke('library:update', { library: 'music', id: 'id', patch: { title: 'Family' } })
     ).toEqual({ id: 'id' })
-    expect(mocks.update).toHaveBeenCalledWith('id', { caption: 'Family' })
-    expect(await invoke('library:remove', { library: 'photos', id: 'id' })).toBe(true)
+    expect(mocks.update).toHaveBeenCalledWith('id', { title: 'Family' })
+    expect(await invoke('library:remove', { library: 'music', id: 'id' })).toBe(true)
     expect(mocks.remove).toHaveBeenCalledWith('id')
     expect(mocks.unlock).toHaveBeenCalledTimes(3)
   })
@@ -84,8 +90,8 @@ describe('admin library IPC', () => {
     mocks.remove.mockRejectedValue(fsError())
     for (const [channel, request] of [
       ['library:list', { library: 'photos' }],
-      ['library:update', { library: 'photos', id: 'id', patch: {} }],
-      ['library:remove', { library: 'photos', id: 'id' }]
+      ['library:update', { library: 'music', id: 'id', patch: {} }],
+      ['library:remove', { library: 'music', id: 'id' }]
     ] as const) {
       const error = await invoke(channel, request).catch((e: Error) => e)
       expect(error).toBeInstanceOf(Error)
@@ -95,18 +101,65 @@ describe('admin library IPC', () => {
     // The store's own messages carry no paths and stay useful to the caregiver.
     mocks.update.mockRejectedValue(new Error('Library entry not found'))
     await expect(
-      invoke('library:update', { library: 'photos', id: 'gone', patch: {} })
+      invoke('library:update', { library: 'music', id: 'gone', patch: {} })
     ).rejects.toThrow('Library entry not found')
   })
 
   it('imports only native-picker selections and returns entries without source paths', async () => {
-    mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/photo.jpg'] })
-    mocks.import.mockResolvedValue([{ id: 'generated', fileName: 'generated.jpg', metadata: {} }])
-    const result = await invoke('library:import', { library: 'photos', paths: ['untrusted'] })
-    expect(mocks.import).toHaveBeenCalledWith(['private/photo.jpg'])
+    mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/song.mp3'] })
+    mocks.import.mockResolvedValue([{ id: 'generated', fileName: 'generated.mp3', metadata: {} }])
+    const result = await invoke('library:import', { library: 'music', paths: ['untrusted'] })
+    expect(mocks.import).toHaveBeenCalledWith(['private/song.mp3'])
     expect(JSON.stringify(result)).not.toContain('private')
     expect(mocks.unlock).toHaveBeenCalledTimes(2)
   })
+
+  for (const { library, name, extensions, other } of libraries) {
+    it(`offers only supported ${library} types in the native picker`, async () => {
+      mocks.dialog.mockResolvedValue({ canceled: true, filePaths: [] })
+      await invoke('library:import', { library })
+      expect(mocks.dialog).toHaveBeenCalledWith({
+        properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
+        filters: [{ name, extensions }]
+      })
+    })
+
+    it(`imports every supported ${library} extension, regardless of case`, async () => {
+      const paths = extensions.flatMap((ext) => [
+        `C:\\private\\family file.${ext}`,
+        `C:\\private\\family file.${ext.toUpperCase()}`
+      ])
+      const entries = paths.map((_, index) => ({ id: String(index) }))
+      mocks.dialog.mockResolvedValue({ canceled: false, filePaths: paths })
+      mocks.import.mockResolvedValue(entries)
+      expect(await invoke('library:import', { library })).toEqual(entries)
+      expect(mocks.import).toHaveBeenCalledExactlyOnceWith(paths)
+    })
+
+    it.each([
+      ...other.map((ext) => `.${ext}`),
+      '.exe',
+      '.svg',
+      '.heic',
+      '.tiff',
+      '.mp4',
+      '',
+      '.',
+      '.jpg.exe',
+      '.png ',
+      '.toString'
+    ])(`rejects a whole ${library} batch containing %s before importing`, async (ext) => {
+      const paths = [`C:\\private\\valid.${extensions[0]}`, `C:\\private\\rejected${ext}`]
+      mocks.dialog.mockResolvedValue({ canceled: false, filePaths: paths })
+      const error = await invoke('library:import', { library }).catch((error: Error) => error)
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).toBe(
+        `No files were added. Choose ${library === 'photos' ? 'photo' : 'music'} files (${extensions.map((ext) => ext.toUpperCase()).join(', ')}).`
+      )
+      expect((error as Error).message).not.toContain('private')
+      expect(mocks.import).not.toHaveBeenCalled()
+    })
+  }
 
   it('does not import after cancellation or if admin locks while the picker is open', async () => {
     mocks.dialog.mockResolvedValue({ canceled: true, filePaths: [] })
@@ -132,9 +185,9 @@ describe('admin library IPC', () => {
   )
 
   it('does not expose source paths through import errors', async () => {
-    mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/photo.jpg'] })
-    mocks.import.mockRejectedValue(new Error('ENOENT: private/photo.jpg'))
-    await expect(invoke('library:import', { library: 'photos' })).rejects.toThrow(
+    mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/song.mp3'] })
+    mocks.import.mockRejectedValue(new Error('ENOENT: private/song.mp3'))
+    await expect(invoke('library:import', { library: 'music' })).rejects.toThrow(
       'Could not import media files'
     )
   })

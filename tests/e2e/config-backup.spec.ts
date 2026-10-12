@@ -70,6 +70,7 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
       type: 'web',
       url: 'https://example.com',
       size: 'wide',
+      slot: 0,
       colorIndex: 3
     },
     {
@@ -78,6 +79,7 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
       type: 'builtin',
       builtinKey: 'photos',
       size: 'normal',
+      slot: 2,
       colorIndex: 0
     },
     {
@@ -86,12 +88,14 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
       type: 'builtin',
       builtinKey: 'music',
       size: 'normal',
+      slot: 3,
       colorIndex: 1
     }
   ]
   await admin.evaluate(async (config) => {
     await window.admin.setConfig(config)
-    await window.admin.setApiKey('source-key')
+    await window.admin.setApiKey('anthropic', 'source-key')
+    await window.admin.setApiKey('openrouter', 'source-openrouter-key')
   }, source)
   await admin.getByRole('button', { name: 'Reliability', exact: true }).click()
   await expect(admin.getByRole('heading', { name: 'Settings backup and restore' })).toBeVisible()
@@ -101,18 +105,22 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
   await expect(admin.getByRole('status')).toHaveText('Backup saved.')
   const backupText = readFileSync(backupPath, 'utf8')
   expect(backupText).toMatch(/Photo and music files are not included/)
-  expect(backupText).not.toMatch(/source-key|anthropicApiKey|adminPinHash|adminPinSalt/)
+  expect(backupText).not.toMatch(
+    /source-key|source-openrouter-key|anthropicApiKey|openrouterApiKey|adminPinHash|adminPinSalt/
+  )
   const saved = JSON.parse(backupText)
   expect(saved.config.tiles).toEqual(source.tiles)
   expect(saved.config.display.fontStep).toBe(3)
 
   // Simulate another device: no media folders and different local settings/secrets.
   await admin.evaluate(async () => {
+    const current = await window.admin.getConfig()
     await window.admin.setConfig({
       tiles: [],
-      display: { fontStep: 1, theme: 'tilesBold', ambientBackground: true, volumeCeiling: 70 }
+      display: { ...current.display, fontStep: 1 }
     })
-    await window.admin.setApiKey('destination-key')
+    await window.admin.setApiKey('anthropic', 'destination-key')
+    await window.admin.setApiKey('openrouter', 'destination-openrouter-key')
   })
   await pickRestore()
   await admin.getByRole('button', { name: 'Restore backup', exact: true }).click()
@@ -128,12 +136,16 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
   ).toHaveCount(3)
   const stored = JSON.parse(readFileSync(join(userData, 'grammieguide-config.json'), 'utf8'))
   expect(stored.buddy.anthropicApiKey).toBe('destination-key')
+  expect(stored.buddy.openrouterApiKey).toBe('destination-openrouter-key')
   expect(stored.reliability.adminPinHash).toBeTruthy()
-  for (const label of ['Our photos', 'Her music']) {
-    await home.getByRole('button', { name: label, exact: true }).click()
-    await expect(home.getByText(`${label} is not set up yet.`, { exact: true })).toBeVisible()
-    await home.getByRole('button', { name: 'Back to Home', exact: true }).click()
-  }
+  await home.getByRole('button', { name: 'Our photos', exact: true }).click()
+  await expect(
+    home.getByText('Your photos will be here when your family adds them.', { exact: true })
+  ).toBeVisible()
+  await home.getByRole('button', { name: '🏠 Home', exact: true }).click()
+  await home.getByRole('button', { name: 'Her music', exact: true }).click()
+  await expect(home.getByText('Her music is not set up yet.', { exact: true })).toBeVisible()
+  await home.getByRole('button', { name: 'Back to Home', exact: true }).click()
 
   await admin.getByRole('button', { name: 'Reliability', exact: true }).click()
   writeFileSync(backupPath, '{broken')

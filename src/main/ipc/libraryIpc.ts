@@ -1,8 +1,14 @@
-import { app, dialog, ipcMain } from 'electron'
+import { app, dialog, ipcMain, nativeImage } from 'electron'
+import { extname } from 'node:path'
 import type { IpcRequest, IpcResponse } from '@shared/ipcContract'
 import { isMediaLibrary, type MediaLibrary } from '@shared/media/mediaPath'
+import { LIBRARY_EXTENSIONS, isLibraryMediaExtension } from '@shared/media/mediaTypes'
 import { LibraryStore } from '../services/media/libraryStore'
+import { PhotoLibrary, validatePhotoPatch } from '../services/photos/photoLibrary'
+import { createNativePhotoCodec } from '../services/photos/nativePhotoCodec'
+import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
+import { logActivity } from '../services/activityLog/activityLog'
 
 /**
  * The store's own errors are plain messages, but filesystem errors (EPERM, ENOSPC...) name
@@ -29,6 +35,87 @@ export function registerLibraryIpc(): void {
     return store
   }
 
+  function mutableLibrary(request: { library: MediaLibrary }): LibraryStore {
+    if (!request || !isMediaLibrary(request.library)) throw new Error('Invalid media library')
+    // Photo writes must pass through decoding and typed metadata validation.
+    if (request.library === 'photos')
+      throw new Error('Use the Photos tab to change the photo library')
+    return library(request)
+  }
+
+  let photoLibrary: PhotoLibrary | undefined
+  const photos = (): PhotoLibrary =>
+    (photoLibrary ??= new PhotoLibrary(
+      library({ library: 'photos' }),
+      createNativePhotoCodec(nativeImage)
+    ))
+
+  async function photoWork<T>(work: () => Promise<T>, message: string): Promise<T> {
+    try {
+      return await work()
+    } catch {
+      // Native codec errors do not reliably have errno codes. Replace every service error.
+      throw new Error(message)
+    }
+  }
+
+  ipcMain.handle('photos:open', (): Promise<IpcResponse<'photos:open'>> => {
+    // Opening is the only viewer activity recorded. Never log a photo, caption or path.
+    logActivity('photos-viewer-opened')
+    return photoWork(() => photos().listVisible(), 'Could not read the photos')
+  })
+  ipcMain.handle('photos:listVisible', (): Promise<IpcResponse<'photos:listVisible'>> =>
+    photoWork(() => photos().listVisible(), 'Could not read the photos')
+  )
+  ipcMain.handle('photos:listAll', (): Promise<IpcResponse<'photos:listAll'>> => {
+    requireAdminUnlocked()
+    return photoWork(() => photos().listAll(), 'Could not read the photos')
+  })
+  let importingPhotos = false
+  ipcMain.handle('photos:import', async (event): Promise<IpcResponse<'photos:import'>> => {
+    requireAdminUnlocked()
+    if (importingPhotos) throw new Error('A photo import is already running')
+    importingPhotos = true
+    try {
+      const selection = await photoWork(
+        () =>
+          dialog.showOpenDialog({
+            properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
+            filters: [{ name: 'Photos', extensions: [...PHOTO_EXTENSIONS] }]
+          }),
+        'Could not open the photo picker'
+      )
+      requireAdminUnlocked()
+      if (selection.canceled) return { imported: 0, failed: 0 }
+      return await photoWork(
+        () =>
+          photos().import(selection.filePaths, (count) => {
+            if (!event.sender.isDestroyed()) event.sender.send('photos:importProgress', count)
+          }),
+        'Could not import photos'
+      )
+    } finally {
+      importingPhotos = false
+    }
+  })
+  ipcMain.handle(
+    'photos:update',
+    (_event, request: IpcRequest<'photos:update'>): Promise<IpcResponse<'photos:update'>> => {
+      requireAdminUnlocked()
+      if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
+      const patch = validatePhotoPatch(request.patch)
+      return photoWork(() => photos().update(request.id, patch), 'Could not save the photo')
+    }
+  )
+  ipcMain.handle(
+    'photos:remove',
+    (_event, request: IpcRequest<'photos:remove'>): Promise<IpcResponse<'photos:remove'>> => {
+      requireAdminUnlocked()
+      if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
+      return photoWork(() => photos().remove(request.id), 'Could not remove the photo')
+    }
+  )
+
   ipcMain.handle(
     'library:list',
     (_event, request: IpcRequest<'library:list'>): Promise<IpcResponse<'library:list'>> => {
@@ -43,12 +130,25 @@ export function registerLibraryIpc(): void {
       request: IpcRequest<'library:import'>
     ): Promise<IpcResponse<'library:import'>> => {
       requireAdminUnlocked()
-      const store = library(request)
+      const store = mutableLibrary(request)
+      const extensions = LIBRARY_EXTENSIONS[request.library]
       const selection = await dialog.showOpenDialog({
-        properties: ['openFile', 'multiSelections', 'dontAddToRecent']
+        properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
+        filters: [
+          { name: request.library === 'photos' ? 'Photos' : 'Music', extensions: [...extensions] }
+        ]
       })
       requireAdminUnlocked()
       if (selection.canceled) return []
+      // Picker filters are only a convenience. Validate the whole batch before the store
+      // can copy anything, and keep this useful message outside the filesystem-error catch.
+      if (
+        selection.filePaths.some((path) => !isLibraryMediaExtension(request.library, extname(path)))
+      ) {
+        throw new Error(
+          `No files were added. Choose ${request.library === 'photos' ? 'photo' : 'music'} files (${extensions.map((extension) => extension.toUpperCase()).join(', ')}).`
+        )
+      }
       try {
         return await store.import(selection.filePaths)
       } catch {
@@ -62,7 +162,7 @@ export function registerLibraryIpc(): void {
     (_event, request: IpcRequest<'library:update'>): Promise<IpcResponse<'library:update'>> => {
       requireAdminUnlocked()
       return withoutPaths(
-        library(request).update(request.id, request.patch),
+        mutableLibrary(request).update(request.id, request.patch),
         'Could not update the media library'
       )
     }
@@ -71,7 +171,10 @@ export function registerLibraryIpc(): void {
     'library:remove',
     (_event, request: IpcRequest<'library:remove'>): Promise<IpcResponse<'library:remove'>> => {
       requireAdminUnlocked()
-      return withoutPaths(library(request).remove(request.id), 'Could not remove the media file')
+      return withoutPaths(
+        mutableLibrary(request).remove(request.id),
+        'Could not remove the media file'
+      )
     }
   )
 }

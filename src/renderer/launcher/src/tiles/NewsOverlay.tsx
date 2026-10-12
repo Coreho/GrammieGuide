@@ -140,18 +140,15 @@ function StoryCard({ story, now, onOpen }: { story: NewsStory; now: number; onOp
         color: 'inherit',
         background: 'linear-gradient(180deg, var(--s1,#FBFAF7), var(--s2,#ECEAE5))',
         boxShadow: TILE_SHADOW,
-        transition: 'transform .12s, box-shadow .12s'
+        transition: 'translate .14s, scale .14s, box-shadow .12s'
       }}
       onPointerDown={(e) => {
-        e.currentTarget.style.transform = 'translateY(3px) scale(.995)'
         e.currentTarget.style.boxShadow = TILE_SHADOW_ACTIVE
       }}
       onPointerUp={(e) => {
-        e.currentTarget.style.transform = ''
         e.currentTarget.style.boxShadow = TILE_SHADOW
       }}
       onPointerLeave={(e) => {
-        e.currentTarget.style.transform = ''
         e.currentTarget.style.boxShadow = TILE_SHADOW
       }}
     >

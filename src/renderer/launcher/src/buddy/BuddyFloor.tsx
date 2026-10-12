@@ -23,6 +23,10 @@ import { useBuddyBrain } from './useBuddyBrain'
  * have room, and it never takes pointer events - taps on whatever is behind
  * it go through. His invisible tap button and the chat invitation in his
  * bubble follow him around, updated per frame without React re-renders.
+ *
+ * The Canvas measures its container in layout pixels (see the resize prop
+ * below), so his zoom, walking range and on-screen projection are the same
+ * whatever the window size is.
  */
 
 /** Canvas height; the footer row itself stays 150px so the tile grid keeps its space. */
@@ -116,6 +120,13 @@ export function BuddyFloor(props: FloorProps) {
               orthographic
               flat
               dpr={[1, 1.5]}
+              // Measure layout pixels, not the scaled box. Stage scales itself with a
+              // CSS transform and R3F measures with getBoundingClientRect, which already
+              // includes that scale - so the canvas would be sized in scaled pixels and
+              // then scaled again, leaving him short of his floor's ends, floating, and
+              // with his tap target outside the Stage. A transform change also never fires
+              // ResizeObserver, so the wrong size would never correct itself on resize.
+              resize={{ offsetSize: true }}
               camera={{ position: CAMERA_POS, zoom: 100, near: 0.1, far: 40 }}
               gl={{ alpha: true, antialias: true }}
               style={{ background: 'transparent', pointerEvents: 'none' }}

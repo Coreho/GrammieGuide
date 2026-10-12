@@ -2,22 +2,26 @@ import { z } from 'zod'
 import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
 import { TILE_COLOR_COUNT } from './tileColors'
 import { quickMessageSchema } from './buddy/commands'
+import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
+import { HOME_LAYOUT_NAMES } from './homeLayout'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 7
+export const CURRENT_SCHEMA_VERSION = 9
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
-export const BUILTIN_TILE_KEYS = ['weather', 'news'] as const
+export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos'] as const
 
 export const tileSchema = z.object({
   id: z.string(),
   type: z.enum(['web', 'app', 'builtin']),
   label: z.string(),
   size: z.enum(['normal', 'wide']).default('normal'),
+  /** Permanent position in the selected Home layout. Null keeps overflow configured but hidden. */
+  slot: z.number().int().min(0).max(7).nullable().default(null),
   // Store the palette slot so theme changes keep the caregiver's selection.
   colorIndex: z
     .number()
@@ -54,11 +58,18 @@ export const confusionConfigSchema = z.object({
 })
 
 export const buddyConfigSchema = z.object({
+  /** Who answers chat. Anthropic direct is the default and needs no migration:
+   *  existing setups have an Anthropic key and keep it. */
+  provider: z.enum(BUDDY_PROVIDERS).default(DEFAULT_BUDDY_PROVIDER),
   anthropicApiKey: z.string().optional(),
+  /** Only used when provider is 'openrouter'. Kept separate so switching back
+   *  and forth never costs her a key she already entered. */
+  openrouterApiKey: z.string().optional(),
   /** Chat can be switched off while Buddy's presence and friendly reactions stay available. */
   chatEnabled: z.boolean().default(true),
   /** Sonnet 5.5, not the cheaper Haiku 4.5: live checks found Haiku still agreeing with
-   * confused statements ("I'm sure it will be nice to see her") despite the prompt. */
+   * confused statements ("I'm sure it will be nice to see her") despite the prompt.
+   *  The id is provider-specific, so shared/buddy/providers.ts owns both lists. */
   model: z.string().default('claude-sonnet-5-5'),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
   /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
@@ -83,6 +94,7 @@ export const displayConfigSchema = z.object({
     .max(FONT_STEP_COUNT - 1)
     .default(DEFAULT_FONT_STEP),
   theme: z.enum(THEME_NAMES).default('tilesBold'),
+  homeLayout: z.enum(HOME_LAYOUT_NAMES).default('simple4'),
   ambientBackground: z.boolean().default(true),
   volumeCeiling: z.number().min(0).max(100).default(70)
 })
@@ -99,6 +111,9 @@ export const configSchema = z.object({
   weather: weatherConfigSchema,
   confusion: confusionConfigSchema,
   buddy: buddyConfigSchema,
+  photos: z
+    .object({ slideshowEnabled: z.boolean().default(false) })
+    .default({ slideshowEnabled: false }),
   display: displayConfigSchema,
   reliability: reliabilityConfigSchema
 })
@@ -107,18 +122,18 @@ export type Config = z.infer<typeof configSchema>
 export type Tile = z.infer<typeof tileSchema>
 
 /**
- * Never sent to any renderer as-is - secrets (the Anthropic API key, PIN
- * hash+salt) are stripped. Matches the old app's security model: the
+ * Never sent to any renderer as-is - secrets (the Anthropic and OpenRouter API
+ * keys, PIN hash+salt) are stripped. Matches the old app's security model: the
  * caregiver can *set* the API key/PIN but the app never reads it back to
  * any renderer afterward.
  */
 export type PublicConfig = Omit<Config, 'buddy' | 'reliability'> & {
-  buddy: Omit<Config['buddy'], 'anthropicApiKey'>
+  buddy: Omit<Config['buddy'], 'anthropicApiKey' | 'openrouterApiKey'>
   reliability: Omit<Config['reliability'], 'adminPinHash' | 'adminPinSalt'>
 }
 
 export function toPublicConfig(cfg: Config): PublicConfig {
-  const { anthropicApiKey: _key, ...publicBuddy } = cfg.buddy
+  const { anthropicApiKey: _key, openrouterApiKey: _orKey, ...publicBuddy } = cfg.buddy
   const { adminPinHash: _hash, adminPinSalt: _salt, ...publicReliability } = cfg.reliability
   return { ...cfg, buddy: publicBuddy, reliability: publicReliability }
 }
@@ -126,15 +141,19 @@ export function toPublicConfig(cfg: Config): PublicConfig {
 /**
  * Applies an admin-panel patch without ever touching secrets. The admin
  * renderer only holds PublicConfig, so a patch like { buddy: {...} } built
- * from it has no anthropicApiKey - and store.ts's setConfig merges one level
- * deep, so passing that through as-is would silently wipe the key (same for
+ * from it has neither API key - and store.ts's setConfig merges one level
+ * deep, so passing that through as-is would silently wipe them (same for
  * the PIN hash/salt under reliability). Secrets always come from `current`;
  * they only change via their own dedicated admin:* channels.
  */
 export function mergeAdminPatch(current: Config, patch: Partial<Config>): Partial<Config> {
   const merged: Partial<Config> = { ...patch }
   if (patch.buddy) {
-    merged.buddy = { ...patch.buddy, anthropicApiKey: current.buddy.anthropicApiKey }
+    merged.buddy = {
+      ...patch.buddy,
+      anthropicApiKey: current.buddy.anthropicApiKey,
+      openrouterApiKey: current.buddy.openrouterApiKey
+    }
   }
   if (patch.reliability) {
     merged.reliability = {
@@ -167,6 +186,7 @@ export function defaultConfig(): Config {
     display: {
       fontStep: DEFAULT_FONT_STEP,
       theme: 'tilesBold',
+      homeLayout: 'simple4',
       ambientBackground: true,
       volumeCeiling: 70
     },

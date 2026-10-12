@@ -2,9 +2,10 @@
 id: TASK-19
 title: Settings backup and restore
 status: In Progress
-assignee: []
+assignee:
+  - '@codex'
 created_date: '2026-09-29 05:54'
-updated_date: '2026-10-02 20:55'
+updated_date: '2026-10-12 17:55'
 labels: []
 milestone: m-11
 dependencies: []
@@ -28,6 +29,12 @@ Rebuilding her setup after a reinstall, a new device or a bad change means re-en
 - [ ] #6 Tests cover secret stripping, upgrading an old backup, and rejecting a bad file
 - [ ] #7 Restoring on a device that lacks the photo or music files shows those items as not set up yet, never as broken
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Integrate the existing backup PR with the merged photo viewer, typed provider keys and fixed tile positions. 2. Resolve conflicts while retaining the real Photos view and a calm fallback for unimplemented Music. 3. Verify secret stripping and preservation for both AI providers, old-backup migrations, rejection without writes, native-dialog admin workflows and missing media. 4. Run unit, lint, typecheck, build and Electron regressions, address review findings, then merge.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

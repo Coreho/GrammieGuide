@@ -10,7 +10,9 @@ let launcher: Page
 let admin: Page
 let userData: string
 const png = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aE1sAAAAASUVORK5CYII=',
+  // A valid RGBA PNG: Chromium tolerated the old fixture's bad IDAT checksum,
+  // but the native decoder correctly rejected it when photo import was added.
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP438DwHwAGgAJ/EEwb4QAAAABJRU5ErkJggg==',
   'base64'
 )
 
@@ -234,11 +236,11 @@ test('returns private 404s for bad names, unknown libraries, unsupported types a
 
 test('admin library bridge gates access, imports a playable copy, updates and removes it', async () => {
   await admin.evaluate(() => window.admin.lock())
-  await expect(
-    admin.evaluate(() => window.admin.listLibrary({ library: 'photos' }))
-  ).rejects.toThrow('admin unlock required')
+  await expect(admin.evaluate(() => window.admin.listPhotos())).rejects.toThrow(
+    'admin unlock required'
+  )
   await admin.evaluate(() => window.admin.unlock('2468'))
-  expect(await admin.evaluate(() => window.admin.listLibrary({ library: 'photos' }))).toEqual([])
+  expect(await admin.evaluate(() => window.admin.listPhotos())).toEqual([])
 
   // Stand in for the native picker; import still goes through the real preload, IPC and disk store.
   await app.evaluate(
@@ -251,22 +253,28 @@ test('admin library bridge gates access, imports a playable copy, updates and re
     },
     join(userData, MEDIA_LIBRARY_FOLDERS.photos, 'photo.png')
   )
-  const entries = await admin.evaluate(() => window.admin.importLibrary({ library: 'photos' }))
+  expect(await admin.evaluate(() => window.admin.importPhotos())).toEqual({
+    imported: 1,
+    failed: 0
+  })
+  const entries = await admin.evaluate(() => window.admin.listPhotos())
   expect(entries).toHaveLength(1)
   const entry = entries[0]!
-  expect(entry.fileName).toMatch(/^[0-9a-f-]{36}\.png$/)
+  expect(entry.url).toMatch(/^grammie-media:\/\/photos\/[0-9a-f-]{36}\.jpg$/)
   expect(JSON.stringify(entries)).not.toContain(userData)
-  const url = `grammie-media://photos/${entry.fileName}`
-  expect((await fetchMedia(url)).bytes).toEqual(Array.from(png))
+  const url = entry.url
+  expect((await fetchMedia(url)).headers['content-type']).toBe('image/jpeg')
+  expect((await fetchMedia(entry.thumbnailUrl)).status).toBe(200)
+  expect(await launcher.evaluate(() => window.launcher.listPhotos())).toEqual(entries)
   const updated = await admin.evaluate(
-    (id) => window.admin.updateLibrary({ library: 'photos', id, patch: { caption: 'Family' } }),
+    (id) => window.admin.updatePhoto({ id, patch: { caption: 'Family', showToHer: false } }),
     entry.id
   )
-  expect(updated.metadata.caption).toBe('Family')
-  expect(
-    await admin.evaluate((id) => window.admin.removeLibrary({ library: 'photos', id }), entry.id)
-  ).toBe(true)
-  expect(await admin.evaluate(() => window.admin.listLibrary({ library: 'photos' }))).toEqual([])
+  expect(updated.caption).toBe('Family')
+  expect(await launcher.evaluate(() => window.launcher.listPhotos())).toEqual([])
+  expect(await admin.evaluate((id) => window.admin.removePhoto(id), entry.id)).toBe(true)
+  expect(await admin.evaluate(() => window.admin.listPhotos())).toEqual([])
   expect((await fetchMedia(url)).status).toBe(404)
+  expect((await fetchMedia(entry.thumbnailUrl)).status).toBe(404)
   expect((await fetchMedia('grammie-media://photos/photo.png')).status).toBe(200)
 })

@@ -1,8 +1,10 @@
 import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
+import type { BuddyProvider } from './buddy/providers'
 import type { PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
+import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -100,6 +102,13 @@ export interface IpcApi {
       | { ok: false; canceled: true }
       | { ok: false; message: string }
   }
+  'photos:listVisible': { request: void; response: Photo[] }
+  'photos:listAll': { request: void; response: Photo[] }
+  /** Open the viewer, record only that action, and return caregiver-approved photos. */
+  'photos:open': { request: void; response: Photo[] }
+  'photos:import': { request: void; response: PhotoImportResult }
+  'photos:update': { request: { id: string; patch: PhotoPatch }; response: Photo }
+  'photos:remove': { request: { id: string }; response: boolean }
   'library:list': { request: LibraryRequest; response: LibraryEntry[] }
   'library:import': { request: LibraryRequest; response: LibraryEntry[] }
   'library:update': {
@@ -131,9 +140,13 @@ export interface IpcApi {
   'admin:unlock': { request: { pin: string }; response: { ok: boolean; reason?: string } }
   'admin:lock': { request: void; response: void }
   'admin:isUnlocked': { request: void; response: boolean }
-  'admin:hasApiKey': { request: void; response: boolean }
-  /** Empty string clears the key. Write-only: the key is never read back to any renderer. */
-  'admin:setApiKey': { request: { apiKey: string }; response: { ok: boolean } }
+  /** Provider-scoped: Anthropic and OpenRouter each keep their own key. */
+  'admin:hasApiKey': { request: { provider: BuddyProvider }; response: boolean }
+  /** Empty string clears that provider's key. Write-only: never read back to any renderer. */
+  'admin:setApiKey': {
+    request: { provider: BuddyProvider; apiKey: string }
+    response: { ok: boolean }
+  }
   'admin:previewOldLauncherImport': { request: void; response: OldLauncherImportPreview }
   'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
@@ -168,6 +181,7 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'photos:importProgress': PhotoImportProgress
   'buddy:command': BuddyCommand
   'browser:blocked': { url: string }
   /** The page failed or a link was blocked (Home shows its recovery screen), or null once it's fine again. */

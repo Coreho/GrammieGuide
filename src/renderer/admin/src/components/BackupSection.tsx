@@ -42,7 +42,7 @@ export function BackupSection() {
       <p>Save all settings and tiles to use on this or another device.</p>
       <p>Photo and music files are not included. Import them separately on another device.</p>
       <p>
-        The API key and caregiver PIN are not included. Restore keeps this device&apos;s secrets.
+        API keys and the caregiver PIN are not included. Restore keeps this device&apos;s secrets.
       </p>
       <p>
         Restore replaces all current settings and tiles. Save a backup first if you want to keep

@@ -1,14 +1,34 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { IpcChannel, IpcRequest, IpcResponse } from '@shared/ipcContract'
+import type { IpcChannel, IpcRequest, IpcResponse, IpcEvents } from '@shared/ipcContract'
 import type { Config } from '@shared/configSchema'
+import type { BuddyProvider } from '@shared/buddy/providers'
+import { plainErrorMessage } from '@shared/ipcErrors'
 
+/**
+ * Re-throw with the message the main process actually wrote. Main throws plain,
+ * caregiver-readable sentences on purpose (see libraryIpc.ts), and Electron's
+ * "Error invoking remote method '...':" wrapper would otherwise bury them.
+ */
 function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<IpcResponse<C>> {
-  return ipcRenderer.invoke(channel, req)
+  return ipcRenderer.invoke(channel, req).catch((error: unknown) => {
+    throw new Error(plainErrorMessage(error))
+  })
 }
 
 const adminApi = {
   saveBackup: () => invoke('backup:save'),
   restoreBackup: () => invoke('backup:restore'),
+  listPhotos: () => invoke('photos:listAll'),
+  importPhotos: () => invoke('photos:import'),
+  updatePhoto: (request: IpcRequest<'photos:update'>) => invoke('photos:update', request),
+  removePhoto: (id: string) => invoke('photos:remove', { id }),
+  onPhotoImportProgress: (
+    cb: (count: IpcEvents['photos:importProgress']) => void
+  ): (() => void) => {
+    const listener = (_event: unknown, count: IpcEvents['photos:importProgress']): void => cb(count)
+    ipcRenderer.on('photos:importProgress', listener)
+    return () => ipcRenderer.removeListener('photos:importProgress', listener)
+  },
   listLibrary: (request: IpcRequest<'library:list'>) => invoke('library:list', request),
   importLibrary: (request: IpcRequest<'library:import'>) => invoke('library:import', request),
   updateLibrary: (request: IpcRequest<'library:update'>) => invoke('library:update', request),
@@ -22,8 +42,9 @@ const adminApi = {
   unlock: (pin: string) => invoke('admin:unlock', { pin }),
   lock: () => invoke('admin:lock'),
   isUnlocked: () => invoke('admin:isUnlocked'),
-  hasApiKey: () => invoke('admin:hasApiKey'),
-  setApiKey: (apiKey: string) => invoke('admin:setApiKey', { apiKey }),
+  hasApiKey: (provider: BuddyProvider) => invoke('admin:hasApiKey', { provider }),
+  setApiKey: (provider: BuddyProvider, apiKey: string) =>
+    invoke('admin:setApiKey', { provider, apiKey }),
   /** "Try this voice": same synthesis Buddy uses, so what the caregiver hears is what she'll hear. */
   previewVoice: (text: string, voice: string) => invoke('buddy:speak', { text, voice }),
   previewOldLauncherImport: () => invoke('admin:previewOldLauncherImport'),

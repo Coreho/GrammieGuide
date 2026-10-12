@@ -68,7 +68,7 @@ test('admin: API key is write-only and survives saving other Buddy settings', as
   await expect(admin.getByText('A key is set.')).toBeVisible({ timeout: 5_000 })
 
   // Saving an unrelated Buddy setting must not wipe the key (mergeAdminPatch).
-  await admin.locator('select').first().selectOption('claude-sonnet-5')
+  await admin.getByLabel('Model', { exact: true }).selectOption('claude-sonnet-5')
   await admin.getByRole('button', { name: 'Weather' }).click()
   await admin.getByRole('button', { name: 'Buddy' }).click()
   await expect(admin.getByText('A key is set.')).toBeVisible({ timeout: 5_000 })

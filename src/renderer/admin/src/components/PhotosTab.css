@@ -1,0 +1,77 @@
+.photos-tab {
+  max-width: 1100px;
+  color: #1f2d3d;
+}
+.photos-tab p {
+  max-width: 72ch;
+  line-height: 1.5;
+}
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 24px;
+  padding: 0;
+  list-style: none;
+}
+.photo-editor {
+  min-width: 0;
+  border: 1px solid #a6afb8;
+  padding: 16px;
+}
+.photo-editor img {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  background: #f1f3f5;
+}
+.photo-editor fieldset {
+  border: 0;
+  padding: 0;
+  margin: 16px 0 0;
+  min-width: 0;
+}
+.photo-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.photo-editor textarea {
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+.photo-editor input[type='number'] {
+  width: 90px;
+  padding: 6px;
+  font: inherit;
+}
+.photo-editor .photo-visibility {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-slideshow-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.photos-tab button {
+  padding: 8px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.photos-tab button:disabled {
+  cursor: default;
+}
+.photos-tab :focus-visible {
+  outline: 2px solid #3a5f8a;
+  outline-offset: 3px;
+}

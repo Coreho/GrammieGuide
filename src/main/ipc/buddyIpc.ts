@@ -2,7 +2,7 @@ import { ipcMain } from 'electron'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import { getConfig } from '../config/store'
 import { buddyChat } from '../services/ai/buddyChatService'
-import { getAnthropicClient } from '../services/ai/anthropicClient'
+import { getBuddyChatClient } from '../services/ai/buddyChatClient'
 import { logActivity } from '../services/activityLog/activityLog'
 import { createTtsService } from '../services/speech/ttsService'
 import { listenOnce, canListen } from '../services/speech/sttService'
@@ -26,12 +26,16 @@ export function registerBuddyIpc(): void {
     return { ok: true }
   })
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
-    const { anthropicApiKey, model, chatEnabled } = getConfig().buddy
+    const { provider, anthropicApiKey, openrouterApiKey, model, chatEnabled } = getConfig().buddy
+    // Each provider keeps its own key, so switching back and forth never needs
+    // one to be re-entered.
+    const apiKey = provider === 'openrouter' ? openrouterApiKey : anthropicApiKey
     const result = await buddyChat(Array.isArray(req?.turns) ? req.turns : [], {
       chatEnabled,
-      apiKey: anthropicApiKey,
+      apiKey,
+      provider,
       model,
-      client: chatEnabled && anthropicApiKey ? getAnthropicClient(anthropicApiKey) : null,
+      client: chatEnabled && apiKey ? getBuddyChatClient(provider, apiKey) : null,
       log: logActivity
     })
     // Log that a conversation happened, never what was said - the activity

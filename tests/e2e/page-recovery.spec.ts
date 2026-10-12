@@ -82,8 +82,20 @@ function pageShowing(): Promise<boolean | null> {
 const navHome = (): ReturnType<Page['getByRole']> =>
   page.getByRole('button', { name: '🏠 Home', exact: true }).first()
 let navHomeBox: { x: number; y: number } | null = null
+type FailureProbe = { __recoveryFailure: string | null }
 
 test('a page that cannot be reached gets a calm screen, never an error code', async () => {
+  await app.evaluate(({ app }, target) => {
+    const probe = globalThis as unknown as FailureProbe
+    probe.__recoveryFailure = null
+    app.on('web-contents-created', (_event, contents) => {
+      contents.on('did-fail-load', (_event, _code, description, url, mainFrame) => {
+        if (mainFrame && url === target && description !== 'ERR_ABORTED') {
+          probe.__recoveryFailure ??= description
+        }
+      })
+    })
+  }, site)
   await page.getByRole('button', { name: 'Garden club', exact: true }).click()
   const screen = page.getByRole('alert', { name: "This page won't open right now." })
   await expect(screen).toBeVisible({ timeout: 15_000 })
@@ -96,7 +108,11 @@ test('a page that cannot be reached gets a calm screen, never an error code', as
   // The caregiver sees which site failed and why, not the full address.
   const log = await admin.evaluate(() => window.admin.getActivityLog())
   const failure = log.find((e) => e.type === 'browser-load-failed')
-  expect(failure?.detail).toBe('127.0.0.1: ERR_CONNECTION_REFUSED')
+  // Windows can report a network change before the closed port refuses the
+  // connection. Check the exact error Chromium emitted, not one assumed cause.
+  const actual = await app.evaluate(() => (globalThis as unknown as FailureProbe).__recoveryFailure)
+  expect(actual).toMatch(/^ERR_[A-Z_]+$/)
+  expect(failure?.detail).toBe(`127.0.0.1: ${actual}`)
   const box = await navHome().boundingBox()
   navHomeBox = { x: box!.x, y: box!.y }
 })
