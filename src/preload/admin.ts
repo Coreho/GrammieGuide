@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { IpcChannel, IpcRequest, IpcResponse } from '@shared/ipcContract'
+import type { IpcChannel, IpcRequest, IpcResponse, IpcEvents } from '@shared/ipcContract'
 import type { Config } from '@shared/configSchema'
 import type { BuddyProvider } from '@shared/buddy/providers'
 import { plainErrorMessage } from '@shared/ipcErrors'
@@ -16,6 +16,17 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  listPhotos: () => invoke('photos:listAll'),
+  importPhotos: () => invoke('photos:import'),
+  updatePhoto: (request: IpcRequest<'photos:update'>) => invoke('photos:update', request),
+  removePhoto: (id: string) => invoke('photos:remove', { id }),
+  onPhotoImportProgress: (
+    cb: (count: IpcEvents['photos:importProgress']) => void
+  ): (() => void) => {
+    const listener = (_event: unknown, count: IpcEvents['photos:importProgress']): void => cb(count)
+    ipcRenderer.on('photos:importProgress', listener)
+    return () => ipcRenderer.removeListener('photos:importProgress', listener)
+  },
   listLibrary: (request: IpcRequest<'library:list'>) => invoke('library:list', request),
   importLibrary: (request: IpcRequest<'library:import'>) => invoke('library:import', request),
   updateLibrary: (request: IpcRequest<'library:update'>) => invoke('library:update', request),

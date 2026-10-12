@@ -19,6 +19,7 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 }
 
 const launcherApi = {
+  listPhotos: () => invoke('photos:listVisible'),
   openAppTile: (id: string) => invoke('tile:openApp', { id }),
   onBuddyCommand: (cb: (command: IpcEvents['buddy:command']) => void) => on('buddy:command', cb),
   getNews: (tileId: string) => invoke('news:get', { tileId }),
