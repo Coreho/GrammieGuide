@@ -90,7 +90,8 @@ test('caregiver adds a wide News tile; she previews stories and opens one', asyn
   await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
 
   const tile = page.getByRole('button', { name: 'News', exact: true })
-  await expect(tile).toHaveCSS('grid-column-start', 'span 2')
+  await expect(tile).toHaveCSS('grid-column-start', '1')
+  await expect(tile).toHaveCSS('grid-column-end', 'span 2')
   await tile.click()
   const news = page.getByRole('dialog', { name: 'News' })
   await expect(news.getByRole('button', { name: /Library opens a reading garden/ })).toBeVisible()

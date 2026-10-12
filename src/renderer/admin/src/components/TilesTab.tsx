@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { httpUrl } from '@shared/news/httpUrl'
 import { DEFAULT_NEWS_FEED, DEFAULT_NEWS_SITE } from '@shared/news/types'
-import { BUILTIN_TILE_KEYS, type Tile } from '@shared/configSchema'
+import { BUILTIN_TILE_KEYS, type Config, type Tile } from '@shared/configSchema'
 import type { OldLauncherImportPreview } from '@shared/ipcContract'
 import { nextTileColor, TILE_COLOR_INDICES } from '@shared/tileColors'
 import { THEMES } from '@shared/theme'
+import {
+  HOME_LAYOUT_NAMES,
+  HOME_LAYOUTS,
+  availableSlots,
+  placeTilesInOrder,
+  slotDescription,
+  slotsForSize,
+  type HomeLayoutName
+} from '@shared/homeLayout'
 import { useConfigStore } from '../state/useConfigStore'
 
 const ICONS = ['🌐', '🌤️', '📷', '🎵', '🎲', '📰', '📺', '💌', '👪', '🌷', '📚', '💻']
@@ -15,7 +24,8 @@ const emptyDraft = (): TileDraft => ({
   label: '',
   url: '',
   icon: '🌐',
-  size: 'normal'
+  size: 'normal',
+  slot: null
 })
 
 /** One draft at a time, so Home changes only when the caregiver saves it. */
@@ -34,17 +44,25 @@ export function TilesTab() {
 
   const colorIndex = draft.colorIndex ?? nextTileColor(config.tiles)
   const palette = THEMES[config.display.theme]
+  const layoutName = config.display.homeLayout
+  const layout = HOME_LAYOUTS[layoutName]
+  const draftAvailableSlots = availableSlots(
+    layoutName,
+    config.tiles,
+    draft.size,
+    editing ? draft.id : undefined
+  )
 
   const flashSaved = (): void => {
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
   }
 
-  const persist = async (tiles: Tile[]): Promise<boolean> => {
+  const persist = async (patch: Partial<Config>): Promise<boolean> => {
     setBusy(true)
     setError('')
     try {
-      await save({ tiles })
+      await save(patch)
       flashSaved()
       return true
     } catch {
@@ -55,10 +73,43 @@ export function TilesTab() {
     }
   }
 
+  const changeLayout = async (homeLayout: HomeLayoutName): Promise<void> => {
+    const ordered = [...config.tiles].sort(
+      (a, b) => (a.slot ?? Number.MAX_SAFE_INTEGER) - (b.slot ?? Number.MAX_SAFE_INTEGER)
+    )
+    const tiles = placeTilesInOrder(homeLayout, ordered)
+    if (
+      await persist({
+        display: { ...config.display, homeLayout },
+        tiles
+      })
+    ) {
+      setDraft(emptyDraft())
+      setEditing(false)
+    }
+  }
+
   const saveTile = async (): Promise<void> => {
-    const tile: Tile = { ...draft, colorIndex, label: draft.label.trim() }
+    const tile: Tile = { ...draft, colorIndex, label: draft.label.trim(), slot: draft.slot ?? null }
     if (!tile.label) {
       setError('Enter a label.')
+      return
+    }
+    if (tile.label.length > layout.labelMax) {
+      setError(
+        `${layout.label} labels can be at most ${layout.labelMax} characters so they stay readable at every text size.`
+      )
+      return
+    }
+    if (tile.slot === null && !editing) tile.slot = draftAvailableSlots[0] ?? null
+    if (tile.slot === null && !editing) {
+      setError(
+        `There is no ${tile.size === 'wide' ? 'two-space opening' : 'open space'} in ${layout.label}. Remove a tile, choose a larger layout, or change a wide tile to normal.`
+      )
+      return
+    }
+    if (tile.slot !== null && !draftAvailableSlots.includes(tile.slot)) {
+      setError('That position is not available. Choose another Home position.')
       return
     }
     const isNews = tile.type === 'builtin' && tile.builtinKey === 'news'
@@ -97,27 +148,19 @@ export function TilesTab() {
     const tiles = editing
       ? config.tiles.map((t) => (t.id === tile.id ? tile : t))
       : [...config.tiles, tile]
-    if (await persist(tiles)) {
+    if (await persist({ tiles })) {
       setDraft(emptyDraft())
       setEditing(false)
     }
   }
 
   const removeTile = async (id: string): Promise<void> => {
-    if (await persist(config.tiles.filter((t) => t.id !== id))) {
+    if (await persist({ tiles: config.tiles.filter((t) => t.id !== id) })) {
       if (draft.id === id) {
         setDraft(emptyDraft())
         setEditing(false)
       }
     }
-  }
-
-  const move = async (index: number, direction: number): Promise<void> => {
-    const tiles = [...config.tiles]
-    const next = index + direction
-    if (next < 0 || next >= tiles.length) return
-    ;[tiles[index], tiles[next]] = [tiles[next]!, tiles[index]!]
-    await persist(tiles)
   }
 
   const previewImport = async (): Promise<void> => {
@@ -136,6 +179,35 @@ export function TilesTab() {
   return (
     <div>
       <h2>Home Screen Tiles</h2>
+
+      <section aria-labelledby="home-layout-heading">
+        <h3 id="home-layout-heading">Home layout</h3>
+        <p style={{ fontSize: '.9rem', color: '#555' }}>
+          Positions are permanent. Removing a tile leaves a hole, so her other choices do not move.
+          Wide tiles use two neighboring spaces in the same row.
+        </p>
+        <label>
+          Layout{' '}
+          <select
+            value={layoutName}
+            disabled={busy}
+            onChange={(event) => void changeLayout(event.target.value as HomeLayoutName)}
+          >
+            {HOME_LAYOUT_NAMES.map((name) => {
+              const choice = HOME_LAYOUTS[name]
+              return (
+                <option key={name} value={name}>
+                  {choice.label} — {choice.capacity} spaces
+                </option>
+              )
+            })}
+          </select>
+        </label>
+        <p>
+          <strong>{layout.label}:</strong> {layout.description} Use labels up to {layout.labelMax}{' '}
+          characters. A wide tile uses {slotsForSize('wide')} spaces.
+        </p>
+      </section>
 
       <h3>Moving from Grandma&apos;s Launcher?</h3>
       <p style={{ fontSize: '.85rem', color: '#666' }}>
@@ -179,7 +251,7 @@ export function TilesTab() {
       )}
       {error && <p role="alert">{error}</p>}
       <ol aria-label="Configured tiles" style={{ paddingLeft: 28 }}>
-        {config.tiles.map((tile, index) => (
+        {config.tiles.map((tile) => (
           <li
             key={tile.id}
             style={{ padding: 12, marginBottom: 8, border: '1px solid #ccc', borderRadius: 12 }}
@@ -189,10 +261,20 @@ export function TilesTab() {
             </strong>
             <div style={{ fontSize: '.85rem', margin: '6px 0', overflowWrap: 'anywhere' }}>
               {tile.type} · {tile.size}
+              {tile.slot === null
+                ? ' · Not shown on Home (overflow)'
+                : ` · ${slotDescription(layoutName, tile.slot)}`}
               {tile.url ? ` · ${tile.url}` : ''}
               {tile.feedUrl ? ` · Feed: ${tile.feedUrl}` : ''}
               {tile.appPath ? ` · ${tile.appPath}` : ''}
             </div>
+            {/* Switching to a denser layout lowers the limit under labels saved earlier. */}
+            {tile.label.length > layout.labelMax && (
+              <p style={{ fontSize: '.85rem', margin: '0 0 6px', color: '#9a3412' }}>
+                This label is {tile.label.length} characters; {layout.label} fits {layout.labelMax}.
+                Shorten it so it stays readable at every text size.
+              </p>
+            )}
             <button
               disabled={busy}
               aria-label={`Edit ${tile.label}`}
@@ -203,20 +285,6 @@ export function TilesTab() {
               }}
             >
               Edit
-            </button>{' '}
-            <button
-              disabled={busy || index === 0}
-              aria-label={`Move ${tile.label} up`}
-              onClick={() => void move(index, -1)}
-            >
-              ↑ Move up
-            </button>{' '}
-            <button
-              disabled={busy || index === config.tiles.length - 1}
-              aria-label={`Move ${tile.label} down`}
-              onClick={() => void move(index, 1)}
-            >
-              ↓ Move down
             </button>{' '}
             <button
               disabled={busy}
@@ -245,7 +313,7 @@ export function TilesTab() {
             Tile label{' '}
             <input
               required
-              maxLength={80}
+              maxLength={layout.labelMax}
               placeholder="Label (e.g. Weather Channel)"
               value={draft.label}
               onChange={(e) => setDraft({ ...draft, label: e.target.value })}
@@ -370,12 +438,57 @@ export function TilesTab() {
             Tile size{' '}
             <select
               value={draft.size}
-              onChange={(e) => setDraft({ ...draft, size: e.target.value as Tile['size'] })}
+              onChange={(e) => {
+                const size = e.target.value as Tile['size']
+                const choices = availableSlots(
+                  layoutName,
+                  config.tiles,
+                  size,
+                  editing ? draft.id : undefined
+                )
+                setDraft({
+                  ...draft,
+                  size,
+                  slot: draft.slot !== null && choices.includes(draft.slot) ? draft.slot : null
+                })
+              }}
             >
               <option value="normal">Normal</option>
               <option value="wide">Wide (two columns)</option>
             </select>
           </label>
+          <label>
+            Home position{' '}
+            <select
+              value={
+                draft.slot === null
+                  ? editing
+                    ? ''
+                    : String(draftAvailableSlots[0] ?? '')
+                  : String(draft.slot)
+              }
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  slot: event.target.value === '' ? null : Number(event.target.value)
+                })
+              }
+            >
+              {editing && <option value="">Not shown on Home (keep as overflow)</option>}
+              {draftAvailableSlots.map((slot) => (
+                <option key={slot} value={slot}>
+                  {slotDescription(layoutName, slot)}
+                  {draft.size === 'wide' ? ' (uses two spaces)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {draftAvailableSlots.length === 0 && !editing && (
+            <p role="alert">
+              This layout has no opening for a {draft.size} tile. Choose a larger layout, remove a
+              tile, or use a normal-size tile.
+            </p>
+          )}
           <div
             role="group"
             aria-label="Choose an icon"

@@ -277,6 +277,7 @@ export default function App() {
             date={date}
             weather={weather}
             tiles={config.tiles}
+            layout={config.display.homeLayout}
             onActivateTile={activateTile}
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return

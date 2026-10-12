@@ -10,11 +10,15 @@ function TileIcon({ tile }: { tile: TileType }) {
 
 export function Tile({
   tile,
+  slot,
+  columns,
   compact = false,
   dense = false,
   onActivate
 }: {
   tile: TileType
+  slot: number
+  columns: number
   /** Icon beside the label instead of above it - used when tiles share the height across rows. */
   compact?: boolean
   /** Label only, no icon - for the narrowest (4-column, multi-row) layout. */
@@ -37,10 +41,14 @@ export function Tile({
     <button
       onClick={() => onActivate(tile)}
       aria-label={tile.label}
+      data-tile-slot={slot}
       style={{
         minWidth: 0,
-        minHeight: compact ? 150 : 220,
-        gridColumn: tile.size === 'wide' ? 'span 2' : undefined,
+        minHeight: 0,
+        height: '100%',
+        overflow: 'hidden',
+        gridColumn: `${(slot % columns) + 1} / span ${tile.size === 'wide' ? 2 : 1}`,
+        gridRow: Math.floor(slot / columns) + 1,
         display: 'flex',
         flexDirection: compact ? 'row' : 'column',
         alignItems: 'center',
@@ -53,18 +61,15 @@ export function Tile({
         color: tileInk(tile.colorIndex),
         background: tileBackground(tile.colorIndex),
         boxShadow: TILE_SHADOW,
-        transition: 'transform .12s, box-shadow .12s'
+        transition: 'translate .14s, scale .14s, box-shadow .12s'
       }}
       onPointerDown={(e) => {
-        e.currentTarget.style.transform = 'translateY(3px) scale(.985)'
         e.currentTarget.style.boxShadow = TILE_SHADOW_ACTIVE
       }}
       onPointerUp={(e) => {
-        e.currentTarget.style.transform = ''
         e.currentTarget.style.boxShadow = TILE_SHADOW
       }}
       onPointerLeave={(e) => {
-        e.currentTarget.style.transform = ''
         e.currentTarget.style.boxShadow = TILE_SHADOW
       }}
     >
@@ -87,7 +92,7 @@ export function Tile({
       )}
       <div
         style={{
-          fontSize: 'calc(34px * var(--font-scale, 1))',
+          fontSize: `calc(${dense ? 29 : 34}px * var(--font-scale, 1))`,
           fontWeight: 700,
           textAlign: compact && !dense ? 'left' : 'center',
           lineHeight: 1.1,

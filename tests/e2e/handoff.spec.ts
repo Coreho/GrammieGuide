@@ -64,12 +64,29 @@ test('commands require admin unlock and reject invalid clips', async () => {
   expect(invalid.ok).toBe(false)
 })
 
-test('caregiver adds, edits, reorders and removes tiles; web tile opens a local site', async () => {
+test('caregiver assigns permanent tile positions and removes a tile without compacting Home', async () => {
   await admin.getByLabel('Tile label').fill('Family')
   await admin.getByLabel('Website address').fill(url)
   await admin.getByRole('button', { name: 'Icon 👪', exact: true }).click()
   await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Family', exact: true })).toBeVisible()
+  const family = page.getByRole('button', { name: 'Family', exact: true })
+  await expect(family).toBeVisible()
+  await family.hover()
+  await expect
+    .poll(() => family.evaluate((button) => getComputedStyle(button).translate))
+    .toBe('0px -3px')
+  await page.mouse.down()
+  await expect.poll(() => family.evaluate((button) => getComputedStyle(button).scale)).toBe('0.985')
+  await page.mouse.move(0, 0)
+  await page.mouse.up()
+  await admin.getByRole('button', { name: /Import settings/ }).hover()
+  await expect
+    .poll(() =>
+      admin
+        .getByRole('button', { name: /Import settings/ })
+        .evaluate((button) => getComputedStyle(button).translate)
+    )
+    .toBe('0px -3px')
   await admin.getByLabel('Tile label').fill('Weather')
   await admin.getByLabel('Tile type').selectOption('builtin')
   await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
@@ -77,17 +94,26 @@ test('caregiver adds, edits, reorders and removes tiles; web tile opens a local 
   await admin.getByRole('button', { name: 'Edit Family', exact: true }).click()
   await admin.getByLabel('Tile label').fill('Family photos')
   await admin.getByLabel('Tile size').selectOption('wide')
+  await admin.getByLabel('Home position').selectOption('2')
   await admin.getByRole('button', { name: 'Save tile', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Family photos', exact: true })).toBeVisible()
-  await admin.getByRole('button', { name: 'Move Weather up', exact: true }).click()
   await expect
     .poll(() =>
-      page.evaluate(() => window.launcher.getConfig().then((c) => c.tiles.map((t) => t.label)))
+      page.evaluate(() =>
+        window.launcher
+          .getConfig()
+          .then((c) => c.tiles.map((t) => ({ label: t.label, slot: t.slot })))
+      )
     )
-    .toEqual(['Weather', 'Family photos'])
+    .toEqual([
+      { label: 'Family photos', slot: 2 },
+      { label: 'Weather', slot: 1 }
+    ])
   await page.reload()
   const tile = page.getByRole('button', { name: 'Family photos', exact: true })
-  await expect(tile).toHaveCSS('grid-column-start', 'span 2')
+  await expect(tile).toHaveAttribute('data-tile-slot', '2')
+  await expect(tile).toHaveCSS('grid-column-start', '1')
+  await expect(tile).toHaveCSS('grid-column-end', 'span 2')
   await tile.click()
   await expect(page.getByRole('button', { name: '🏠 Home' })).toBeVisible()
   await page.getByRole('button', { name: '🏠 Home' }).focus()
@@ -105,6 +131,10 @@ test('caregiver adds, edits, reorders and removes tiles; web tile opens a local 
   await page.mouse.click(10, 10)
   await admin.getByRole('button', { name: 'Remove Weather', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Weather', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Family photos', exact: true })).toHaveAttribute(
+    'data-tile-slot',
+    '2'
+  )
 })
 
 test('Home menu uses the shortcut, restores focus, and performs commands', async () => {
@@ -291,64 +321,64 @@ test('caregiver commands and quick messages persist without logging their conten
   await expect(admin.getByText('No saved messages yet.')).toBeVisible()
 })
 
-test('5–8 tiles retain complete labels and the 150px footer at the largest text size', async () => {
-  for (const count of [5, 6, 7, 8]) {
-    await admin.evaluate(
-      async ({ count, url }) => {
-        const config = await window.admin.getConfig()
-        await window.admin.setConfig({
-          display: { ...config.display, fontStep: 4 },
-          tiles: Array.from({ length: count }, (_, i) => ({
-            id: `layout-${i}`,
-            type: 'web',
-            size: i === 0 ? 'wide' : 'normal',
-            label:
-              i === 0
-                ? 'Family photos and happy memories together'
-                : [
-                    'Local weather',
-                    'Favorite music',
-                    'Word games',
-                    'Daily news',
-                    'Family videos',
-                    'Garden photos',
-                    'Favorite books'
-                  ][i - 1]!,
-            icon: '🌷',
-            url
-          }))
-        })
-      },
-      { count, url }
-    )
-    // Admin's Display setting is the only way to change text size; Home follows it live.
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          getComputedStyle(document.documentElement).getPropertyValue('--font-scale').trim()
-        )
+test('both fixed layouts stay on one screen at every text size', async () => {
+  for (const homeLayout of ['simple4', 'more8'] as const) {
+    for (let fontStep = 0; fontStep < 5; fontStep += 1) {
+      const count = homeLayout === 'simple4' ? 4 : 8
+      await admin.evaluate(
+        async ({ count, fontStep, homeLayout, url }) => {
+          const config = await window.admin.getConfig()
+          await window.admin.setConfig({
+            display: { ...config.display, fontStep, homeLayout },
+            tiles: Array.from({ length: count }, (_, i) => ({
+              id: `layout-${i}`,
+              type: 'web',
+              size: 'normal',
+              slot: i,
+              label: [
+                'Family photos',
+                'Local weather',
+                'Favorite music',
+                'Word games',
+                'Daily news',
+                'Family videos',
+                'Garden photos',
+                'Favorite books'
+              ][i]!,
+              icon: '🌷',
+              url
+            }))
+          })
+        },
+        { count, fontStep, homeLayout, url }
       )
-      .toBe('1.6')
-    const grid = page.getByRole('main', { name: 'Home tiles' })
-    await expect(grid.getByRole('button')).toHaveCount(count)
-    const layout = await grid.evaluate((el) => {
-      const buttons = Array.from(el.querySelectorAll('button'))
-      return {
-        footerHeight: document.querySelector('footer')!.offsetHeight,
-        floorWidth: (document.querySelector('[data-buddy-floor]') as HTMLElement).offsetWidth,
-        tiles: buttons.map((button) => ({
-          height: button.offsetHeight,
-          unclipped: button.scrollHeight <= button.clientHeight + 1,
-          clamp: getComputedStyle(button.lastElementChild!).webkitLineClamp
-        }))
+      const grid = page.getByRole('main', { name: 'Home tiles' })
+      await expect(grid.getByRole('button')).toHaveCount(count)
+      const layout = await grid.evaluate((el) => {
+        const buttons = Array.from(el.querySelectorAll('button'))
+        return {
+          footerHeight: document.querySelector('footer')!.offsetHeight,
+          floorWidth: (document.querySelector('[data-buddy-floor]') as HTMLElement).offsetWidth,
+          noScroll: el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1,
+          contactReserved: Boolean(document.querySelector('[data-home-contact-slot]')),
+          nowPlayingReserved: Boolean(document.querySelector('[data-home-now-playing-slot]')),
+          tiles: buttons.map((button) => ({
+            unclipped: button.scrollHeight <= button.clientHeight + 1,
+            insideGrid:
+              button.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 1 &&
+              button.getBoundingClientRect().right <= el.getBoundingClientRect().right + 1
+          }))
+        }
+      })
+      expect(layout.footerHeight).toBe(150)
+      expect(layout.floorWidth).toBe(1440)
+      expect(layout.noScroll).toBe(true)
+      expect(layout.contactReserved).toBe(true)
+      expect(layout.nowPlayingReserved).toBe(true)
+      for (const tile of layout.tiles) {
+        expect(tile.unclipped).toBe(true)
+        expect(tile.insideGrid).toBe(true)
       }
-    })
-    expect(layout.footerHeight).toBe(150)
-    expect(layout.floorWidth).toBe(1440)
-    for (const tile of layout.tiles) {
-      expect(tile.height).toBeGreaterThanOrEqual(150)
-      expect(tile.unclipped).toBe(true)
-      expect(tile.clamp).toBe('none')
     }
   }
   await page.screenshot({ path: 'test-results/handoff-eight-tiles.png' })
