@@ -5,6 +5,8 @@ import type { BuddyProvider } from './buddy/providers'
 import type { PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
 import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
+import type { MusicTrack, MusicImportResult, MusicImportProgress } from './music/musicTypes'
+import type { MusicSettings } from './music/musicSchema'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -91,6 +93,10 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'music:list': { request: void; response: { tracks: MusicTrack[]; settings: MusicSettings } }
+  'music:importFiles': { request: void; response: MusicImportResult }
+  'music:saveSettings': { request: MusicSettings; response: MusicSettings }
+  'music:removeTrack': { request: { id: string }; response: boolean }
   'backup:save': {
     request: void
     response: { ok: true } | { ok: false; canceled: true } | { ok: false; message: string }
@@ -183,6 +189,7 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'music:importProgress': MusicImportProgress
   'photos:changed': Record<string, never>
   'photos:importProgress': PhotoImportProgress
   'buddy:command': BuddyCommand

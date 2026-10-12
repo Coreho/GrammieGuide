@@ -16,6 +16,16 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  getMusicLibrary: () => invoke('music:list'),
+  importMusic: () => invoke('music:importFiles'),
+  saveMusicSettings: (settings: IpcRequest<'music:saveSettings'>) =>
+    invoke('music:saveSettings', settings),
+  removeMusicTrack: (id: string) => invoke('music:removeTrack', { id }),
+  onMusicImportProgress: (cb: (count: IpcEvents['music:importProgress']) => void): (() => void) => {
+    const listener = (_event: unknown, count: IpcEvents['music:importProgress']): void => cb(count)
+    ipcRenderer.on('music:importProgress', listener)
+    return () => ipcRenderer.removeListener('music:importProgress', listener)
+  },
   saveBackup: () => invoke('backup:save'),
   restoreBackup: () => invoke('backup:restore'),
   onPhotosChanged: (cb: () => void): (() => void) => {

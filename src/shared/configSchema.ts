@@ -4,13 +4,14 @@ import { TILE_COLOR_COUNT } from './tileColors'
 import { quickMessageSchema } from './buddy/commands'
 import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
 import { HOME_LAYOUT_NAMES } from './homeLayout'
+import { musicSettingsSchema } from './music/musicSchema'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 10
+export const CURRENT_SCHEMA_VERSION = 11
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos'] as const
@@ -116,6 +117,11 @@ export const configSchema = z.object({
   photos: z
     .object({ slideshowEnabled: z.boolean().default(false) })
     .default({ slideshowEnabled: false }),
+  music: musicSettingsSchema.default({
+    playlists: [],
+    autoStopMinutes: 90,
+    showNowPlayingChip: true
+  }),
   display: displayConfigSchema,
   reliability: reliabilityConfigSchema
 })

@@ -8,6 +8,7 @@ import { registerBuddyIpc } from './buddyIpc'
 import { registerNewsIpc } from './newsIpc'
 import { registerTileIpc } from './tileIpc'
 import { registerLibraryIpc } from './libraryIpc'
+import { registerMusicIpc } from './musicIpc'
 import { registerBackupIpc } from './backupIpc'
 
 /**
@@ -25,6 +26,6 @@ export function registerAllIpc(): void {
   registerBuddyIpc()
   registerTileIpc()
   registerNewsIpc()
-  registerLibraryIpc()
+  registerMusicIpc(registerLibraryIpc())
   registerBackupIpc()
 }

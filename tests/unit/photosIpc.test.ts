@@ -23,6 +23,7 @@ vi.mock('electron', () => ({
   nativeImage: { createFromPath: mocks.decode }
 }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.getConfig }))
+vi.mock('../../src/main/services/music/musicSettings', () => ({ removeTrackReferences: vi.fn() }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlock }))
 vi.mock('../../src/main/services/activityLog/activityLog', () => ({
   logActivity: mocks.logActivity

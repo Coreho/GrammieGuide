@@ -10,6 +10,7 @@ import { BuddyTab } from './components/BuddyTab'
 import { ActivityTab } from './components/ActivityTab'
 import { ReliabilityTab } from './components/ReliabilityTab'
 import { PhotosTab } from './components/PhotosTab'
+import { MusicTab } from './components/MusicTab'
 import { useConfigStore } from './state/useConfigStore'
 
 declare global {
@@ -20,7 +21,15 @@ declare global {
 
 type Stage = 'loading' | 'setup' | 'locked' | 'unlocked'
 type Tab =
-  'tiles' | 'photos' | 'display' | 'weather' | 'buddy' | 'confusion' | 'activity' | 'reliability'
+  | 'tiles'
+  | 'photos'
+  | 'music'
+  | 'display'
+  | 'weather'
+  | 'buddy'
+  | 'confusion'
+  | 'activity'
+  | 'reliability'
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('loading')
@@ -47,6 +56,7 @@ export default function App() {
           [
             'tiles',
             'photos',
+            'music',
             'display',
             'weather',
             'buddy',
@@ -87,6 +97,7 @@ export default function App() {
       <main style={{ flex: 1, padding: 24 }}>
         {tab === 'tiles' && <TilesTab />}
         {tab === 'photos' && <PhotosTab />}
+        {tab === 'music' && <MusicTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'weather' && <WeatherTab />}
         {tab === 'buddy' && <BuddyTab />}
