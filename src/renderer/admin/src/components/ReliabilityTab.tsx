@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AdminApi } from '../../../../preload/admin'
 import type { ReliabilityEvent } from '@shared/ipcContract'
+import { BackupSection } from './BackupSection'
 
 declare global {
   interface Window {
@@ -45,6 +46,7 @@ export function ReliabilityTab() {
           </li>
         ))}
       </ul>
+      <BackupSection />
     </div>
   )
 }
