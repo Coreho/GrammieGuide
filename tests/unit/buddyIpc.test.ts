@@ -5,7 +5,9 @@ const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
   getConfig: vi.fn(),
   getClient: vi.fn(),
-  create: vi.fn()
+  create: vi.fn(),
+  sender: { id: 99 },
+  list: vi.fn()
 }))
 vi.mock('electron', () => ({ ipcMain: { handle: mocks.handle } }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.getConfig }))
@@ -20,7 +22,9 @@ vi.mock('../../src/main/services/speech/sttService', () => ({
   listenOnce: vi.fn(),
   canListen: vi.fn()
 }))
-vi.mock('../../src/main/windows/windowManager', () => ({ getLauncherWindow: vi.fn() }))
+vi.mock('../../src/main/windows/windowManager', () => ({
+  getLauncherWindow: () => ({ webContents: mocks.sender })
+}))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: vi.fn() }))
 import { registerBuddyIpc } from '../../src/main/ipc/buddyIpc'
 
@@ -32,7 +36,21 @@ describe('buddy:chat', () => {
       content: [{ type: 'text', text: 'Hello!' }],
       stop_reason: 'end_turn'
     })
-    registerBuddyIpc()
+    registerBuddyIpc(() => ({ list: mocks.list }) as never)
+  })
+
+  it('rejects unknown senders, unsupported actions and disabled chat in main', async () => {
+    const config = defaultConfig()
+    mocks.getConfig.mockReturnValue(config)
+    const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:action')![1]
+    expect(await invoke({ sender: {} }, 'goHome')).toMatchObject({ ok: false })
+    expect(await invoke({ sender: mocks.sender }, 'deleteFiles')).toMatchObject({ ok: false })
+    expect(await invoke({ sender: mocks.sender }, 'goHome')).toEqual({
+      ok: true,
+      plan: { action: 'goHome' }
+    })
+    config.buddy.chatEnabled = false
+    expect(await invoke({ sender: mocks.sender }, 'goHome')).toMatchObject({ ok: false })
   })
 
   it('reads the live setting each turn and refuses chat before obtaining a client', async () => {
@@ -41,15 +59,18 @@ describe('buddy:chat', () => {
     mocks.getConfig.mockReturnValue(config)
     const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:chat')![1]
     const request = { turns: [{ role: 'user', text: 'Hello' }] }
-    expect(await invoke({}, request)).toEqual({ ok: true, reply: 'Hello!' })
+    expect(await invoke({ sender: mocks.sender }, request)).toEqual({ ok: true, reply: 'Hello!' })
     mocks.getClient.mockClear()
     mocks.create.mockClear()
     config.buddy.chatEnabled = false
-    expect(await invoke({}, request)).toMatchObject({ ok: false, reason: 'disabled' })
+    expect(await invoke({ sender: mocks.sender }, request)).toMatchObject({
+      ok: false,
+      reason: 'disabled'
+    })
     expect(mocks.getClient).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
     config.buddy.chatEnabled = true
-    expect(await invoke({}, request)).toEqual({ ok: true, reply: 'Hello!' })
+    expect(await invoke({ sender: mocks.sender }, request)).toEqual({ ok: true, reply: 'Hello!' })
     expect(mocks.create).toHaveBeenCalledTimes(1)
   })
 
@@ -63,7 +84,7 @@ describe('buddy:chat', () => {
     mocks.getConfig.mockReturnValue(config)
     const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:chat')![1]
 
-    await invoke({}, { turns: [{ role: 'user', text: 'Hello' }] })
+    await invoke({ sender: mocks.sender }, { turns: [{ role: 'user', text: 'Hello' }] })
     expect(mocks.getClient).toHaveBeenCalledWith('openrouter', 'openrouter-key')
     // And the request carries the routing pin that keeps her chat at Anthropic.
     expect(mocks.create).toHaveBeenCalledWith(
@@ -78,7 +99,7 @@ describe('buddy:chat', () => {
     mocks.create.mockClear()
     config.buddy.provider = 'anthropic'
     config.buddy.model = 'claude-sonnet-5-5'
-    await invoke({}, { turns: [{ role: 'user', text: 'Hello' }] })
+    await invoke({ sender: mocks.sender }, { turns: [{ role: 'user', text: 'Hello' }] })
     expect(mocks.getClient).toHaveBeenCalledWith('anthropic', 'anthropic-key')
     expect(mocks.create.mock.calls[0]![0]).not.toHaveProperty('provider')
   })
@@ -91,7 +112,7 @@ describe('buddy:chat', () => {
     const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:chat')![1]
 
     expect(
-      await invoke({}, { turns: [{ role: 'user', text: 'Hello' }] })
+      await invoke({ sender: mocks.sender }, { turns: [{ role: 'user', text: 'Hello' }] })
     ).toMatchObject({ ok: false, reason: 'no-key' })
     expect(mocks.getClient).not.toHaveBeenCalled()
   })

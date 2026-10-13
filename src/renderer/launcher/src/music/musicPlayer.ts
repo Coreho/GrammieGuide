@@ -51,6 +51,8 @@ class MusicPlayer {
   private reported = false
   private ready = false
   private playAttempt = 0
+  private confirmedAttempt = -1
+  private intent = 0
 
   snapshot = (): MusicPlayerSnapshot => this.value
   subscribe = (listener: () => void): (() => void) => {
@@ -140,6 +142,7 @@ class MusicPlayer {
     }
   }
   async play(id: string): Promise<void> {
+    this.intent++
     const playlist = this.settings.playlists.find((list) => list.id === id)
     if (!playlist || this.unavailable.has(id)) return
     if (this.current?.id === id) {
@@ -169,6 +172,7 @@ class MusicPlayer {
     this.loadTrack()
   }
   async togglePause(): Promise<void> {
+    this.intent++
     if (!this.current) return
     const paused = audioSnapshot().decision.music === 'paused'
     try {
@@ -177,7 +181,37 @@ class MusicPlayer {
       this.stop()
     }
   }
+  /** Buddy confirms playback only after the actual media play promise succeeds. */
+  async playAndConfirm(id: string): Promise<boolean> {
+    const before = this.intent
+    await this.refresh()
+    // A delayed action must never undo her newer Stop, Pause or song choice.
+    if (before !== this.intent) return false
+    const start = this.play(id)
+    const mine = this.intent
+    return new Promise<boolean>((resolve) => {
+      let settled = false
+      const finish = (ok: boolean): void => {
+        if (settled) return
+        settled = true
+        window.clearTimeout(timer)
+        off()
+        resolve(ok)
+      }
+      const check = (): void => {
+        if (mine !== this.intent || this.current?.id !== id) finish(false)
+        else if (this.confirmedAttempt === this.playAttempt && !this.audio.paused) finish(true)
+      }
+      const off = this.subscribe(check)
+      const timer = window.setTimeout(() => {
+        finish(false)
+        if (mine === this.intent && this.current?.id === id) this.stop()
+      }, 10_000)
+      void start.then(check, () => finish(false))
+    })
+  }
   stop(event: 'stop' | 'autostop' = 'stop'): void {
+    this.intent++
     const id = this.current?.id
     this.generation++
     this.ready = false
@@ -198,6 +232,7 @@ class MusicPlayer {
     this.publish()
   }
   next(): void {
+    this.intent++
     if (!this.queue || !this.current) return
     const next = advanceMusicQueue(this.queue)
     if (!next) {
@@ -252,6 +287,7 @@ class MusicPlayer {
           () => {
             if (generation !== this.generation || attempt !== this.playAttempt || !this.current)
               return
+            this.confirmedAttempt = attempt
             if (this.queue) this.queue.failures = 0
             if (!this.reported) {
               this.reported = true
@@ -259,6 +295,7 @@ class MusicPlayer {
                 .reportMusic({ event: 'play', playlistId: this.current.id })
                 .catch(() => {})
             }
+            this.publish()
           },
           () => {
             if (generation === this.generation && attempt === this.playAttempt) this.failed()

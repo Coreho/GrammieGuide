@@ -4,6 +4,12 @@ import type { BuddyChatTurn } from '@shared/ipcContract'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
 import { speak, stopSpeaking } from './speech'
 import { holdAudio } from '../../../audio/audioBridge'
+import {
+  BUDDY_ACTION_LABELS,
+  ACTION_REPLIES,
+  type BuddyAction,
+  type BuddyActionPlan
+} from '@shared/buddy/actions'
 
 /**
  * Tap-to-greet chat with Buddy. Replies come from the main process
@@ -40,11 +46,13 @@ function silentTalkMs(text: string): number {
 export function BuddyChatPanel({
   onClose,
   onPhaseChange,
-  voiceEnabled
+  voiceEnabled,
+  onAction
 }: {
   onClose: () => void
   onPhaseChange: (phase: ChatPhase) => void
   voiceEnabled: boolean
+  onAction: (plan: BuddyActionPlan) => Promise<void>
 }) {
   const [messages, setMessages] = useState<Message[]>([{ from: 'buddy', text: GREETING }])
   const [draft, setDraft] = useState('')
@@ -124,13 +132,36 @@ export function BuddyChatPanel({
     setPhase('thinking')
     let reply: string
     try {
-      reply = (await window.launcher.buddyChat(toTurns(next))).reply
+      const result = await window.launcher.buddyChat(toTurns(next))
+      if (!open.current) return
+      if (result.ok && result.action) {
+        await onAction(result.action)
+        return
+      }
+      reply = result.reply
     } catch {
       reply = LINES.trouble
     }
     if (!open.current) return
     setWaiting(false)
     say(reply)
+  }
+
+  async function requestAction(action: BuddyAction): Promise<void> {
+    if (!open.current || waiting || hearing) return
+    stopSpeaking()
+    setWaiting(true)
+    setPhase('thinking')
+    try {
+      const result = await window.launcher.buddyAction(action)
+      if (!open.current) return
+      if (result.ok) await onAction(result.plan)
+      else say(result.reply)
+    } catch {
+      if (open.current) say(ACTION_REPLIES.unavailable)
+    } finally {
+      if (open.current) setWaiting(false)
+    }
   }
 
   async function listen(): Promise<void> {
@@ -289,6 +320,38 @@ export function BuddyChatPanel({
           )}
         </div>
 
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            padding: '12px 20px',
+            borderTop: '1px solid var(--s3,#E8E6E1)'
+          }}
+        >
+          {(Object.keys(BUDDY_ACTION_LABELS) as BuddyAction[]).map((action) => (
+            <button
+              key={action}
+              disabled={busy}
+              onClick={() => void requestAction(action)}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                minHeight: 80,
+                border: 'none',
+                borderRadius: 20,
+                padding: '12px 16px',
+                fontSize: bigText,
+                fontWeight: 700,
+                background: accent,
+                color: 'var(--ai,#1F5A45)',
+                cursor: 'pointer',
+                opacity: busy ? 0.6 : 1
+              }}
+            >
+              {BUDDY_ACTION_LABELS[action]}
+            </button>
+          ))}
+        </div>
         <div
           style={{
             display: 'flex',

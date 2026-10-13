@@ -1,4 +1,6 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
+import { stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import { getConfig } from '../config/store'
 import { buddyChat } from '../services/ai/buddyChatService'
@@ -9,13 +11,44 @@ import { listenOnce, canListen } from '../services/speech/sttService'
 import { buddyCommandSchema } from '@shared/buddy/commands'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { getLauncherWindow } from '../windows/windowManager'
+import {
+  buddyActionSchema,
+  ACTION_REPLIES,
+  type BuddyAction,
+  type BuddyActionResult
+} from '@shared/buddy/actions'
+import { resolveBuddyAction } from '../services/ai/buddyActions'
+import { libraryPaths } from '../services/media/libraryPaths'
+import type { MediaLibrary } from '@shared/media/mediaPath'
+import type { LibraryStore } from '../services/media/libraryStore'
 
 const tts = createTtsService()
 // The recognizer/mic check spawns PowerShell (~1s); the answer can't change
 // without a reboot-level hardware change, so ask once per run.
 let canListenOnce: Promise<boolean> | null = null
 
-export function registerBuddyIpc(): void {
+export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore): void {
+  const resolveAction = (action: BuddyAction): Promise<BuddyActionResult> =>
+    resolveBuddyAction(
+      action,
+      getConfig(),
+      (kind) => getStore(kind).list(),
+      async (kind, entry) => {
+        try {
+          return (
+            await stat(join(libraryPaths(app.getPath('userData'), kind).folder, entry.fileName))
+          ).isFile()
+        } catch {
+          return false
+        }
+      }
+    )
+  ipcMain.handle('buddy:action', (event, request: unknown) => {
+    const parsed = buddyActionSchema.safeParse(request)
+    if (event.sender !== getLauncherWindow()?.webContents || !parsed.success)
+      return { ok: false, reply: ACTION_REPLIES.unavailable }
+    return resolveAction(parsed.data)
+  })
   ipcMain.handle('buddy:command', (_e, req: unknown) => {
     requireAdminUnlocked()
     const command = buddyCommandSchema.safeParse(req)
@@ -26,6 +59,8 @@ export function registerBuddyIpc(): void {
     return { ok: true }
   })
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
+    if (_e.sender !== getLauncherWindow()?.webContents)
+      return { ok: false, reason: 'unavailable', reply: ACTION_REPLIES.unavailable }
     const { provider, anthropicApiKey, openrouterApiKey, model, chatEnabled } = getConfig().buddy
     // Each provider keeps its own key, so switching back and forth never needs
     // one to be re-entered.
@@ -36,7 +71,8 @@ export function registerBuddyIpc(): void {
       provider,
       model,
       client: chatEnabled && apiKey ? getBuddyChatClient(provider, apiKey) : null,
-      log: logActivity
+      log: logActivity,
+      resolveAction
     })
     // Log that a conversation happened, never what was said - the activity
     // log is caregiver-visible, and her chats with Buddy are hers.

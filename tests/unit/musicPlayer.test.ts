@@ -17,19 +17,28 @@ class PendingAudio {
   volume = 1
   src = ''
   preload = ''
+  paused = true
   onended: (() => void) | null = null
   onerror: (() => void) | null = null
   reject: ((error: Error) => void) | null = null
+  complete: (() => void) | null = null
   constructor() {
     PendingAudio.instance = this
   }
-  play = vi.fn(
-    () =>
-      new Promise<void>((_resolve, reject) => {
-        this.reject = reject
-      })
-  )
-  pause = vi.fn()
+  play = vi.fn(() => {
+    // Chromium clears paused when play() is requested, before playback succeeds.
+    this.paused = false
+    return new Promise<void>((resolve, reject) => {
+      this.reject = reject
+      this.complete = () => {
+        this.paused = false
+        resolve()
+      }
+    })
+  })
+  pause = vi.fn(() => {
+    this.paused = true
+  })
   load = vi.fn()
   removeAttribute = vi.fn()
 }
@@ -62,6 +71,67 @@ describe('music playback interrupted while starting', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
+  })
+  it('confirms Buddy’s music action only after actual playback, and refuses a stopped or timed-out start', async () => {
+    const { getMusicPlayer } = await import('../../src/renderer/launcher/src/music/musicPlayer')
+    const player = getMusicPlayer()
+    player.subscribe(() => {})
+    await vi.waitFor(() => expect(player.snapshot().loading).toBe(false))
+    bridge.decision = decideAudio(
+      audioStep(initialAudioState, { type: 'musicPlay' }, Date.now()).state,
+      Date.now()
+    )
+    const settled = vi.fn()
+    const confirmed = player.playAndConfirm('list').then(settled)
+    await vi.waitFor(() => expect(PendingAudio.instance.play).toHaveBeenCalledOnce())
+    expect(settled).not.toHaveBeenCalled()
+    PendingAudio.instance.complete!()
+    await confirmed
+    expect(settled).toHaveBeenCalledExactlyOnceWith(true)
+    bridge.decision = { ...bridge.decision, music: 'paused' }
+    bridge.listener!()
+    bridge.decision = { ...bridge.decision, music: 'playing' }
+    bridge.listener!()
+    const resumed = vi.fn()
+    const resume = player.playAndConfirm('list').then(resumed)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(resumed).not.toHaveBeenCalled()
+    PendingAudio.instance.complete!()
+    await resume
+    expect(resumed).toHaveBeenCalledExactlyOnceWith(true)
+    player.stop()
+    const stopped = player.playAndConfirm('list')
+    await vi.waitFor(() => expect(PendingAudio.instance.play).toHaveBeenCalledTimes(3))
+    player.stop()
+    expect(await stopped).toBe(false)
+    const timedOut = player.playAndConfirm('list')
+    await vi.waitFor(() => expect(PendingAudio.instance.play).toHaveBeenCalledTimes(4))
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(await timedOut).toBe(false)
+    expect(player.snapshot().currentId).toBeNull()
+    expect(PendingAudio.instance.paused).toBe(true)
+  })
+  it('does not undo Stop while Buddy is awaiting a library refresh', async () => {
+    const { getMusicPlayer } = await import('../../src/renderer/launcher/src/music/musicPlayer')
+    const player = getMusicPlayer()
+    player.subscribe(() => {})
+    await vi.waitFor(() => expect(player.snapshot().loading).toBe(false))
+    const result = await window.launcher.getMusicPlaylists()
+    let release!: (value: typeof result) => void
+    vi.mocked(window.launcher.getMusicPlaylists).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        })
+    )
+    const action = player.playAndConfirm('list')
+    player.stop()
+    release(result)
+    // Do not await the old implementation's unresolved media promise.
+    await vi.advanceTimersByTimeAsync(0)
+    expect(player.snapshot().currentId).toBeNull()
+    expect(PendingAudio.instance.play).not.toHaveBeenCalled()
+    expect(await action).toBe(false)
   })
   it.each(['musicPause', 'listening'] as const)(
     'keeps a valid track after a %s interrupts its pending play',

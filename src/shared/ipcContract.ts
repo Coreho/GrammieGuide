@@ -8,6 +8,7 @@ import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from '
 import type { MusicTrack, MusicImportResult, MusicImportProgress } from './music/musicTypes'
 import type { MusicSettings } from './music/musicSchema'
 import type { AudioUpdate, ClientAudioEvent } from './audio/audioContract'
+import type { BuddyAction, BuddyActionPlan, BuddyActionResult } from './buddy/actions'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -64,7 +65,7 @@ export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
  * has to invent error copy. `reason` is for logging/tests only.
  */
 export type BuddyChatResult =
-  | { ok: true; reply: string }
+  | { ok: true; reply: string; action?: BuddyActionPlan }
   | { ok: false; reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'; reply: string }
 
 /** Base64 MP3 of Buddy's line, or why there's none (the renderer then uses the Windows voice). */
@@ -171,6 +172,7 @@ export interface IpcApi {
   'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
   'buddy:chat': { request: { turns: BuddyChatTurn[] }; response: BuddyChatResult }
+  'buddy:action': { request: BuddyAction; response: BuddyActionResult }
   /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */
   'buddy:speak': { request: { text: string; voice?: string }; response: BuddySpeakResult }
   /** One spoken phrase through Windows' offline recognizer; returns once she pauses. */

@@ -26,6 +26,7 @@ import { builtinFor } from './tiles/builtins'
 import { useMusicPlayer } from './music/useMusicPlayer'
 import { NowPlayingChip } from './music/NowPlayingChip'
 import { zLayers } from '@shared/zLayers'
+import { ACTION_REPLIES, type BuddyActionPlan } from '@shared/buddy/actions'
 
 declare global {
   interface Window {
@@ -264,6 +265,33 @@ export default function App() {
     await window.launcher.goBack()
   }
 
+  async function runBuddyAction(plan: BuddyActionPlan): Promise<void> {
+    await window.launcher.goHome()
+    setView('home')
+    setOpenBuiltin(null)
+    setShowConfusion(false)
+    setShowBuddyChat(false)
+    setBuddyChatPhase('idle')
+    clearChatInvitation()
+    if (plan.action === 'playMusic') {
+      const started = await music.playAndConfirm(plan.playlistId)
+      flashToast(started ? ACTION_REPLIES.musicPlaying : ACTION_REPLIES.musicFailed)
+    } else if (plan.action === 'showPhotos') {
+      setOpenBuiltin(
+        config?.tiles.find((tile) => tile.type === 'builtin' && tile.builtinKey === 'photos') ?? {
+          id: 'buddy-photos',
+          type: 'builtin',
+          builtinKey: 'photos',
+          label: 'Pictures',
+          size: 'normal',
+          slot: null,
+          colorIndex: 1
+        }
+      )
+      flashToast(ACTION_REPLIES.photosOpening)
+    } else flashToast(ACTION_REPLIES.home)
+  }
+
   if (!config) {
     return <div style={{ color: '#fff', padding: 32 }}>Loading...</div>
   }
@@ -356,6 +384,7 @@ export default function App() {
         {/* Inside the stage, so Buddy (on the footer floor) can stand in front of its backdrop. */}
         {view === 'home' && config.buddy.chatEnabled && showBuddyChat && (
           <BuddyChatPanel
+            onAction={runBuddyAction}
             voiceEnabled={config.buddy.voiceEnabled}
             onPhaseChange={setBuddyChatPhase}
             onClose={() => {

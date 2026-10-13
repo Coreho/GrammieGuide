@@ -25,9 +25,10 @@ export function registerAllIpc(): void {
   registerActivityIpc()
   registerWeatherIpc()
   registerBrowserIpc()
-  registerBuddyIpc()
+  const getLibrary = registerLibraryIpc()
+  registerBuddyIpc(getLibrary)
   registerTileIpc()
   registerNewsIpc()
-  registerMusicIpc(registerLibraryIpc())
+  registerMusicIpc(getLibrary)
   registerBackupIpc()
 }

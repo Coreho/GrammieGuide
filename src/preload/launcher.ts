@@ -20,6 +20,7 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 
 const launcherApi = {
   getAudio: () => invoke('audio:get'),
+  buddyAction: (action: IpcRequest<'buddy:action'>) => invoke('buddy:action', action),
   resetAudioOwner: () => invoke('audio:resetOwner'),
   audioEvent: (event: IpcRequest<'audio:event'>) => invoke('audio:event', event),
   onAudioChanged: (cb: (update: IpcEvents['audio:changed']) => void) => on('audio:changed', cb),

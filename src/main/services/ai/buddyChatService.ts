@@ -6,6 +6,13 @@ import {
   type BuddyProvider
 } from '@shared/buddy/providers'
 import { BUDDY_SYSTEM_PROMPT } from './buddyPrompt'
+import {
+  actionFromTool,
+  explicitBuddyAction,
+  type BuddyAction,
+  type BuddyActionResult
+} from '@shared/buddy/actions'
+import { BUDDY_ACTION_TOOLS } from './buddyActions'
 
 /**
  * Buddy's real conversation (M4). The renderer owns the on-screen history
@@ -84,11 +91,25 @@ export async function buddyChat(
     model: string
     client: MessagesClient | null
     log: (type: string, detail?: string) => void
+    resolveAction?: (action: BuddyAction) => Promise<BuddyActionResult>
   }
 ): Promise<BuddyChatResult> {
   if (!opts.chatEnabled) {
     return { ok: false, reason: 'disabled', reply: REPLIES.disabled }
   }
+
+  const last = turns.at(-1)
+  const direct =
+    last?.role === 'user' && typeof last.text === 'string' ? explicitBuddyAction(last.text) : null
+  const actionResult = async (action: BuddyAction): Promise<BuddyChatResult> => {
+    const result = await opts.resolveAction!(action)
+    return result.ok
+      ? { ok: true, reply: '', action: result.plan }
+      : { ok: false, reason: 'unavailable', reply: result.reply }
+  }
+  // Her explicit request needs no model, network or key. General wording can
+  // propose one of the same tools below; neither path executes model text.
+  if (direct && opts.resolveAction) return actionResult(direct)
 
   if (!opts.apiKey || !opts.client) {
     return { ok: false, reason: 'no-key', reply: REPLIES.noKey }
@@ -105,6 +126,12 @@ export async function buddyChat(
       max_tokens: 4096,
       system: BUDDY_SYSTEM_PROMPT,
       messages,
+      ...(opts.resolveAction
+        ? {
+            tools: BUDDY_ACTION_TOOLS,
+            tool_choice: { type: 'auto' as const, disable_parallel_tool_use: true }
+          }
+        : {}),
       ...(supportsEffort(opts.model) ? { output_config: { effort: 'low' as const } } : {}),
       ...routingFor(opts.provider)
     })
@@ -112,6 +139,18 @@ export async function buddyChat(
     if (response.stop_reason === 'refusal') {
       opts.log('buddy-chat-declined', response.stop_details?.category ?? undefined)
       return { ok: false, reason: 'declined', reply: REPLIES.declined }
+    }
+
+    const tools = response.content.filter(
+      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+    )
+    if (tools.length) {
+      const tool = tools[0]!
+      const action = tools.length === 1 ? actionFromTool(tool.name, tool.input) : null
+      if (!action || !opts.resolveAction)
+        return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }
+      // Discard accompanying model text, which may claim premature success.
+      return actionResult(action)
     }
 
     const text = response.content
