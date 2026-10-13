@@ -58,6 +58,76 @@ describe('toApiMessages', () => {
 describe('buddyChat', () => {
   const log = vi.fn()
 
+  it('resolves a direct request without a key or API call and returns a plan rather than a success claim', async () => {
+    const resolveAction = vi.fn().mockResolvedValue({ ok: true, plan: { action: 'goHome' } })
+    const result = await buddyChat([{ role: 'user', text: 'Please go home.' }], {
+      chatEnabled: true,
+      apiKey: undefined,
+      provider: 'anthropic',
+      model: 'claude-sonnet-5-5',
+      client: null,
+      log,
+      resolveAction
+    })
+    expect(resolveAction).toHaveBeenCalledExactlyOnceWith('goHome')
+    expect(result).toEqual({ ok: true, reply: '', action: { action: 'goHome' } })
+  })
+  it('uses only the fixed tools and discards premature model success text when returning a validated plan', async () => {
+    const { client, create } = fakeClient(() => ({
+      content: [
+        { type: 'text', text: 'Your music is playing already.' },
+        { type: 'tool_use', name: 'play_my_music', input: {} }
+      ],
+      stop_reason: 'tool_use'
+    }))
+    const resolveAction = vi
+      .fn()
+      .mockResolvedValue({ ok: true, plan: { action: 'playMusic', playlistId: 'saved' } })
+    expect(
+      await buddyChat([{ role: 'user', text: 'I feel like hearing something familiar.' }], {
+        chatEnabled: true,
+        apiKey: 'k',
+        provider: 'anthropic',
+        model: 'claude-sonnet-5-5',
+        client,
+        log,
+        resolveAction
+      })
+    ).toEqual({ ok: true, reply: '', action: { action: 'playMusic', playlistId: 'saved' } })
+    expect(create.mock.calls[0]![0].tools?.map((tool) => tool.name)).toEqual([
+      'play_my_music',
+      'show_my_pictures',
+      'go_home'
+    ])
+    expect(create.mock.calls[0]![0].system).toBe(BUDDY_SYSTEM_PROMPT)
+  })
+  it.each([
+    [{ type: 'tool_use', name: 'open_url', input: {} }],
+    [{ type: 'tool_use', name: 'go_home', input: { url: 'https://evil.test' } }],
+    [
+      { type: 'tool_use', name: 'go_home', input: {} },
+      { type: 'tool_use', name: 'play_my_music', input: {} }
+    ]
+  ])(
+    'rejects invented or multiple model actions without executing or confirming them',
+    async (...blocks) => {
+      const { client } = fakeClient(() => ({ content: blocks, stop_reason: 'tool_use' }))
+      const resolveAction = vi.fn()
+      expect(
+        await buddyChat(greetingThenUser, {
+          chatEnabled: true,
+          apiKey: 'k',
+          provider: 'anthropic',
+          model: 'claude-sonnet-5-5',
+          client,
+          log,
+          resolveAction
+        })
+      ).toMatchObject({ ok: false, reason: 'unavailable' })
+      expect(resolveAction).not.toHaveBeenCalled()
+    }
+  )
+
   it.each(['k', undefined])(
     'refuses disabled chat with key %s without calling Anthropic',
     async (apiKey) => {
@@ -128,7 +198,11 @@ describe('buddyChat', () => {
   })
 
   it('turns a refusal into a gentle change of subject', async () => {
-    const { client } = fakeClient(() => ({ content: [], stop_reason: 'refusal', stop_details: { category: null } }))
+    const { client } = fakeClient(() => ({
+      content: [],
+      stop_reason: 'refusal',
+      stop_details: { category: null }
+    }))
     const result = await buddyChat(greetingThenUser, {
       chatEnabled: true,
       apiKey: 'k',
