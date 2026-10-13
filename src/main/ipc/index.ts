@@ -9,6 +9,7 @@ import { registerNewsIpc } from './newsIpc'
 import { registerTileIpc } from './tileIpc'
 import { registerLibraryIpc } from './libraryIpc'
 import { registerMusicIpc } from './musicIpc'
+import { registerAudioIpc } from './audioIpc'
 import { registerBackupIpc } from './backupIpc'
 
 /**
@@ -17,6 +18,7 @@ import { registerBackupIpc } from './backupIpc'
  * each domain gets its own module here instead.
  */
 export function registerAllIpc(): void {
+  registerAudioIpc()
   registerConfigIpc()
   registerAdminIpc()
   registerReliabilityIpc()

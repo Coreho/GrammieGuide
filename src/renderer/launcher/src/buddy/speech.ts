@@ -8,7 +8,10 @@
  * one before, and the cut-off line's promise resolves right away.
  */
 
+import { holdAudio } from '../../../audio/audioBridge'
+
 let generation = 0
+let releaseHold: (() => void) | null = null
 let audio: HTMLAudioElement | null = null
 let audioUrl: string | null = null
 let finishCurrent: (() => void) | null = null
@@ -21,6 +24,8 @@ function releaseAudio(): void {
 }
 
 export function stopSpeaking(): void {
+  releaseHold?.()
+  releaseHold = null
   generation++
   releaseAudio()
   window.speechSynthesis?.cancel()
@@ -71,20 +76,31 @@ export async function speak(text: string): Promise<void> {
   stopSpeaking()
   const mine = ++generation
   const isCurrent = (): boolean => mine === generation
+  const hold = await holdAudio('buddyVoice', () => {
+    if (isCurrent()) stopSpeaking()
+  })
+  if (!isCurrent() || !hold.allowed) {
+    hold.release()
+    return
+  }
+  releaseHold = hold.release
   let result: Awaited<ReturnType<typeof window.launcher.buddySpeak>> | null = null
   try {
-    result = await window.launcher.buddySpeak(text)
-  } catch {
-    result = null
-  }
-  if (!isCurrent()) return
-  if (result?.ok) {
-    await playMp3(result.audioBase64)
-  } else {
-    await speakLocally(text, isCurrent)
-  }
-  if (isCurrent()) {
-    releaseAudio()
-    finishCurrent = null
+    try {
+      result = await window.launcher.buddySpeak(text)
+    } catch {
+      result = null
+    }
+    if (!isCurrent()) return
+    if (result?.ok) await playMp3(result.audioBase64)
+    else await speakLocally(text, isCurrent)
+  } finally {
+    // Even a malformed audio result must not leave an invisible hold behind.
+    hold.release()
+    if (isCurrent()) {
+      releaseHold = null
+      releaseAudio()
+      finishCurrent = null
+    }
   }
 }

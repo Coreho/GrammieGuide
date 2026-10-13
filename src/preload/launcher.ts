@@ -19,6 +19,12 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 }
 
 const launcherApi = {
+  getAudio: () => invoke('audio:get'),
+  resetAudioOwner: () => invoke('audio:resetOwner'),
+  audioEvent: (event: IpcRequest<'audio:event'>) => invoke('audio:event', event),
+  onAudioChanged: (cb: (update: IpcEvents['audio:changed']) => void) => on('audio:changed', cb),
+  getMusicPlaylists: () => invoke('music:getPlaylists'),
+  reportMusic: (event: IpcRequest<'music:report'>) => invoke('music:report', event),
   openPhotos: () => invoke('photos:open'),
   listPhotos: () => invoke('photos:listVisible'),
   getTileImages: () => invoke('photos:tileImages'),

@@ -7,6 +7,7 @@ import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libr
 import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
 import type { MusicTrack, MusicImportResult, MusicImportProgress } from './music/musicTypes'
 import type { MusicSettings } from './music/musicSchema'
+import type { AudioUpdate, ClientAudioEvent } from './audio/audioContract'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -93,6 +94,17 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'audio:get': { request: void; response: AudioUpdate }
+  'audio:resetOwner': { request: void; response: AudioUpdate }
+  'audio:event': { request: ClientAudioEvent; response: AudioUpdate }
+  'music:getPlaylists': {
+    request: void
+    response: { tracks: MusicTrack[]; settings: MusicSettings }
+  }
+  'music:report': {
+    request: { event: 'play' | 'stop' | 'autostop'; playlistId: string }
+    response: boolean
+  }
   'music:list': { request: void; response: { tracks: MusicTrack[]; settings: MusicSettings } }
   'music:importFiles': { request: void; response: MusicImportResult }
   'music:saveSettings': { request: MusicSettings; response: MusicSettings }
@@ -189,6 +201,7 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'audio:changed': AudioUpdate
   'music:importProgress': MusicImportProgress
   'photos:changed': Record<string, never>
   'photos:importProgress': PhotoImportProgress

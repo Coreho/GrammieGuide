@@ -10,14 +10,44 @@ import { createTrackMetadataReader } from '../services/music/readTrackMetadata'
 import { removeTrackReferences, saveMusicSettings } from '../services/music/musicSettings'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { runMusicOperation } from '../services/music/musicOperations'
+import { logActivity } from '../services/activityLog/activityLog'
+import { getLauncherWindow } from '../windows/windowManager'
 
 export function registerMusicIpc(getStore: (kind: MediaLibrary) => LibraryStore): void {
+  let activePlaylist: string | null = null
   let library: MusicLibrary | undefined
   const music = (): MusicLibrary =>
     (library ??= new MusicLibrary(
       getStore('music'),
       createTrackMetadataReader((bytes) => nativeImage.createFromBuffer(bytes))
     ))
+  ipcMain.handle('music:getPlaylists', async (event) => {
+    if (event.sender !== getLauncherWindow()?.webContents) throw new Error('Music unavailable')
+    const settings = getConfig().music
+    const ids = new Set(settings.playlists.flatMap((list) => list.trackIds))
+    try {
+      return { settings, tracks: (await music().list()).filter((track) => ids.has(track.id)) }
+    } catch {
+      return { settings, tracks: [] }
+    }
+  })
+  ipcMain.handle('music:report', (_event, request: IpcRequest<'music:report'>) => {
+    if (_event.sender !== getLauncherWindow()?.webContents) return false
+    if (
+      !request ||
+      !['play', 'stop', 'autostop'].includes(request.event) ||
+      typeof request.playlistId !== 'string'
+    )
+      return false
+    const known = getConfig().music.playlists.some((list) => list.id === request.playlistId)
+    if (!known && request.playlistId !== activePlaylist) return false
+    if (request.event === 'play') {
+      if (!known) return false
+      activePlaylist = request.playlistId
+    } else activePlaylist = null
+    logActivity(`music-${request.event}`, request.playlistId)
+    return true
+  })
   function run<T>(work: () => Promise<T>, message: string): Promise<T> {
     return runMusicOperation(async () => {
       // A queued request might have waited behind a native picker while admin locked.

@@ -10,6 +10,8 @@ import { logReliabilityEvent } from '../reliability/reliabilityLog'
 import { isAllowedUrl } from './urlPolicy'
 import { WEB_PARTITION, hardenWebSession } from './webSession'
 import { WEB_VIEW_PREFERENCES, shouldPreventUnload } from '@shared/browser/webHardening'
+import { wirePageAudio } from '../audio/pageAudio'
+import { getAudioCoordinator } from '../audio/audioRuntime'
 
 /**
  * Embedded web-tile browser. Ports the escape-guard/popup-block logic from
@@ -25,6 +27,7 @@ const NAV_BAR_HEIGHT = 72
 const OFFLINE_RETRY_MS = 5_000
 
 let view: WebContentsView | null = null
+let stopPageAudio: (() => void) | null = null
 let hostWindow: BrowserWindow | null = null
 let lastActivityAt = Date.now()
 let activityListenerRegistered = false
@@ -97,6 +100,7 @@ export function openUrl(
       }
     })
     hostWindow.contentView.addChildView(view)
+    stopPageAudio = wirePageAudio(view.webContents, getAudioCoordinator())
     layout()
 
     view.webContents.on('will-prevent-unload', (event) => {
@@ -225,6 +229,8 @@ function scheduleOfflineRetry(): void {
 }
 
 export function closeEmbeddedBrowser(): void {
+  stopPageAudio?.()
+  stopPageAudio = null
   const closingView = view
   view = null
   privateNavigation = false

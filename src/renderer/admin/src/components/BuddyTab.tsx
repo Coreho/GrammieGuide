@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { holdAudio } from '../../../audio/audioBridge'
 import { useConfigStore } from '../state/useConfigStore'
 import { BuddyCommands } from './BuddyCommands'
 import {
@@ -44,8 +45,18 @@ export function BuddyTab() {
   const [keyDraft, setKeyDraft] = useState('')
   const [status, setStatus] = useState('')
   const [voiceStatus, setVoiceStatus] = useState('')
+  const previewGeneration = useRef(0)
+  const stopPreview = useRef<() => void>(() => {})
+  useEffect(
+    () => () => {
+      previewGeneration.current++
+      stopPreview.current()
+    },
+    []
+  )
 
-  const provider: BuddyProvider = config?.buddy.provider === 'openrouter' ? 'openrouter' : 'anthropic'
+  const provider: BuddyProvider =
+    config?.buddy.provider === 'openrouter' ? 'openrouter' : 'anthropic'
 
   useEffect(() => {
     // Re-read whenever the provider changes: the answer is about that provider's key.
@@ -76,8 +87,11 @@ export function BuddyTab() {
   }
 
   const previewVoice = async (): Promise<void> => {
+    stopPreview.current()
+    const generation = ++previewGeneration.current
     setVoiceStatus('Playing…')
     const result = await window.admin.previewVoice(PREVIEW_LINE, buddy.ttsVoice)
+    if (generation !== previewGeneration.current) return
     if (!result.ok) {
       setVoiceStatus(
         result.reason === 'disabled'
@@ -86,12 +100,30 @@ export function BuddyTab() {
       )
       return
     }
+    const hold = await holdAudio('buddyVoice', () => {
+      if (generation === previewGeneration.current) stopPreview.current()
+    })
+    if (!hold.allowed || generation !== previewGeneration.current) {
+      hold.release()
+      if (generation === previewGeneration.current) setVoiceStatus('')
+      return
+    }
     const bytes = Uint8Array.from(atob(result.audioBase64), (c) => c.charCodeAt(0))
     const url = URL.createObjectURL(new Blob([bytes], { type: result.mime }))
     const audio = new Audio(url)
-    audio.onended = () => URL.revokeObjectURL(url)
-    await audio.play().catch(() => undefined)
-    setVoiceStatus('')
+    let ended = false
+    const finish = (): void => {
+      if (ended) return
+      ended = true
+      audio.pause()
+      URL.revokeObjectURL(url)
+      hold.release()
+      if (generation === previewGeneration.current) setVoiceStatus('')
+    }
+    stopPreview.current = finish
+    audio.onended = finish
+    audio.onerror = finish
+    await audio.play().catch(finish)
   }
 
   const saveKey = async (value: string): Promise<void> => {
@@ -132,11 +164,11 @@ export function BuddyTab() {
       </select>
       {provider === 'openrouter' ? (
         <p>
-          Sends Claude to Anthropic through OpenRouter, using your OpenRouter key and billing. OpenRouter
-          can normally serve Claude from other companies too; this app pins every request to Anthropic's
-          own endpoint and refuses fallbacks, so her conversations do not leave Anthropic. The trade is
-          that if Anthropic is unavailable, Buddy says he is having trouble rather than switching to a
-          different company's model.
+          Sends Claude to Anthropic through OpenRouter, using your OpenRouter key and billing.
+          OpenRouter can normally serve Claude from other companies too; this app pins every request
+          to Anthropic's own endpoint and refuses fallbacks, so her conversations do not leave
+          Anthropic. The trade is that if Anthropic is unavailable, Buddy says he is having trouble
+          rather than switching to a different company's model.
         </p>
       ) : (
         <p>Anthropic's own service, billed on your Anthropic account.</p>

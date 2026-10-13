@@ -16,6 +16,7 @@ vi.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] }
 }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.get }))
+vi.mock('../../src/main/windows/windowManager', () => ({ getLauncherWindow: () => null }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: () => {} }))
 vi.mock('../../src/main/services/music/musicSettings', () => ({
   saveMusicSettings: mocks.save,

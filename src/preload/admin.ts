@@ -16,6 +16,14 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  getAudio: () => invoke('audio:get'),
+  resetAudioOwner: () => invoke('audio:resetOwner'),
+  audioEvent: (event: IpcRequest<'audio:event'>) => invoke('audio:event', event),
+  onAudioChanged: (cb: (update: IpcEvents['audio:changed']) => void): (() => void) => {
+    const listener = (_event: unknown, update: IpcEvents['audio:changed']): void => cb(update)
+    ipcRenderer.on('audio:changed', listener)
+    return () => ipcRenderer.removeListener('audio:changed', listener)
+  },
   getMusicLibrary: () => invoke('music:list'),
   importMusic: () => invoke('music:importFiles'),
   saveMusicSettings: (settings: IpcRequest<'music:saveSettings'>) =>

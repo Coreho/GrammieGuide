@@ -10,7 +10,9 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   references: vi.fn(),
   save: vi.fn(),
-  store: vi.fn()
+  store: vi.fn(),
+  launcher: { id: 99 },
+  log: vi.fn()
 }))
 vi.mock('electron', () => ({
   ipcMain: { handle: mocks.handle },
@@ -19,6 +21,10 @@ vi.mock('electron', () => ({
 }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlock }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.get }))
+vi.mock('../../src/main/windows/windowManager', () => ({
+  getLauncherWindow: () => ({ webContents: mocks.launcher })
+}))
+vi.mock('../../src/main/services/activityLog/activityLog', () => ({ logActivity: mocks.log }))
 vi.mock('../../src/main/services/music/musicLibrary', () => ({
   MusicLibrary: class {
     list = mocks.list
@@ -49,6 +55,39 @@ describe('caregiver music IPC', () => {
     mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/song.mp3'] })
     mocks.import.mockResolvedValue({ imported: 1, failed: 0 })
     registerMusicIpc(mocks.store)
+  })
+  it('returns only tracks chosen for saved playlists to the launcher, and rejects other senders', async () => {
+    const cfg = defaultConfig()
+    cfg.music.playlists = [{ id, label: 'Favorites', shuffle: false, trackIds: [id] }]
+    mocks.get.mockReturnValue(cfg)
+    mocks.list.mockResolvedValue([
+      { id, title: 'Chosen' },
+      { id: 'unselected', title: 'Private unchosen song' }
+    ])
+    const handler = mocks.handle.mock.calls.find(
+      ([channel]) => channel === 'music:getPlaylists'
+    )![1]
+    expect(await handler({ sender: mocks.launcher })).toEqual({
+      settings: cfg.music,
+      tracks: [{ id, title: 'Chosen' }]
+    })
+    await expect(handler({ sender })).rejects.toThrow('unavailable')
+  })
+  it('logs only a known playlist ID and keeps a removed active playlist valid for its final Stop', () => {
+    const cfg = defaultConfig()
+    cfg.music.playlists = [{ id, label: 'Private playlist name', shuffle: false, trackIds: [] }]
+    mocks.get.mockReturnValue(cfg)
+    const handler = mocks.handle.mock.calls.find(([channel]) => channel === 'music:report')![1]
+    expect(handler({ sender: mocks.launcher }, { event: 'play', playlistId: 'forged' })).toBe(false)
+    expect(handler({ sender }, { event: 'play', playlistId: id })).toBe(false)
+    expect(handler({ sender: mocks.launcher }, { event: 'play', playlistId: id })).toBe(true)
+    cfg.music.playlists = []
+    expect(handler({ sender: mocks.launcher }, { event: 'stop', playlistId: id })).toBe(true)
+    expect(mocks.log.mock.calls).toEqual([
+      ['music-play', id],
+      ['music-stop', id]
+    ])
+    expect(JSON.stringify(mocks.log.mock.calls)).not.toContain('Private playlist name')
   })
   it.each(['list', 'importFiles', 'saveSettings', 'removeTrack'])(
     'locks %s before any work',
