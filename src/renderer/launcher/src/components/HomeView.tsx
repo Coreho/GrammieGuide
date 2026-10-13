@@ -8,6 +8,8 @@ import type { ChatPhase, Chattiness, BuddyMotion } from '@shared/buddy/buddyMach
 import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand } from '@shared/buddy/commands'
 import type { HomeLayoutName } from '@shared/homeLayout'
+import type { ReactNode } from 'react'
+import { useLabelFit } from './useLabelFit'
 
 export type HomeBuddyProps = {
   chatInvitation: 'visible' | 'fading' | null
@@ -30,7 +32,8 @@ export function HomeView({
   layout,
   onActivateTile,
   onBuddyTap,
-  buddy
+  buddy,
+  nowPlaying
 }: {
   time: string
   ampm: string
@@ -41,7 +44,9 @@ export function HomeView({
   onActivateTile: (tile: TileType) => void
   onBuddyTap: () => void
   buddy: HomeBuddyProps
+  nowPlaying?: ReactNode
 }) {
+  const dateRef = useLabelFit<HTMLSpanElement>(date, 'date-row')
   return (
     <>
       <header style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 'none' }}>
@@ -135,9 +140,24 @@ export function HomeView({
             whiteSpace: 'nowrap'
           }}
         >
-          <span>{date}</span>
+          <span
+            ref={dateRef}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 'calc(36px * var(--font-scale, 1) * var(--label-fit, 1))'
+            }}
+          >
+            {date}
+          </span>
           {/* TASK-37's now-playing chip can fill this bounded utility area without shrinking or moving the clock. */}
-          <div data-home-now-playing-slot aria-hidden="true" style={{ width: 440, flex: 'none' }} />
+          <div
+            data-home-now-playing-slot
+            aria-hidden={nowPlaying ? undefined : true}
+            style={{ width: 440, flex: 'none' }}
+          >
+            {nowPlaying}
+          </div>
         </div>
       </header>
 

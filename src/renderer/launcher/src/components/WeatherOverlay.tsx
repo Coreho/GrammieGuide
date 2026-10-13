@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { zLayers } from '@shared/zLayers'
 import { OverlayShell } from './OverlayShell'
 import type { WeatherSnapshot } from '@shared/ipcContract'
@@ -13,11 +13,13 @@ declare global {
 export function WeatherOverlay({
   locationLabel,
   units,
-  onClose
+  onClose,
+  musicStop
 }: {
   locationLabel: string | null
   units: 'imperial' | 'metric'
   onClose: () => void
+  musicStop?: ReactNode
 }) {
   const [snapshot, setSnapshot] = useState<WeatherSnapshot | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'no-location'>('loading')
@@ -38,6 +40,7 @@ export function WeatherOverlay({
 
   return (
     <OverlayShell zIndex={zLayers.weatherOverlay} onClose={onClose}>
+      {musicStop}
       {status === 'no-location' && <p>No weather location configured yet.</p>}
       {status === 'loading' && <p>Loading weather...</p>}
       {status === 'error' && <p>Couldn&apos;t load weather right now.</p>}
@@ -49,7 +52,8 @@ export function WeatherOverlay({
           </h1>
           <p>{snapshot.resolvedName}</p>
           <p>
-            Feels like {snapshot.feelsLike}° - Humidity {snapshot.humidity}% - Wind {snapshot.windSpeed} mph
+            Feels like {snapshot.feelsLike}° - Humidity {snapshot.humidity}% - Wind{' '}
+            {snapshot.windSpeed} mph
           </p>
           {snapshot.high != null && snapshot.low != null && (
             <p>

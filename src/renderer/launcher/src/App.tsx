@@ -23,6 +23,9 @@ import type { BuddyCommand } from '@shared/buddy/commands'
 import { BuddyMenu, type BuddyMenuAnchor } from './buddy/BuddyMenu'
 import { pickTapReaction, type TapReaction } from '@shared/buddy/tapReactions'
 import { builtinFor } from './tiles/builtins'
+import { useMusicPlayer } from './music/useMusicPlayer'
+import { NowPlayingChip } from './music/NowPlayingChip'
+import { zLayers } from '@shared/zLayers'
 
 declare global {
   interface Window {
@@ -58,6 +61,7 @@ function timeParts(now: Date): { time: string; ampm: string; date: string } {
 }
 
 export default function App() {
+  const { player: music, state: musicState } = useMusicPlayer()
   const [config, setConfig] = useState<PublicConfig | null>(null)
   const [view, setView] = useState<View>('home')
   /** A web page that failed or was blocked; Home's recovery screen stands in for it. */
@@ -278,6 +282,7 @@ export default function App() {
             weather={weather}
             tiles={config.tiles}
             layout={config.display.homeLayout}
+            nowPlaying={<NowPlayingChip state={musicState} onStop={() => music.stop()} />}
             onActivateTile={activateTile}
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return
@@ -362,7 +367,15 @@ export default function App() {
         {toast && <Toast message={toast} />}
       </Stage>
 
-      {view === 'browser' && <NavBar onHome={goHome} onBack={goBack} />}
+      {view === 'browser' && (
+        <NavBar
+          onHome={goHome}
+          onBack={goBack}
+          onStopMusic={
+            musicState.currentId && musicState.state !== 'off' ? () => music.stop() : undefined
+          }
+        />
+      )}
       {view === 'browser' && pageProblem && (
         <PageRecovery
           problem={pageProblem}
@@ -380,6 +393,15 @@ export default function App() {
           tile={openBuiltin}
           config={config}
           onClose={() => setOpenBuiltin(null)}
+          musicStop={
+            musicState.currentId &&
+            musicState.state !== 'off' &&
+            openBuiltin.builtinKey !== 'music' ? (
+              <button className="music-inline-stop" onClick={() => music.stop()}>
+                ■ Stop music
+              </button>
+            ) : undefined
+          }
           onBrowsing={() => {
             setOpenBuiltin(null)
             setView('browser')
@@ -387,6 +409,18 @@ export default function App() {
         />
       )}
       {showConfusion && <ConfusionOverlay onClose={() => setShowConfusion(false)} />}
+      {view === 'home' &&
+        (showConfusion || showBuddyChat) &&
+        musicState.currentId &&
+        musicState.state !== 'off' && (
+          <button
+            className="music-global-stop"
+            style={{ zIndex: zLayers.musicStop }}
+            onClick={() => music.stop()}
+          >
+            ■ Stop music
+          </button>
+        )}
     </div>
   )
 }

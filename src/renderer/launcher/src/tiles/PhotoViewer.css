@@ -25,6 +25,8 @@
 }
 
 .photo-viewer-header h1 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: calc(40px * var(--font-scale, 1));
   line-height: 1.15;

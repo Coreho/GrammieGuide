@@ -1,0 +1,166 @@
+.music-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: var(--bgB);
+  color: var(--ink);
+}
+.music-surface {
+  width: min(1320px, 100%);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.music-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.music-header h1 {
+  margin: 0;
+  font-size: calc(40px * var(--font-scale, 1));
+}
+.music-surface button {
+  min-height: 80px;
+  padding: 16px 28px;
+  border: 0;
+  border-radius: 24px;
+  font-size: calc(30px * var(--font-scale, 1));
+  font-weight: 700;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--s1), var(--s2));
+  box-shadow:
+    0 10px 20px rgba(var(--sh), 0.15),
+    inset 0 2px 0 var(--hl);
+  cursor: pointer;
+}
+.music-surface button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.music-surface button:focus-visible,
+.music-chip button:focus-visible,
+.music-global-stop:focus-visible {
+  outline: 4px solid var(--ink);
+  outline-offset: 4px;
+}
+.music-playlists {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.music-surface .music-card {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  overflow-wrap: break-word;
+}
+.music-card strong {
+  font-size: calc(32px * var(--font-scale, 1) * var(--label-fit, 1));
+  line-height: 1.1;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.music-card span {
+  font-size: calc(22px * var(--font-scale, 1));
+}
+.music-card[aria-pressed='true'] {
+  outline: 4px solid var(--ink);
+  outline-offset: -6px;
+}
+.music-empty {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  font-size: calc(30px * var(--font-scale, 1));
+  text-align: center;
+}
+.music-current {
+  flex: none;
+  height: 1.3em;
+  margin: 0;
+  font-size: calc(26px * var(--font-scale, 1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+.music-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  justify-content: space-between;
+}
+.music-surface .music-stop,
+.music-chip button,
+.music-global-stop {
+  color: #fff;
+  background: #a7332b;
+}
+.music-surface .music-next {
+  font-size: calc(24px * var(--font-scale, 1));
+}
+.music-chip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  font-size: calc(22px * var(--font-scale, 1));
+  white-space: normal;
+}
+.music-chip > div {
+  min-width: 0;
+  flex: 1;
+}
+.music-chip span,
+.music-chip strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-chip button {
+  flex: none;
+  min-height: 64px;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 18px;
+  font-size: calc(26px * var(--font-scale, 1));
+  font-weight: 700;
+  cursor: pointer;
+}
+.music-global-stop {
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  min-height: 80px;
+  padding: 16px 24px;
+  border: 0;
+  border-radius: 24px;
+  font-size: calc(28px * var(--font-scale, 1));
+  font-weight: 700;
+  cursor: pointer;
+}
+.music-inline-stop,
+.photo-viewer button.music-inline-stop {
+  min-height: 80px;
+  padding: 16px 24px;
+  border: 0;
+  border-radius: 24px;
+  font-size: calc(28px * var(--font-scale, 1));
+  font-weight: 700;
+  background: #a7332b;
+  color: #fff;
+  cursor: pointer;
+}

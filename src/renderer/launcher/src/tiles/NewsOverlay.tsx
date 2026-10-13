@@ -11,7 +11,7 @@ import type { BuiltinViewProps } from './builtins'
  * plain text from main (parseFeed strips the feed's HTML), and pictures arrive
  * as data: URLs, so the launcher's CSP stays as strict as before.
  */
-export function NewsOverlay({ tile, onClose, onBrowsing }: BuiltinViewProps) {
+export function NewsOverlay({ tile, onClose, onBrowsing, musicStop }: BuiltinViewProps) {
   const [news, setNews] = useState<NewsResult | null>(null)
 
   useEffect(() => {
@@ -75,6 +75,7 @@ export function NewsOverlay({ tile, onClose, onBrowsing }: BuiltinViewProps) {
           <h1 style={{ margin: 0, fontSize: 'calc(52px * var(--font-scale, 1))', lineHeight: 1.1 }}>
             {tile.label}
           </h1>
+          {musicStop}
           <button onClick={onClose} style={pillStyle}>
             Back to Home
           </button>
