@@ -31,6 +31,9 @@ const LATE_KILL_REPORT_MS = 30_000
 
 let launcherWindow: BrowserWindow | null = null
 let adminWindow: BrowserWindow | null = null
+export function getAdminWindow(): BrowserWindow | null {
+  return adminWindow
+}
 
 export function createLauncherWindow(): BrowserWindow {
   launcherWindow = new BrowserWindow({

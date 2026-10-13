@@ -3,6 +3,7 @@ import { zLayers } from '@shared/zLayers'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
 import { speak, stopSpeaking } from './speech'
+import { holdAudio } from '../../../audio/audioBridge'
 
 /**
  * Tap-to-greet chat with Buddy. Replies come from the main process
@@ -75,12 +76,20 @@ export function BuddyChatPanel({
 
   useEffect(() => {
     open.current = true
+    let live = true
+    let releaseChat: (() => void) | undefined
+    void holdAudio('chat').then((hold) => {
+      releaseChat = hold.release
+      if (!live) hold.release()
+    })
     window.launcher
       .buddyCanListen()
       .then((ok) => open.current && setMicAvailable(ok))
       .catch(() => undefined)
     void voice(GREETING)
     return () => {
+      live = false
+      releaseChat?.()
       open.current = false
       stopSpeaking()
       phaseRef.current('idle')
@@ -130,10 +139,17 @@ export function BuddyChatPanel({
     setHearing(true)
     setPhase('hearing')
     let result: Awaited<ReturnType<typeof window.launcher.buddyListen>>
+    const hold = await holdAudio('listening')
+    if (!open.current) {
+      hold.release()
+      return
+    }
     try {
       result = await window.launcher.buddyListen()
     } catch {
       result = { ok: false, reason: 'unavailable' }
+    } finally {
+      hold.release()
     }
     if (!open.current) return
     setHearing(false)
@@ -180,7 +196,15 @@ export function BuddyChatPanel({
           overflow: 'hidden'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 24px', borderBottom: '1px solid var(--s3,#E8E6E1)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            padding: '20px 24px',
+            borderBottom: '1px solid var(--s3,#E8E6E1)'
+          }}
+        >
           <div
             style={{
               width: 44,
@@ -195,7 +219,13 @@ export function BuddyChatPanel({
           >
             🐾
           </div>
-          <div style={{ fontSize: 'calc(22px * var(--font-scale, 1))', fontWeight: 700, color: 'var(--ink,#2E2E2C)' }}>
+          <div
+            style={{
+              fontSize: 'calc(22px * var(--font-scale, 1))',
+              fontWeight: 700,
+              color: 'var(--ink,#2E2E2C)'
+            }}
+          >
             Buddy
           </div>
           <button
@@ -216,7 +246,14 @@ export function BuddyChatPanel({
 
         <div
           ref={scrollRef}
-          style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12
+          }}
         >
           {messages.map((m, i) => (
             <div
@@ -252,7 +289,14 @@ export function BuddyChatPanel({
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 12, padding: 20, borderTop: '1px solid var(--s3,#E8E6E1)' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            padding: 20,
+            borderTop: '1px solid var(--s3,#E8E6E1)'
+          }}
+        >
           {micAvailable && (
             <button
               onClick={() => void listen()}
