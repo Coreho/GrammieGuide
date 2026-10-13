@@ -48,6 +48,16 @@ export function PhotoIcon({ size = 60 }: { size?: number }) {
   )
 }
 
+export function MusicIcon({ size = 60 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden="true" style={{ maxWidth: '80%', maxHeight: '80%' }}>
+      <path d="M25 46V16l27-6v30M25 24l27-6" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      <ellipse cx="17" cy="47" rx="9" ry="7" fill="currentColor" />
+      <ellipse cx="44" cy="41" rx="9" ry="7" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function PhoneIcon({ size = 48, color = '#BC3A36' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round">

@@ -17,6 +17,8 @@ export const zLayers = {
   weatherOverlay: 200,
   newsOverlay: 210,
   photoViewer: 220,
+  musicOverlay: 230,
+  musicStop: 450,
   confusionOverlay: 300,
   buddyChat: 350,
   buddyMenu: 355,

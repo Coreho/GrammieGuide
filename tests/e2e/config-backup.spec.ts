@@ -151,7 +151,7 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
   await home.getByRole('button', { name: '🏠 Home', exact: true }).click()
   await home.getByRole('button', { name: 'Her music', exact: true }).click()
   await expect(home.getByText('Her music is not set up yet.', { exact: true })).toBeVisible()
-  await home.getByRole('button', { name: 'Back to Home', exact: true }).click()
+  await home.getByRole('button', { name: '🏠 Home', exact: true }).click()
 
   await admin.getByRole('button', { name: 'Reliability', exact: true }).click()
   writeFileSync(backupPath, '{broken')

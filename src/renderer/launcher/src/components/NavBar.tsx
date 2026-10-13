@@ -1,7 +1,15 @@
 import type { CSSProperties } from 'react'
 import { zLayers } from '@shared/zLayers'
 
-export function NavBar({ onHome, onBack }: { onHome: () => void; onBack: () => void }) {
+export function NavBar({
+  onHome,
+  onBack,
+  onStopMusic
+}: {
+  onHome: () => void
+  onBack: () => void
+  onStopMusic?: () => void
+}) {
   return (
     <div
       style={{
@@ -25,11 +33,20 @@ export function NavBar({ onHome, onBack }: { onHome: () => void; onBack: () => v
       <button onClick={onBack} style={navButtonStyle}>
         ← Back
       </button>
+      {onStopMusic && (
+        <button
+          onClick={onStopMusic}
+          style={{ ...navButtonStyle, background: '#a7332b', color: '#fff' }}
+        >
+          ■ Stop music
+        </button>
+      )}
     </div>
   )
 }
 
 const navButtonStyle: CSSProperties = {
+  minHeight: 56,
   fontSize: 'calc(1.1rem * var(--font-scale, 1))',
   padding: '12px 24px',
   borderRadius: 16,

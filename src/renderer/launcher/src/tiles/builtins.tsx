@@ -1,11 +1,10 @@
 import type { ComponentType, ReactNode } from 'react'
 import { BUILTIN_TILE_KEYS, type PublicConfig, type Tile } from '@shared/configSchema'
-import { LinkIcon, NewspaperIcon, SunCompassIcon, PhotoIcon } from '../icons'
+import { NewspaperIcon, SunCompassIcon, PhotoIcon, MusicIcon } from '../icons'
 import { WeatherOverlay } from '../components/WeatherOverlay'
 import { NewsOverlay } from './NewsOverlay'
 import { PhotoViewer } from './PhotoViewer'
-import { OverlayShell } from '../components/OverlayShell'
-import { zLayers } from '@shared/zLayers'
+import { MusicOverlay } from './MusicOverlay'
 
 export type BuiltinKey = (typeof BUILTIN_TILE_KEYS)[number]
 
@@ -15,39 +14,21 @@ export type BuiltinViewProps = {
   onClose: () => void
   /** The view has opened a page in the embedded browser; App switches to it. */
   onBrowsing: () => void
+  musicStop?: ReactNode
 }
 
 type Builtin = { icon: () => ReactNode; View: ComponentType<BuiltinViewProps> }
 
-function WeatherView({ config, onClose }: BuiltinViewProps) {
+function WeatherView({ config, onClose, musicStop }: BuiltinViewProps) {
   return (
     <WeatherOverlay
       locationLabel={config.weather.locations[0]?.label ?? null}
       units={config.weather.units}
       onClose={onClose}
+      musicStop={musicStop}
     />
   )
 }
-
-function MediaNotSetup({ tile, onClose }: BuiltinViewProps) {
-  return (
-    <OverlayShell zIndex={zLayers.weatherOverlay} onClose={onClose}>
-      <section role="dialog" aria-label={tile.label}>
-        <p style={{ fontSize: 'calc(32px * var(--font-scale, 1))' }}>
-          {tile.label} is not set up yet.
-        </p>
-        <button
-          onClick={onClose}
-          style={{ padding: '18px 32px', fontSize: 'calc(28px * var(--font-scale, 1))' }}
-        >
-          Back to Home
-        </button>
-      </section>
-    </OverlayShell>
-  )
-}
-
-const MEDIA_NOT_SETUP: Builtin = { icon: () => <LinkIcon />, View: MediaNotSetup }
 
 /**
  * What makes each built-in tile its own thing: the picture in its well and the
@@ -57,7 +38,8 @@ const MEDIA_NOT_SETUP: Builtin = { icon: () => <LinkIcon />, View: MediaNotSetup
 const BUILTINS: Record<BuiltinKey, Builtin> = {
   weather: { icon: () => <SunCompassIcon />, View: WeatherView },
   news: { icon: () => <NewspaperIcon />, View: NewsOverlay },
-  photos: { icon: () => <PhotoIcon />, View: PhotoViewer }
+  photos: { icon: () => <PhotoIcon />, View: PhotoViewer },
+  music: { icon: () => <MusicIcon />, View: MusicOverlay }
 }
 
 export function builtinFor(tile: Tile): Builtin | undefined {
@@ -67,8 +49,5 @@ export function builtinFor(tile: Tile): Builtin | undefined {
       ? BUILTINS[key as BuiltinKey]
       : undefined
   if (registered) return registered
-  // A backup can retain media tiles from another setup. Until the media views
-  // are registered, keep a calm route back Home instead of a tile that does nothing.
-  if (key === 'music') return MEDIA_NOT_SETUP
   return undefined
 }

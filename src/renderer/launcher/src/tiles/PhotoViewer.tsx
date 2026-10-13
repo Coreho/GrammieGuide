@@ -5,7 +5,7 @@ import type { BuiltinViewProps } from './builtins'
 import './PhotoViewer.css'
 
 /** Still photos by default: she has time to enjoy one without having to keep up. */
-export function PhotoViewer({ tile, config, onClose }: BuiltinViewProps) {
+export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewProps) {
   const [photos, setPhotos] = useState<Photo[] | null>(null)
   const [unavailable, setUnavailable] = useState(false)
   const [index, setIndex] = useState(0)
@@ -101,6 +101,7 @@ export function PhotoViewer({ tile, config, onClose }: BuiltinViewProps) {
             🏠 Home
           </button>
           <h1>{tile.label}</h1>
+          {musicStop}
         </header>
         <div className="photo-viewer-picture" aria-busy={!photos && !unavailable}>
           {unavailable && <p role="status">The photos aren&apos;t ready right now.</p>}
