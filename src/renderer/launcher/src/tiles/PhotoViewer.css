@@ -76,6 +76,18 @@
   gap: 24px;
 }
 
+.photo-viewer-story {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+}
+.photo-viewer-story p {
+  margin: 0;
+  font-size: calc(24px * var(--font-scale, 1));
+}
+
 .photo-viewer button {
   flex: none;
   min-height: 80px;
