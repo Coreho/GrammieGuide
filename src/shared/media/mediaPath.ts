@@ -1,5 +1,5 @@
 export const MEDIA_SCHEME = 'grammie-media'
-export const MEDIA_LIBRARIES = ['music', 'photos'] as const
+export const MEDIA_LIBRARIES = ['music', 'photos', 'narration'] as const
 export type MediaLibrary = (typeof MEDIA_LIBRARIES)[number]
 
 export interface MediaPath {

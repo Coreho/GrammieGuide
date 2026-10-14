@@ -7,6 +7,7 @@ export interface Photo {
   order: number
   /** Stable tie-breaker assigned from the library's insertion order. */
   importIndex: number
+  narration?: { url: string; autoPlay: boolean }
 }
 
 export type PhotoPatch = Partial<Pick<Photo, 'caption' | 'showToHer' | 'order'>>

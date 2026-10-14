@@ -55,7 +55,9 @@ describe('photo IPC boundaries', () => {
     sender.isDestroyed.mockReturnValue(false)
     mocks.getPath.mockReturnValue('private/userData')
     mocks.getConfig.mockReturnValue({ tiles: [] })
-    mocks.windows.mockReturnValue([{ webContents: { send: mocks.windowSend } }])
+    mocks.windows.mockReturnValue([
+      { webContents: { send: mocks.windowSend, isDestroyed: () => false } }
+    ])
     sender.send.mockClear()
     mocks.list.mockResolvedValue([])
     mocks.addImage.mockResolvedValue(entry)
@@ -161,7 +163,7 @@ describe('photo IPC boundaries', () => {
     expect(mocks.update).toHaveBeenCalledWith(entry.id, { caption: '', showToHer: false, order: 2 })
     expect(await invoke('photos:remove', { id: entry.id })).toBe(true)
     expect(mocks.remove).toHaveBeenCalledWith(entry.id)
-    expect(mocks.unlock).toHaveBeenCalledTimes(3)
+    expect(mocks.unlock).toHaveBeenCalledTimes(6)
   })
 
   it('opens only visible photos and records no photo content or captions', async () => {
@@ -208,7 +210,7 @@ describe('photo IPC boundaries', () => {
       failed: 1
     })
     expect(JSON.stringify(sender.send.mock.calls)).not.toContain('private')
-    expect(mocks.unlock).toHaveBeenCalledTimes(2)
+    expect(mocks.unlock).toHaveBeenCalledTimes(4)
   })
 
   it('handles cancellation and rechecks the lock after the picker closes', async () => {

@@ -1,4 +1,15 @@
 import type { MediaLibrary } from './mediaPath'
+const AUDIO_CONTENT_TYPES = {
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.oga': 'audio/ogg',
+  '.opus': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.flac': 'audio/flac',
+  '.webm': 'audio/webm'
+} as const
 
 /** Import and picker types must stay aligned with what grammie-media can serve. */
 export const LIBRARY_CONTENT_TYPES: Readonly<
@@ -14,23 +25,15 @@ export const LIBRARY_CONTENT_TYPES: Readonly<
     '.bmp': 'image/bmp',
     '.ico': 'image/x-icon'
   },
-  music: {
-    '.mp3': 'audio/mpeg',
-    '.wav': 'audio/wav',
-    '.ogg': 'audio/ogg',
-    '.oga': 'audio/ogg',
-    '.opus': 'audio/ogg',
-    '.m4a': 'audio/mp4',
-    '.aac': 'audio/aac',
-    '.flac': 'audio/flac',
-    '.webm': 'audio/webm'
-  }
+  music: AUDIO_CONTENT_TYPES,
+  narration: AUDIO_CONTENT_TYPES
 }
 
 /** Electron's picker expects extensions without leading dots. */
 export const LIBRARY_EXTENSIONS: Readonly<Record<MediaLibrary, readonly string[]>> = {
   photos: Object.keys(LIBRARY_CONTENT_TYPES.photos).map((extension) => extension.slice(1)),
-  music: Object.keys(LIBRARY_CONTENT_TYPES.music).map((extension) => extension.slice(1))
+  music: Object.keys(LIBRARY_CONTENT_TYPES.music).map((extension) => extension.slice(1)),
+  narration: Object.keys(LIBRARY_CONTENT_TYPES.narration).map((extension) => extension.slice(1))
 }
 
 // The protocol also serves photo narration audio; only imports are restricted per library.
