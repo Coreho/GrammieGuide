@@ -19,6 +19,7 @@ import {
 } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
+import { installAdminMicrophonePermissions } from './services/photos/adminMicrophone'
 import {
   refreshAdBlockerLists,
   startBrowserProtection,
@@ -89,6 +90,7 @@ app.whenReady().then(() => {
   loadConfig()
   registerAllIpc()
   installMediaProtocol()
+  installAdminMicrophonePermissions()
   const win = createLauncherWindow()
   initEmbeddedBrowser(win)
   startInactivityWatch()
