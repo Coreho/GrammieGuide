@@ -5,6 +5,7 @@ import { BUILTIN_TILE_KEYS, type Config, type Tile } from '@shared/configSchema'
 import type { OldLauncherImportPreview } from '@shared/ipcContract'
 import { nextTileColor, TILE_COLOR_INDICES } from '@shared/tileColors'
 import { THEMES } from '@shared/theme'
+import { TILE_ARTWORK_KEYS, TILE_ARTWORK_LABELS, type TileArtwork } from '@shared/tileArtwork'
 import {
   HOME_LAYOUT_NAMES,
   HOME_LAYOUTS,
@@ -523,6 +524,31 @@ export function TilesTab() {
               </button>
             ))}
           </div>
+          <label>
+            Card artwork{' '}
+            <select
+              aria-label="Card artwork"
+              value={draft.artwork ?? ''}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  artwork: (e.target.value || undefined) as TileArtwork | undefined,
+                  // Choosing artwork replaces the custom icon, not the selected photo.
+                  icon: e.target.value ? undefined : draft.icon
+                })
+              }
+            >
+              <option value="">Automatic / custom icon</option>
+              {TILE_ARTWORK_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {TILE_ARTWORK_LABELS[key]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {draft.artwork && (
+            <p>The photo takes priority. Artwork changes the picture, not what this tile opens.</p>
+          )}
           <TilePhotoPicker
             photoId={draft.photoId}
             onChange={(photoId) => setDraft({ ...draft, photoId })}

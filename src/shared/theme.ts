@@ -6,7 +6,7 @@
  * by saved palette slot so rearranging Home preserves each tile's color.
  */
 
-export const THEME_NAMES = ['tilesBold', 'tiles', 'mint', 'butter', 'sky', 'evening'] as const
+export const THEME_NAMES = ['tilesBold', 'tiles', 'mint', 'butter', 'sky', 'evening', 'clayCards'] as const
 export type ThemeName = (typeof THEME_NAMES)[number]
 
 export const THEME_LABELS: Record<ThemeName, string> = {
@@ -15,12 +15,30 @@ export const THEME_LABELS: Record<ThemeName, string> = {
   mint: 'Mint',
   butter: 'Butter',
   sky: 'Sky',
-  evening: 'Evening'
+  evening: 'Evening',
+  clayCards: 'Clay cards'
 }
 
 export type ThemeTokens = Record<string, string>
 
 export const THEMES: Record<ThemeName, ThemeTokens> = {
+  // The user-approved illustrated cards: warm ground, deeper color, fuller lettering.
+  // Opt-in so an update never changes the caregiver's existing palette.
+  clayCards: {
+    page: '#FDF9EF', bgA: '#FDF9EF', bgB: '#FDF9EF', bgC: '#FDF9EF',
+    s1: '#FFFCF5', s2: '#ECE6DA', s3: '#E6E0D4', hl: 'rgba(255,255,255,.55)', sh: '80,57,27',
+    ink: '#30291F', ink2: '#504738', a1: '#BCE5CB', a2: '#89CBA7', ai: '#174B32',
+    ag: '45,107,71', dot: '#267747', dotOff: '#E5DFD2', dis: '#9B9284',
+    track: '#CEC5B6', g1: '#DFD7C8', g2: '#C8BEAD', c1: '#FFFFFF', c2: '#EEE6D8',
+    tile1: 'linear-gradient(180deg,#FFC82C,#FFC227)', tile2: 'linear-gradient(180deg,#1D7844,#18733F)',
+    tile3: 'linear-gradient(180deg,#348CCB,#1C71B6)', tile4: 'linear-gradient(180deg,#7857CD,#603EB2)',
+    tInk: '#FFFFFF', tInk1: '#331D05', wi: 'currentColor',
+    well: 'linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.12))',
+    'card-art-size': '240px', 'card-label-size': '72px', 'card-label-weight': '800',
+    'category-card-height': 'auto', 'category-card-aspect': '4', 'category-card-align': 'center',
+    'category-card-padding': '8px 8%', 'category-card-gap': '10%',
+    'card-shadow': 'inset 0 7px 12px rgba(255,255,255,.36), inset 0 -8px 12px rgba(55,31,5,.22), 0 10px 16px rgba(80,57,27,.23), 0 3px 5px rgba(80,57,27,.16)'
+  },
   mint: {
     page: '#E4E2DD', bgA: '#F4F3EF', bgB: '#ECEAE5', bgC: '#E6E4DF',
     s1: '#FBFAF7', s2: '#ECEAE5', s3: '#E8E6E1', hl: '#fff', sh: '60,55,45',

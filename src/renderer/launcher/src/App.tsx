@@ -47,7 +47,16 @@ const THEME_ONLY_KEYS = [
   'tInk3',
   'tInk4',
   'wi',
-  'well'
+  'well',
+  'card-art-size',
+  'card-label-size',
+  'card-label-weight',
+  'card-shadow',
+  'category-card-height',
+  'category-card-aspect',
+  'category-card-align',
+  'category-card-padding',
+  'category-card-gap'
 ]
 
 function timeParts(now: Date): { time: string; ampm: string; date: string } {
