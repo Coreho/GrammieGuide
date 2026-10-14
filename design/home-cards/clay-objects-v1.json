@@ -1,0 +1,33 @@
+{
+  "status": "generated",
+  "provider": "ChatGPT built-in image generation",
+  "asset": "src/renderer/launcher/src/assets/home-cards/clay-objects-v1.png",
+  "reference": "design/home-cards/home-cards-clay-v1.png",
+  "referenceRole": "User-approved style and recognizable objects, not a raster UI implementation",
+  "prompt": "Create a single production-ready transparent PNG sprite atlas for the four sculpted objects in the reference GrammieGuide Home card concept. The reference is STYLE AND OBJECT authority only: preserve its warm matte rounded Clay material, soft upper-left lighting, and recognizable shapes. REMOVE all card backgrounds, labels, text and surrounding page. This is ONE square texture atlas with exactly four equally sized square cells in a precise 2 by 2 arrangement. The entire canvas must be square; each cell is exactly one quadrant. The objects are centered at 25%,25%; 75%,25%; 25%,75%; 75%,75% of the canvas. Each object fits entirely inside the middle 76% of its cell, including its soft contact shadow, leaving at least 12% transparent padding on every cell edge, and never crosses into another cell. Top-left: two overlapping ivory bordered landscape photo prints with simple grassy green hills and blue sky, no people. Top-right: the same recognizable rounded wooden tabletop radio, cream front, one large speaker and one tuning knob, simplify the speaker to a calm broad woven texture rather than highly detailed mesh; no tiny writing or extra knobs. Bottom-left: one golden rounded sun with short rays behind one ivory rounded cloud. Bottom-right: a folded ivory newspaper with two blue-gray picture blocks and broad dark gray raised lines, no readable text. All four objects at comparable optical scale, matching the approved reference camera angles, actual 3D sculpted illustration quality, clean separations. True native alpha transparency everywhere outside objects and their subtle local shadows; preserve white paint on photos and newspaper and cloud, no fake checkerboard. No white or colored background, labels, cards, buttons, framing, borders around atlas cells, seams or divider lines. Do not make a whole app screenshot. Ready for CSS to reveal each quadrant as a decorative card illustration; crisp legible silhouettes at 140px. One square image with four isolated objects.",
+  "created": "2026-10-14",
+  "quadrants": {
+    "photos": [
+      0,
+      0
+    ],
+    "music": [
+      1,
+      0
+    ],
+    "weather": [
+      0,
+      1
+    ],
+    "news": [
+      1,
+      1
+    ]
+  },
+  "implementation": "One local transparent atlas revealed by CSS. Labels and card surfaces remain real UI. No new dependency or remote image fetch.",
+  "dimensions": {
+    "width": 1254,
+    "height": 1254
+  },
+  "alpha": "RGBA; transparency visually checked on mint, evening and bold card surfaces"
+}

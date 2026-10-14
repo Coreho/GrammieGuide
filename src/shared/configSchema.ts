@@ -5,13 +5,14 @@ import { quickMessageSchema } from './buddy/commands'
 import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
 import { HOME_LAYOUT_NAMES } from './homeLayout'
 import { musicSettingsSchema } from './music/musicSchema'
+import { TILE_ARTWORK_KEYS } from './tileArtwork'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 11
+export const CURRENT_SCHEMA_VERSION = 12
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music'] as const
@@ -30,6 +31,8 @@ export const tileSchema = z.object({
     .min(0)
     .max(TILE_COLOR_COUNT - 1),
   icon: z.string().optional(),
+  /** Named bundled artwork only. This never changes what the tile opens. */
+  artwork: z.enum(TILE_ARTWORK_KEYS).optional(),
   /** Managed photo ID only; paths and image URLs never enter tile configuration. */
   photoId: z.string().uuid().optional(),
   url: z.string().optional(),

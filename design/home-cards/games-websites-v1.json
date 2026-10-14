@@ -1,0 +1,50 @@
+{
+  "status": "design-and-assets-ready; navigation not implemented",
+  "created": "2026-10-14",
+  "provider": "ChatGPT built-in image generation",
+  "concept": "design/home-cards/games-websites-clay-v1.png",
+  "atlas": "design/home-cards/games-websites-objects-v1.png",
+  "reference": "design/home-cards/home-cards-clay-v1.png",
+  "referenceRole": "Approved card shapes, materials, lighting and label hierarchy",
+  "prompts": {
+    "concept": "Create a high-quality UI concept sheet with exactly TWO additional GrammieGuide Home activity cards, matching the approved four-card reference. Reference role: exact incumbent rounded Clay card character, tactile matte 3D object illustration style, lighting from upper left, generous visual scale, bold highly legible sans-serif labels and a warm ivory presentation ground. Do not repeat the reference's four activities. New cards only: Games and Websites. Stack two equal wide horizontal cards vertically with ample separation, straight-on view, around 2.6:1 card proportions, equal visual weight. Games card: warm golden-yellow Clay surface, dark brown-black bold label EXACTLY 'Games' on the right; on the left one simple, unmistakable group of THREE chunky interlocking jigsaw puzzle pieces in calm ivory, teal and blue. Clean large rounded silhouettes, no game controller, cards, dice, board, gambling or complex scene. Websites card: deep green Clay surface, white bold label EXACTLY 'Websites' on the right; on the left one sculpted cream desktop-browser window showing a simplified blue-green globe, a dark green top browser bar with three rounded dots, a broad empty search/address area but NO invented URLs or tiny writing. The browser/globe is a single cohesive clay object grouping. Match scale, material, depth and camera to the approved reference's tabletop radio and newspaper. Each card: illustration left roughly 40%, large label right roughly 60%; generous inset breathing room, subtle raised top edge, soft contact shadow, no nested card box around the illustration. Only text in image: 'Games' and 'Websites', spelled exactly. No subtitle, badge, instructions, navigation arrows, extra words, clock, header, footer, mascot or app screen. Familiar, calm and very easy to recognize. The colored surfaces are presentation of the existing palette and do not claim new saved configurations or operating features. Crisp large landscape-object illustrations in a portrait sheet of two stacked wide cards, professional production-design presentation.",
+    "atlas": "Extract and faithfully reproduce ONLY the two sculpted object groups from the reference: (1) the exact three connected chunky matte jigsaw pieces, ivory top, teal lower-left and blue lower-right; (2) the exact cream browser window with rounded dark-green top bar, three colored dots, empty cream address area and raised blue-green globe. This is one production-ready transparent PNG artwork atlas containing two objects. Remove all card surfaces, all labels, all backgrounds and page framing. No text, letters or URLs anywhere. Square canvas with exactly two equal square cells stacked vertically: object one is centered in the top half, object two centered in the bottom half. Therefore the canvas height must be exactly TWO times its width (a 1:2 portrait aspect ratio), each half is square. Both objects fit wholly within their half with at least 12% transparent margin on all sides, including subtle local contact shadows; no overlap or dividing line. Match the original illustrations closely: preserve their silhouette, camera, generous simple forms, matte creamy materials, soft upper-left light, natural muted soft shadow and coherent Clay style of GrammieGuide. Render at equivalent optical size in each cell. This is ONE sprite texture, ready for CSS to reveal its upper or lower square half. True native alpha background, preserve white/cream paint and transparent gaps. No checkerboard, no black or white backdrop, no card, no Games/Websites words, no duplicate objects, no ornament. Crisp professional isolated illustrations with recognizable shapes at 140px."
+  },
+  "cards": [
+    {
+      "label": "Games",
+      "object": "Three connected ivory, teal and blue jigsaw pieces",
+      "presentationColor": "Existing golden yellow palette slot"
+    },
+    {
+      "label": "Websites",
+      "object": "Cream browser window with a blue-green globe",
+      "presentationColor": "Existing deep green palette slot"
+    }
+  ],
+  "atlasMapping": {
+    "games": "Upper half",
+    "websites": "Lower half"
+  },
+  "limits": [
+    "App currently has no built-in Games or Websites selection menu; destination behavior is pending user clarification.",
+    "Six illustrated Home cards need a layout decision: the existing layouts are Simple four and More choices (eight).",
+    "Concept colors are presentation only; caregiver saved color choices remain authoritative."
+  ],
+  "dimensions": {
+    "concept": {
+      "width": 1983,
+      "height": 793
+    },
+    "atlas": {
+      "width": 887,
+      "height": 1774
+    }
+  },
+  "review": {
+    "labels": "Games and Websites correctly spelled and legible in the saved concept",
+    "objects": "Distinct recognizable jigsaw pieces and browser/globe, matching the approved Clay family",
+    "alpha": "RGBA atlas; all four sampled outer-corner alpha values are zero; 887x1774 gives exact square upper/lower cells",
+    "status": "Artwork only; collection navigation and placement not implemented"
+  }
+}
