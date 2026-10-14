@@ -1,0 +1,32 @@
+.home-card:focus-visible {
+  /* Inset keeps focus inside the clipped fixed grid, including its edge slots. */
+  outline: 4px solid currentColor;
+  outline-offset: -8px;
+}
+
+.home-card-artwork {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.home-card-artwork img {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  max-width: none;
+  pointer-events: none;
+}
+.home-card {
+  transition: translate 140ms, scale 140ms, box-shadow 120ms;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  /* CSS can honor the preference; an inline transition used to override it. */
+  .home-card {
+    transition: none;
+  }
+}

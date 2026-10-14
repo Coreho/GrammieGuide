@@ -4,6 +4,8 @@ import type { Tile as TileType } from '@shared/configSchema'
 import { TILE_SHADOW, TILE_SHADOW_ACTIVE, WELL_SHADOW, tileBackground, tileInk } from '../clay'
 import { LinkIcon } from '../icons'
 import { builtinFor } from '../tiles/builtins'
+import { BuiltinArtwork, hasBuiltinArtwork } from './BuiltinArtwork'
+import './Tile.css'
 
 function TileIcon({ tile }: { tile: TileType }) {
   if (tile.icon) return <span style={{ fontSize: 32 }}>{tile.icon}</span>
@@ -45,28 +47,35 @@ export function Tile({
   photoUrl?: string
   onActivate: (tile: TileType) => void
 }) {
+  const illustrated = !dense && hasBuiltinArtwork(tile)
   // A tile turning wide or dense changes the room its words have.
   const labelRef = useLabelFit(
     tile.label,
-    `${tile.size}-${compact}-${dense}-${Boolean(tile.photoId)}`
+    `${tile.size}-${compact}-${dense}-${Boolean(tile.photoId)}-${illustrated}`
   )
   const picturedDense = dense && Boolean(tile.photoId)
-  const wellSize = dense
-    ? { width: 48, height: 48, borderRadius: 16 }
-    : compact
-      ? {
-          height: 'min(calc(112px - 24px * var(--font-scale, 1)), 100%)',
-          aspectRatio: '1',
-          borderRadius: 28
-        }
-      : {
-          width: 'calc(152px - 40px * var(--font-scale, 1))',
-          height: 'calc(152px - 40px * var(--font-scale, 1))',
-          borderRadius: 34
-        }
+  const wellSize = illustrated
+    ? {
+        height: 'min(calc(192px - 32px * var(--font-scale, 1)), 100%)',
+        aspectRatio: '1'
+      }
+    : dense
+      ? { width: 48, height: 48, borderRadius: 16 }
+      : compact
+        ? {
+            height: 'min(calc(112px - 24px * var(--font-scale, 1)), 100%)',
+            aspectRatio: '1',
+            borderRadius: 28
+          }
+        : {
+            width: 'calc(152px - 40px * var(--font-scale, 1))',
+            height: 'calc(152px - 40px * var(--font-scale, 1))',
+            borderRadius: 34
+          }
 
   return (
     <button
+      className="home-card"
       onClick={() => onActivate(tile)}
       aria-label={tile.label}
       data-tile-slot={slot}
@@ -81,15 +90,14 @@ export function Tile({
         flexDirection: compact ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: picturedDense ? 12 : compact ? 22 : 18,
+        gap: picturedDense ? 12 : illustrated ? 24 : compact ? 22 : 18,
         padding: picturedDense ? '10px 12px' : compact ? '14px 24px' : '18px 12px',
         border: 'none',
         borderRadius: 40,
         cursor: 'pointer',
         color: tileInk(tile.colorIndex),
         background: tileBackground(tile.colorIndex),
-        boxShadow: TILE_SHADOW,
-        transition: 'translate .14s, scale .14s, box-shadow .12s'
+        boxShadow: TILE_SHADOW
       }}
       onPointerDown={(e) => {
         e.currentTarget.style.boxShadow = TILE_SHADOW_ACTIVE
@@ -100,33 +108,43 @@ export function Tile({
       onPointerLeave={(e) => {
         e.currentTarget.style.boxShadow = TILE_SHADOW
       }}
+      onPointerCancel={(e) => {
+        e.currentTarget.style.boxShadow = TILE_SHADOW
+      }}
     >
       {(!dense || tile.photoId) && (
         <div
+          aria-hidden="true"
           style={{
             ...wellSize,
             overflow: 'hidden',
             flex: 'none',
             color: 'var(--wi, var(--ai, #1F5A45))',
-            background:
-              'var(--well, linear-gradient(180deg, var(--a1,#A6EBD0), var(--a2,#7FD6B4)))',
-            boxShadow: WELL_SHADOW,
+            background: illustrated
+              ? undefined
+              : 'var(--well, linear-gradient(180deg, var(--a1,#A6EBD0), var(--a2,#7FD6B4)))',
+            boxShadow: illustrated ? undefined : WELL_SHADOW,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}
         >
-          <TilePicture key={photoUrl ?? 'icon'} tile={tile} url={photoUrl} />
+          {illustrated ? (
+            <BuiltinArtwork tile={tile} />
+          ) : (
+            <TilePicture key={photoUrl ?? 'icon'} tile={tile} url={photoUrl} />
+          )}
         </div>
       )}
       <div
         ref={labelRef}
         style={{
-          fontSize: `calc(${dense ? 29 : 34}px * var(--font-scale, 1) * var(--label-fit, 1))`,
+          fontSize: `calc(${dense ? 29 : illustrated ? 42 : 34}px * var(--font-scale, 1) * var(--label-fit, 1))`,
           fontWeight: 700,
           textAlign: compact && !dense ? 'left' : 'center',
           lineHeight: 1.1,
           minWidth: 0,
+          flex: illustrated && compact ? '1 1 0' : undefined,
           maxWidth: '100%',
           // Recognition depends on complete words, so never break inside one;
           // useLabelFit shrinks the label instead when a word is too wide.
