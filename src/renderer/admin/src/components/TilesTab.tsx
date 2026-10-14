@@ -512,7 +512,7 @@ export function TilesTab() {
                 type="button"
                 aria-label={`Icon ${icon}`}
                 aria-pressed={draft.icon === icon}
-                onClick={() => setDraft({ ...draft, icon })}
+                onClick={() => setDraft({ ...draft, icon, artwork: undefined })}
                 style={{
                   fontSize: 28,
                   minWidth: 48,
@@ -559,7 +559,13 @@ export function TilesTab() {
               maxLength={16}
               placeholder="Icon (emoji, optional)"
               value={draft.icon ?? ''}
-              onChange={(e) => setDraft({ ...draft, icon: e.target.value })}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  icon: e.target.value,
+                  artwork: e.target.value ? undefined : draft.artwork
+                })
+              }
             />
           </label>
           <div>
