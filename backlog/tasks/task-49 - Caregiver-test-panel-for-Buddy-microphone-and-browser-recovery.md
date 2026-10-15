@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-10-14 17:17'
-updated_date: '2026-10-15 01:38'
+updated_date: '2026-10-15 02:34'
 labels: []
 milestone: m-11
 dependencies: []
@@ -26,13 +26,13 @@ The caregiver can inspect separate settings and logs but lacks a repeatable way 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Only an unlocked caregiver can start tests; privileged test requests are also authorized in main.
-- [ ] #2 The panel offers individually initiated Buddy voice, microphone recognition, connectivity and browser recovery checks; each reports checking, passed, failed or unavailable in plain language.
-- [ ] #3 Audio playback completion is distinguished from the caregiver confirming that sound was heard; a voice or microphone failure does not produce a successful result.
-- [ ] #4 Microphone and audio tests can be cancelled and leave no active recording or delayed speech after cancellation, panel close or admin lock; test phrase content is not logged.
-- [ ] #5 A browser recovery check verifies that the senior can return Home after a controlled page failure without navigating to an arbitrary supplied URL or leaving hidden media playing.
-- [ ] #6 Any displayed result includes when it was checked and does not imply a feature is working now solely because an earlier test passed; TASK-25 reuses the relevant audio confirmation.
-- [ ] #7 Targeted automated checks cover authorization, unavailable configuration, failures and cancellation; a documented real-device walkthrough covers audible voice, microphone and recovery.
+- [x] #1 Only an unlocked caregiver can start tests; privileged test requests are also authorized in main.
+- [x] #2 The panel offers individually initiated Buddy voice, microphone recognition, connectivity and browser recovery checks; each reports checking, passed, failed or unavailable in plain language.
+- [x] #3 Audio playback completion is distinguished from the caregiver confirming that sound was heard; a voice or microphone failure does not produce a successful result.
+- [x] #4 Microphone and audio tests can be cancelled and leave no active recording or delayed speech after cancellation, panel close or admin lock; test phrase content is not logged.
+- [x] #5 A browser recovery check verifies that the senior can return Home after a controlled page failure without navigating to an arbitrary supplied URL or leaving hidden media playing.
+- [x] #6 Any displayed result includes when it was checked and does not imply a feature is working now solely because an earlier test passed; TASK-25 reuses the relevant audio confirmation.
+- [x] #7 Targeted automated checks cover authorization, unavailable configuration, failures and cancellation; a documented real-device walkthrough covers audible voice, microphone and recovery.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -57,4 +57,6 @@ The caregiver can inspect separate settings and logs but lacks a repeatable way 
 Implemented the Checks tab (admin), services/checks/caregiverChecks.ts and ipc/checksIpc.ts as planned. Results are in memory only (TASK-25 owns the on-disk health record) and lastHeardSound() is the heard-sound confirmation TASK-25 should reuse. runPowerShell gained an AbortSignal option; adminAuth gained onAdminLocked(). Verified: typecheck, lint, npm test (909 passed), build, tests/e2e/caregiver-checks.spec.ts 5/5.
 
 Real-device walkthrough (not yet performed): 1) Unlock admin, open Checks. 2) Buddy's voice: Check now; confirm the line plays from the kiosk speaker; answer I heard it (expect Passed) and repeat with the volume muted, answer I didn't hear it (expect Failed). Turn the online voice off in the Buddy tab and repeat to hear the Windows voice. 3) Microphone: Check now and say a short sentence within 8 seconds; expect Passed and the words shown once; repeat silently (expect Failed: didn't hear anything); start it again and press Stop, then confirm no powershell.exe remains in Task Manager. 4) Internet: Check now with Wi-Fi on (Passed) and with Wi-Fi off (Failed, not connected). 5) Getting back Home: with Home showing (move the admin window aside), Check now; Home briefly shows 'This page won't open right now' then returns Home; expect Passed. Open a web tile on Home first and run it again: expect Not available, and her page stays open. 6) Start the microphone check and press Lock: after unlocking, it shows Stopped.
+
+Verification: npm test 909 passed; caregiver-checks.spec 5/5 (lock refusal in main, offline connectivity with time, recovery screen then Home, voice waits for the answer, lock cancels the microphone check); full suite 125 passed, 1 failed in buddy-actions.spec (pre-existing cold-launch race, also fails alone on the TASK-53 branch; fixed by TASK-51/PR #48). AC6: lastHeardSound() is exported for TASK-25 rather than a second record. Remaining before Done: the real-kiosk walkthrough above.
 <!-- SECTION:NOTES:END -->
