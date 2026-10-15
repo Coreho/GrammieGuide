@@ -29,7 +29,7 @@ export type ExecFileFn = typeof execFile
  */
 export function runPowerShell(
   script: string,
-  opts: { timeoutMs?: number; execFileImpl?: ExecFileFn } = {}
+  opts: { timeoutMs?: number; execFileImpl?: ExecFileFn; signal?: AbortSignal } = {}
 ): Promise<ShellResult> {
   const timeoutMs = opts.timeoutMs ?? 15000
   const execImpl = opts.execFileImpl ?? execFile
@@ -39,15 +39,8 @@ export function runPowerShell(
   return new Promise((resolvePromise) => {
     execImpl(
       'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-WindowStyle',
-        'Hidden',
-        '-EncodedCommand',
-        encoded
-      ],
-      { timeout: timeoutMs, windowsHide: true },
+      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded],
+      { timeout: timeoutMs, windowsHide: true, ...(opts.signal ? { signal: opts.signal } : {}) },
       (err: ExecFileException | null, stdout: string, stderr: string) => {
         const durationMs = Date.now() - start
         if (err) {

@@ -9,7 +9,7 @@ import { BUDDY_SYSTEM_PROMPT } from './buddyPrompt'
 import {
   actionFromTool,
   explicitBuddyAction,
-  type BuddyAction,
+  type BuddyActionRequest,
   type BuddyActionResult
 } from '@shared/buddy/actions'
 import { BUDDY_ACTION_TOOLS } from './buddyActions'
@@ -91,7 +91,7 @@ export async function buddyChat(
     model: string
     client: MessagesClient | null
     log: (type: string, detail?: string) => void
-    resolveAction?: (action: BuddyAction) => Promise<BuddyActionResult>
+    resolveAction?: (action: BuddyActionRequest) => Promise<BuddyActionResult>
   }
 ): Promise<BuddyChatResult> {
   if (!opts.chatEnabled) {
@@ -101,15 +101,23 @@ export async function buddyChat(
   const last = turns.at(-1)
   const direct =
     last?.role === 'user' && typeof last.text === 'string' ? explicitBuddyAction(last.text) : null
-  const actionResult = async (action: BuddyAction): Promise<BuddyChatResult> => {
-    const result = await opts.resolveAction!(action)
-    return result.ok
+  const toChatResult = (result: BuddyActionResult): BuddyChatResult =>
+    result.ok
       ? { ok: true, reply: '', action: result.plan }
-      : { ok: false, reason: 'unavailable', reply: result.reply }
-  }
+      : {
+          ok: false,
+          reason: 'unavailable',
+          reply: result.reply,
+          ...(result.choices ? { choices: result.choices } : {})
+        }
   // Her explicit request needs no model, network or key. General wording can
   // propose one of the same tools below; neither path executes model text.
-  if (direct && opts.resolveAction) return actionResult(direct)
+  const directResult = direct && opts.resolveAction ? await opts.resolveAction(direct) : null
+  const hasChat = Boolean(opts.apiKey && opts.client)
+  // "Show me how to make tea" names no saved tile: with chat available that is
+  // conversation, not a failed request to open something.
+  if (directResult && !(hasChat && !directResult.ok && directResult.unknownTile))
+    return toChatResult(directResult)
 
   if (!opts.apiKey || !opts.client) {
     return { ok: false, reason: 'no-key', reply: REPLIES.noKey }
@@ -150,7 +158,7 @@ export async function buddyChat(
       if (!action || !opts.resolveAction)
         return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }
       // Discard accompanying model text, which may claim premature success.
-      return actionResult(action)
+      return toChatResult(await opts.resolveAction(action))
     }
 
     const text = response.content
@@ -175,9 +183,10 @@ export async function buddyChat(
       const service = opts.provider === 'openrouter' ? 'OpenRouter' : 'Anthropic'
       opts.log('buddy-chat-error', `no connection to the ${service} API`)
     } else if (err instanceof Anthropic.APIError) {
-      opts.log('buddy-chat-error', `API error ${err.status}: ${err.message}`)
+      opts.log('buddy-chat-error', `API error ${err.status}`)
     } else {
-      opts.log('buddy-chat-error', String(err))
+      // Provider errors can echo tool inputs, including her requested tile name.
+      opts.log('buddy-chat-error', 'request failed')
     }
     return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }
   }

@@ -12,15 +12,16 @@ import { buddyCommandSchema } from '@shared/buddy/commands'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { getLauncherWindow } from '../windows/windowManager'
 import {
-  buddyActionSchema,
+  buddyActionRequestSchema,
   ACTION_REPLIES,
-  type BuddyAction,
+  type BuddyActionRequest,
   type BuddyActionResult
 } from '@shared/buddy/actions'
 import { resolveBuddyAction } from '../services/ai/buddyActions'
 import { libraryPaths } from '../services/media/libraryPaths'
 import type { MediaLibrary } from '@shared/media/mediaPath'
 import type { LibraryStore } from '../services/media/libraryStore'
+import { runPowerShell } from '../services/reliability/shellExec'
 
 const tts = createTtsService()
 // The recognizer/mic check spawns PowerShell (~1s); the answer can't change
@@ -28,7 +29,7 @@ const tts = createTtsService()
 let canListenOnce: Promise<boolean> | null = null
 
 export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore): void {
-  const resolveAction = (action: BuddyAction): Promise<BuddyActionResult> =>
+  const resolveAction = (action: BuddyActionRequest): Promise<BuddyActionResult> =>
     resolveBuddyAction(
       action,
       getConfig(),
@@ -44,7 +45,7 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       }
     )
   ipcMain.handle('buddy:action', (event, request: unknown) => {
-    const parsed = buddyActionSchema.safeParse(request)
+    const parsed = buddyActionRequestSchema.safeParse(request)
     if (event.sender !== getLauncherWindow()?.webContents || !parsed.success)
       return { ok: false, reply: ACTION_REPLIES.unavailable }
     return resolveAction(parsed.data)
@@ -90,8 +91,28 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
     return result
   })
 
-  ipcMain.handle('buddy:listen', async () => {
-    const result = await listenOnce()
+  let listening: AbortController | null = null
+  ipcMain.handle('buddy:cancelListen', (event) => {
+    if (event.sender === getLauncherWindow()?.webContents) listening?.abort()
+  })
+  ipcMain.handle('buddy:listen', async (event) => {
+    if (event.sender !== getLauncherWindow()?.webContents || !getConfig().buddy.chatEnabled)
+      return { ok: false, reason: 'unavailable' }
+    listening?.abort()
+    const controller = new AbortController()
+    listening = controller
+    const cancel = (): void => controller.abort()
+    event.sender.once('destroyed', cancel)
+    // The existing recognizer accepts a runner. Cancel its child process here so
+    // closing chat releases the microphone, rather than merely hiding the result.
+    const result = await listenOnce((script, opts) =>
+      runPowerShell(script, { ...opts, signal: controller.signal })
+    ).finally(() => {
+      event.sender.removeListener('destroyed', cancel)
+      if (listening === controller) listening = null
+    })
+    if (controller.signal.aborted || !getConfig().buddy.chatEnabled)
+      return { ok: false, reason: 'unavailable' }
     // Like chat: that she spoke is loggable, what she said is not.
     logActivity(result.ok ? 'buddy-heard' : `buddy-listen-${result.reason}`)
     return result

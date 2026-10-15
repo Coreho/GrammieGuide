@@ -2,13 +2,18 @@ import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
 import type { BuddyProvider } from './buddy/providers'
-import type { PageProblem } from './browser/loadFailure'
+import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
 import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
 import type { MusicTrack, MusicImportResult, MusicImportProgress } from './music/musicTypes'
 import type { MusicSettings } from './music/musicSchema'
 import type { AudioUpdate, ClientAudioEvent } from './audio/audioContract'
-import type { BuddyAction, BuddyActionPlan, BuddyActionResult } from './buddy/actions'
+import type {
+  BuddyActionRequest,
+  BuddyActionPlan,
+  BuddyActionResult,
+  BuddyTileChoice
+} from './buddy/actions'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -66,7 +71,12 @@ export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
  */
 export type BuddyChatResult =
   | { ok: true; reply: string; action?: BuddyActionPlan }
-  | { ok: false; reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'; reply: string }
+  | {
+      ok: false
+      reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'
+      reply: string
+      choices?: BuddyTileChoice[]
+    }
 
 /** Base64 MP3 of Buddy's line, or why there's none (the renderer then uses the Windows voice). */
 export type BuddySpeakResult =
@@ -172,7 +182,10 @@ export interface IpcApi {
   'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
   'buddy:chat': { request: { turns: BuddyChatTurn[] }; response: BuddyChatResult }
-  'buddy:action': { request: BuddyAction; response: BuddyActionResult }
+  'buddy:action': { request: BuddyActionRequest; response: BuddyActionResult }
+  'buddy:cancelListen': { request: void; response: void }
+  /** Buddy opening a saved web tile by ID; resolves once the page loads or fails. */
+  'browser:openTile': { request: { tileId: string }; response: PageOutcome }
   /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */
   'buddy:speak': { request: { text: string; voice?: string }; response: BuddySpeakResult }
   /** One spoken phrase through Windows' offline recognizer; returns once she pauses. */
