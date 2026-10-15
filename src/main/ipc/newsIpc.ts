@@ -28,7 +28,10 @@ export function registerNewsIpc(): void {
     // this service fetched, so Home can't be used to open anything else.
     const url = newsService.destination(req.tileId, req.storyId)
     if (!url) return { ok: false }
-    const result = openUrl(url, { privateNavigation: true })
+    const result = openUrl(url, {
+      privateNavigation: true,
+      trustedInitialPage: req.storyId !== undefined
+    })
     if (result.ok) logActivity(req.storyId === undefined ? 'news-site-opened' : 'news-story-opened')
     return { ok: result.ok }
   })

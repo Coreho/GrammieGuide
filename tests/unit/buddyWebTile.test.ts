@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   config: vi.fn(),
   launcher: vi.fn(),
   log: vi.fn(),
+  reliability: vi.fn(),
+  requireAdmin: vi.fn(),
   views: [] as Array<{ webContents: EventEmitter }>
 }))
 vi.mock('electron', async () => {
@@ -38,12 +40,18 @@ vi.mock('../../src/main/services/audio/pageAudio', () => ({ wirePageAudio: () =>
 vi.mock('../../src/main/services/audio/audioRuntime', () => ({ getAudioCoordinator: vi.fn() }))
 vi.mock('../../src/main/services/activityLog/activityLog', () => ({ logActivity: mocks.log }))
 vi.mock('../../src/main/services/reliability/reliabilityLog', () => ({
-  logReliabilityEvent: vi.fn()
+  logReliabilityEvent: mocks.reliability
+}))
+vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({
+  requireAdminUnlocked: mocks.requireAdmin
 }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.config }))
 vi.mock('../../src/main/windows/windowManager', () => ({ getLauncherWindow: mocks.launcher }))
 import {
   initEmbeddedBrowser,
+  openUrl,
+  getPageProblem,
+  dismissBlocked,
   openUrlAndWait,
   closeEmbeddedBrowser
 } from '../../src/main/services/browser/embeddedBrowser'
@@ -58,6 +66,8 @@ describe('saved web tile opening', () => {
   })
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.config.mockReturnValue({ ...defaultConfig(), approvedSites: ['saved.example'] })
+    mocks.requireAdmin.mockImplementation(() => undefined)
     mocks.launcher.mockReturnValue(host)
     initEmbeddedBrowser(host as never)
   })
@@ -159,5 +169,78 @@ describe('saved web tile opening', () => {
     expect(mocks.load).toHaveBeenCalledExactlyOnceWith('https://saved.example')
     config.tiles[0]!.slot = null
     expect(await invoke({ sender: host.webContents }, { tileId: 'web' })).toBe('refused')
+  })
+
+  it('blocks fresh main-frame redirects, retains recovery after aborted loads and returns Home when no page committed', async () => {
+    mocks.load.mockResolvedValue(undefined)
+    openUrl('https://saved.example')
+    const contents = mocks.views.at(-1)!.webContents
+    const event = { preventDefault: vi.fn() }
+    contents.emit('will-redirect', event, 'https://blocked.example/private?secret=1', false, true)
+    contents.emit('did-fail-load', {}, -3, 'ERR_ABORTED', 'https://saved.example', true)
+    contents.emit('did-finish-load')
+    expect(event.preventDefault).toHaveBeenCalledOnce()
+    expect(getPageProblem()).toBe('blocked')
+    expect(mocks.log).toHaveBeenCalledWith('browser-navigation-blocked', 'blocked.example')
+    expect(JSON.stringify(mocks.reliability.mock.calls)).not.toContain('secret')
+    dismissBlocked()
+    expect(host.webContents.send).toHaveBeenCalledWith('browser:return-home', {})
+  })
+
+  it('leaves child-frame navigations and redirects alone but guards frame-initiated top navigation', () => {
+    mocks.load.mockResolvedValue(undefined)
+    openUrl('https://saved.example')
+    const contents = mocks.views.at(-1)!.webContents
+    const event = { preventDefault: vi.fn(), isMainFrame: false, url: 'https://blocked.example' }
+    contents.emit('will-frame-navigate', event)
+    contents.emit('will-redirect', event, event.url, false, false)
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    expect(getPageProblem()).toBeNull()
+    contents.emit('will-frame-navigate', { ...event, isMainFrame: true })
+    expect(event.preventDefault).toHaveBeenCalledOnce()
+    expect(getPageProblem()).toBe('blocked')
+  })
+
+  it('keeps private News block and load-failure addresses out of both logs', () => {
+    mocks.load.mockResolvedValue(undefined)
+    const story = 'https://private-story.example/secret'
+    openUrl(story, { privateNavigation: true, trustedInitialPage: true })
+    const contents = mocks.views.at(-1)!.webContents
+    contents.emit('did-navigate', {}, story)
+    contents.emit(
+      'will-navigate',
+      { preventDefault: vi.fn() },
+      'https://private-link.example/private?secret=1'
+    )
+    expect(getPageProblem()).toBe('blocked')
+    dismissBlocked()
+    expect(getPageProblem()).toBeNull()
+    contents.emit('will-redirect', { preventDefault: vi.fn() }, story, false, true)
+    expect(getPageProblem()).toBe('blocked')
+    openUrl(story, { privateNavigation: true, trustedInitialPage: true })
+    contents.emit('did-fail-load', {}, -102, 'ERR_CONNECTION_REFUSED', story, true)
+    const logs = JSON.stringify([mocks.log.mock.calls, mocks.reliability.mock.calls])
+    expect(logs).not.toContain('https:')
+    expect(logs).not.toContain('private-story.example')
+    expect(logs).not.toContain('private-link.example')
+  })
+
+  it('does not grant an exception just because a normal open requests private logs', () => {
+    mocks.load.mockResolvedValue(undefined)
+    openUrl('https://unapproved.example', { privateNavigation: true })
+    expect(mocks.load).not.toHaveBeenCalled()
+    expect(getPageProblem()).toBe('blocked')
+  })
+
+  it('requires an unlocked admin before reading blocked domains', () => {
+    registerBrowserIpc()
+    const invoke = mocks.handle.mock.calls.find(
+      ([channel]) => channel === 'browser:blockedSites'
+    )![1]
+    mocks.requireAdmin.mockImplementation(() => {
+      throw new Error('admin unlock required')
+    })
+    expect(() => invoke()).toThrow('admin unlock required')
+    expect(mocks.requireAdmin).toHaveBeenCalledOnce()
   })
 })
