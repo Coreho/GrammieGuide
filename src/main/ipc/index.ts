@@ -11,6 +11,7 @@ import { registerLibraryIpc } from './libraryIpc'
 import { registerMusicIpc } from './musicIpc'
 import { registerAudioIpc } from './audioIpc'
 import { registerBackupIpc } from './backupIpc'
+import { registerNarrationIpc } from './narrationIpc'
 import { registerChecksIpc } from './checksIpc'
 
 /**
@@ -31,6 +32,7 @@ export function registerAllIpc(): void {
   registerTileIpc()
   registerNewsIpc()
   registerMusicIpc(getLibrary)
+  registerNarrationIpc(getLibrary)
   registerBackupIpc()
   registerChecksIpc()
 }

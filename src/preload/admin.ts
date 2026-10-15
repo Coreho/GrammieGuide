@@ -16,6 +16,12 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  recordNarration: (request: IpcRequest<'photos:recordNarration'>) =>
+    invoke('photos:recordNarration', request),
+  attachNarration: (id: string) => invoke('photos:attachNarration', { id }),
+  removeNarration: (id: string) => invoke('photos:removeNarration', { id }),
+  setNarrationAutoPlay: (id: string, enabled: boolean) =>
+    invoke('photos:setNarrationAutoPlay', { id, enabled }),
   getAudio: () => invoke('audio:get'),
   resetAudioOwner: () => invoke('audio:resetOwner'),
   audioEvent: (event: IpcRequest<'audio:event'>) => invoke('audio:event', event),

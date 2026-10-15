@@ -70,6 +70,6 @@ export async function holdAudio(
   } catch {
     release()
     // A coordination failure must not suppress her existing Buddy speech path.
-    return { allowed: Boolean(window.launcher), release }
+    return { allowed: source !== 'narration' && Boolean(window.launcher), release }
   }
 }

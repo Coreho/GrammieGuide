@@ -266,6 +266,40 @@ export class LibraryStore {
     })
   }
 
+  /** Publish recorded bytes before the index, with the same rollback as copied files. */
+  addBytes(
+    bytes: Buffer,
+    extension: string,
+    initialMetadata: LibraryMetadata
+  ): Promise<LibraryEntry> {
+    return this.run(async () => {
+      const current = await this.load()
+      if (this.recoveryError) throw new Error('Library index recovery failed')
+      if (!/^\.[a-z0-9]{1,10}$/.test(extension)) throw new Error('Invalid media extension')
+      const id = randomUUID()
+      const entry: LibraryEntry = {
+        id,
+        fileName: `${id}${extension}`,
+        metadata: metadata(initialMetadata)
+      }
+      const destination = join(this.paths.folder, entry.fileName)
+      const temporary = join(this.paths.folder, `.${id}.import.tmp`)
+      try {
+        await this.io.writeFile(temporary, bytes)
+        await this.io.rename(temporary, destination)
+        await this.save([...current, entry])
+        return structuredClone(entry)
+      } catch (error) {
+        await Promise.all(
+          [temporary, destination].map((path) =>
+            this.io.rm(path, { force: true }).catch(() => undefined)
+          )
+        )
+        throw error
+      }
+    })
+  }
+
   /** Publish both encoded images before the index; a failed save leaves neither listed. */
   addImage(
     jpeg: Buffer,

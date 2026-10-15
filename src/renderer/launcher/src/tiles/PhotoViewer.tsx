@@ -3,6 +3,7 @@ import type { Photo } from '@shared/media/photoTypes'
 import { zLayers } from '@shared/zLayers'
 import type { BuiltinViewProps } from './builtins'
 import './PhotoViewer.css'
+import { useNarration } from '../../../audio/useNarration'
 
 /** Still photos by default: she has time to enjoy one without having to keep up. */
 export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewProps) {
@@ -18,6 +19,16 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
   const count = photos?.length ?? 0
   const imageReady = Boolean(photo && loadedId === photo.id && failedId !== photo.id)
   const playing = config.photos.slideshowEnabled && !paused
+  const narration = useNarration(imageReady ? photo?.narration?.url : undefined)
+  const autoPlayed = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!photo || !imageReady || !photo.narration?.autoPlay) return
+    const key = `${photo.id}:${photo.narration.url}`
+    if (autoPlayed.current === key) return
+    autoPlayed.current = key
+    void narration.play()
+  }, [photo, imageReady, narration.play])
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -37,20 +48,34 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
       .catch(() => {
         if (live) setUnavailable(true)
       })
+    const unsubscribe = window.launcher.onPhotosChanged(() => {
+      void window.launcher.listPhotos().then(
+        (result) => {
+          if (live) {
+            setPhotos(result)
+            setIndex((current) => Math.min(current, Math.max(0, result.length - 1)))
+          }
+        },
+        () => {}
+      )
+    })
     return () => {
       live = false
+      unsubscribe()
     }
   }, [])
 
   useEffect(() => {
-    if (!playing || !imageReady || count < 2) return
+    if (!playing || !imageReady || count < 2 || narration.playing) return
     // Wait from the displayed photo, not from when loading began. Manual paging,
     // pause, a failed image, or leaving the viewer cancels this pending advance.
     const timer = window.setTimeout(() => setIndex((current) => (current + 1) % count), 30_000)
     return () => window.clearTimeout(timer)
-  }, [playing, imageReady, count, index])
+  }, [playing, imageReady, count, index, narration.playing])
 
   function move(direction: number): void {
+    narration.stop()
+    autoPlayed.current = null
     if (count < 2) {
       onClose()
       return
@@ -127,6 +152,14 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
           <p className="photo-viewer-caption" tabIndex={0}>
             {photo.caption}
           </p>
+        )}
+        {imageReady && photo?.narration && (
+          <div className="photo-viewer-story">
+            <button onClick={() => (narration.playing ? narration.stop() : void narration.play())}>
+              {narration.playing ? 'Stop story' : 'Listen to the story'}
+            </button>
+            {narration.error && <p role="status">The story isn&apos;t ready right now.</p>}
+          </div>
         )}
         <footer className="photo-viewer-controls">
           <button

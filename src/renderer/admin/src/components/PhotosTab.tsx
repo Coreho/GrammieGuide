@@ -2,17 +2,20 @@ import { useEffect, useState } from 'react'
 import type { Photo, PhotoImportProgress } from '@shared/media/photoTypes'
 import './PhotosTab.css'
 import { useConfigStore } from '../state/useConfigStore'
+import { PhotoNarrationEditor } from './PhotoNarrationEditor'
 
 function PhotoEditor({
   photo,
   disabled,
   onSaved,
-  onRemoved
+  onRemoved,
+  onRecording
 }: {
   photo: Photo
   disabled: boolean
   onSaved: (photo: Photo) => void
   onRemoved: (id: string) => void
+  onRecording: (active: boolean) => void
 }) {
   const [caption, setCaption] = useState(photo.caption)
   const [showToHer, setShowToHer] = useState(photo.showToHer)
@@ -20,6 +23,7 @@ function PhotoEditor({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [recording, setRecording] = useState(false)
   const orderNumber = Number(order)
   const validOrder = order.trim() !== '' && Number.isSafeInteger(orderNumber) && orderNumber >= 0
   const dirty =
@@ -67,7 +71,7 @@ function PhotoEditor({
           if (validOrder) void save()
         }}
       >
-        <fieldset disabled={disabled || busy}>
+        <fieldset disabled={disabled || busy || recording}>
           <label>
             Caption (optional)
             <textarea
@@ -116,6 +120,15 @@ function PhotoEditor({
           </div>
         </fieldset>
       </form>
+      <PhotoNarrationEditor
+        photo={photo}
+        disabled={disabled || busy}
+        onRecording={(active) => {
+          setRecording(active)
+          onRecording(active)
+        }}
+        onChanged={(narration) => onSaved({ ...photo, narration: narration ?? undefined })}
+      />
       {saved && <p role="status">Saved.</p>}
       {error && <p role="alert">{error}</p>}
     </li>
@@ -132,6 +145,7 @@ export function PhotosTab() {
   const [progress, setProgress] = useState<PhotoImportProgress | null>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [recordingId, setRecordingId] = useState<string | null>(null)
 
   const changeSlideshow = async (slideshowEnabled: boolean): Promise<void> => {
     setSavingSlideshow(true)
@@ -204,10 +218,13 @@ export function PhotosTab() {
       </label>
       <p>Off keeps each photo still until she taps Back or Next. She can pause the slideshow.</p>
       <div className="photo-actions">
-        <button disabled={loading || importing} onClick={() => void importPhotos()}>
+        <button
+          disabled={loading || importing || Boolean(recordingId)}
+          onClick={() => void importPhotos()}
+        >
           {importing ? 'Importing…' : 'Add photos…'}
         </button>
-        <button disabled={loading || importing} onClick={() => void load()}>
+        <button disabled={loading || importing || Boolean(recordingId)} onClick={() => void load()}>
           Reload library
         </button>
       </div>
@@ -236,7 +253,8 @@ export function PhotosTab() {
           <PhotoEditor
             key={photo.id}
             photo={photo}
-            disabled={loading || importing}
+            disabled={loading || importing || Boolean(recordingId && recordingId !== photo.id)}
+            onRecording={(active) => setRecordingId(active ? photo.id : null)}
             onSaved={(updated) =>
               setPhotos((current) =>
                 current

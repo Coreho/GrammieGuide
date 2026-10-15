@@ -75,3 +75,15 @@
   outline: 2px solid #3a5f8a;
   outline-offset: 3px;
 }
+
+.photo-narration {
+  border-top: 1px solid #a6afb8;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.photo-narration h3 {
+  margin: 0;
+}
+.photo-narration .photo-visibility {
+  margin-top: 16px;
+}

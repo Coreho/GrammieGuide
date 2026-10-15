@@ -55,7 +55,9 @@ describe('photo IPC boundaries', () => {
     sender.isDestroyed.mockReturnValue(false)
     mocks.getPath.mockReturnValue('private/userData')
     mocks.getConfig.mockReturnValue({ tiles: [] })
-    mocks.windows.mockReturnValue([{ webContents: { send: mocks.windowSend } }])
+    mocks.windows.mockReturnValue([
+      { webContents: { send: mocks.windowSend, isDestroyed: () => false } }
+    ])
     sender.send.mockClear()
     mocks.list.mockResolvedValue([])
     mocks.addImage.mockResolvedValue(entry)
@@ -161,7 +163,7 @@ describe('photo IPC boundaries', () => {
     expect(mocks.update).toHaveBeenCalledWith(entry.id, { caption: '', showToHer: false, order: 2 })
     expect(await invoke('photos:remove', { id: entry.id })).toBe(true)
     expect(mocks.remove).toHaveBeenCalledWith(entry.id)
-    expect(mocks.unlock).toHaveBeenCalledTimes(3)
+    expect(mocks.unlock).toHaveBeenCalledTimes(6)
   })
 
   it('opens only visible photos and records no photo content or captions', async () => {
@@ -208,7 +210,7 @@ describe('photo IPC boundaries', () => {
       failed: 1
     })
     expect(JSON.stringify(sender.send.mock.calls)).not.toContain('private')
-    expect(mocks.unlock).toHaveBeenCalledTimes(2)
+    expect(mocks.unlock).toHaveBeenCalledTimes(4)
   })
 
   it('handles cancellation and rechecks the lock after the picker closes', async () => {
@@ -250,6 +252,24 @@ describe('photo IPC boundaries', () => {
     await first
     mocks.dialog.mockResolvedValue({ canceled: true, filePaths: [] })
     expect(await invoke('photos:import')).toEqual({ imported: 0, failed: 0 })
+  })
+
+  it('lets Home read photos and admin change them while the photo picker is open', async () => {
+    let release!: (value: unknown) => void
+    mocks.dialog.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        })
+    )
+    mocks.list.mockResolvedValue([entry])
+    mocks.remove.mockResolvedValue(true)
+    const importing = invoke('photos:import')
+    await vi.waitFor(() => expect(mocks.dialog).toHaveBeenCalledOnce())
+    expect(await invoke('photos:listVisible')).toHaveLength(1)
+    expect(await invoke('photos:remove', { id: 'generated' })).toBe(true)
+    release({ canceled: true, filePaths: [] })
+    expect(await importing).toEqual({ imported: 0, failed: 0 })
   })
 
   it.each(['listAll', 'listVisible', 'update', 'remove', 'import'])(

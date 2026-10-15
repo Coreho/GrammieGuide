@@ -112,6 +112,16 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'photos:recordNarration': {
+    request: { id: string; bytes: Uint8Array }
+    response: Photo['narration'] | null
+  }
+  'photos:attachNarration': { request: { id: string }; response: Photo['narration'] | null }
+  'photos:removeNarration': { request: { id: string }; response: null }
+  'photos:setNarrationAutoPlay': {
+    request: { id: string; enabled: boolean }
+    response: Photo['narration'] | null
+  }
   'audio:get': { request: void; response: AudioUpdate }
   'audio:resetOwner': { request: void; response: AudioUpdate }
   'audio:event': { request: ClientAudioEvent; response: AudioUpdate }

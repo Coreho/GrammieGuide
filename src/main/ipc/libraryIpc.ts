@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage } from 'electron'
+import { app, dialog, ipcMain, nativeImage } from 'electron'
 import { extname } from 'node:path'
 import type { IpcRequest, IpcResponse } from '@shared/ipcContract'
 import { isMediaLibrary, type MediaLibrary } from '@shared/media/mediaPath'
@@ -12,6 +12,10 @@ import { logActivity } from '../services/activityLog/activityLog'
 import { getConfig } from '../config/store'
 import { removeTrackReferences } from '../services/music/musicSettings'
 import { runMusicOperation } from '../services/music/musicOperations'
+import { runPhotoOperation } from '../services/photos/photoOperations'
+import { photosChanged } from '../services/photos/photoEvents'
+import { PhotoNarration } from '../services/photos/photoNarration'
+import { validateNarration } from '../services/photos/validateNarration'
 
 /**
  * The store's own errors are plain messages, but filesystem errors (EPERM, ENOSPC...) name
@@ -27,12 +31,6 @@ async function withoutPaths<T>(work: Promise<T>, message: string): Promise<T> {
 }
 
 export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
-  function photosChanged(): void {
-    // Only a change notification: private captions and paths never enter this event.
-    for (const window of BrowserWindow.getAllWindows()) {
-      window.webContents.send('photos:changed', {})
-    }
-  }
   const stores = new Map<MediaLibrary, LibraryStore>()
   function library(request: { library: MediaLibrary }): LibraryStore {
     if (!request || !isMediaLibrary(request.library)) throw new Error('Invalid media library')
@@ -49,6 +47,7 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     // Photo writes must pass through decoding and typed metadata validation.
     if (request.library === 'photos')
       throw new Error('Use the Photos tab to change the photo library')
+    if (request.library === 'narration') throw new Error('Use the Photos tab to change stories')
     return library(request)
   }
 
@@ -58,6 +57,12 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
       library({ library: 'photos' }),
       createNativePhotoCodec(nativeImage)
     ))
+  const narration = (): PhotoNarration =>
+    new PhotoNarration(
+      library({ library: 'photos' }),
+      library({ library: 'narration' }),
+      validateNarration
+    )
 
   async function photoWork<T>(work: () => Promise<T>, message: string): Promise<T> {
     try {
@@ -67,14 +72,28 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
       throw new Error(message)
     }
   }
+  /**
+   * Changes share one queue with story edits so a removed photo can't keep its story. Reads
+   * and pickers stay out of it: her viewer and tile pictures must not wait on an open picker
+   * or a long import.
+   */
+  function photoChange<T>(work: () => Promise<T>, message: string): Promise<T> {
+    return runPhotoOperation(() => photoWork(work, message))
+  }
 
   ipcMain.handle('photos:open', (): Promise<IpcResponse<'photos:open'>> => {
     // Opening is the only viewer activity recorded. Never log a photo, caption or path.
     logActivity('photos-viewer-opened')
-    return photoWork(() => photos().listVisible(), 'Could not read the photos')
+    return photoWork(
+      async () => narration().decorate(await photos().listVisible()),
+      'Could not read the photos'
+    )
   })
   ipcMain.handle('photos:listVisible', (): Promise<IpcResponse<'photos:listVisible'>> =>
-    photoWork(() => photos().listVisible(), 'Could not read the photos')
+    photoWork(
+      async () => narration().decorate(await photos().listVisible()),
+      'Could not read the photos'
+    )
   )
   ipcMain.handle('photos:tileImages', (): Promise<IpcResponse<'photos:tileImages'>> =>
     photoWork(async () => {
@@ -93,7 +112,10 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
   )
   ipcMain.handle('photos:listAll', (): Promise<IpcResponse<'photos:listAll'>> => {
     requireAdminUnlocked()
-    return photoWork(() => photos().listAll(), 'Could not read the photos')
+    return photoWork(async () => {
+      requireAdminUnlocked()
+      return narration().decorate(await photos().listAll())
+    }, 'Could not read the photos')
   })
   let importingPhotos = false
   ipcMain.handle('photos:import', async (event): Promise<IpcResponse<'photos:import'>> => {
@@ -101,23 +123,21 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     if (importingPhotos) throw new Error('A photo import is already running')
     importingPhotos = true
     try {
-      const selection = await photoWork(
-        () =>
-          dialog.showOpenDialog({
-            properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
-            filters: [{ name: 'Photos', extensions: [...PHOTO_EXTENSIONS] }]
-          }),
-        'Could not open the photo picker'
-      )
+      const selection = await photoWork(() => {
+        requireAdminUnlocked()
+        return dialog.showOpenDialog({
+          properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
+          filters: [{ name: 'Photos', extensions: [...PHOTO_EXTENSIONS] }]
+        })
+      }, 'Could not open the photo picker')
       requireAdminUnlocked()
       if (selection.canceled) return { imported: 0, failed: 0 }
-      const result = await photoWork(
-        () =>
-          photos().import(selection.filePaths, (count) => {
-            if (!event.sender.isDestroyed()) event.sender.send('photos:importProgress', count)
-          }),
-        'Could not import photos'
-      )
+      const result = await photoChange(() => {
+        requireAdminUnlocked()
+        return photos().import(selection.filePaths, (count) => {
+          if (!event.sender.isDestroyed()) event.sender.send('photos:importProgress', count)
+        })
+      }, 'Could not import photos')
       if (result.imported) photosChanged()
       return result
     } finally {
@@ -130,10 +150,11 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
       requireAdminUnlocked()
       if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
       const patch = validatePhotoPatch(request.patch)
-      const result = await photoWork(
-        () => photos().update(request.id, patch),
-        'Could not save the photo'
-      )
+      const result = await photoChange(async () => {
+        requireAdminUnlocked()
+        const updated = await photos().update(request.id, patch)
+        return (await narration().decorate([updated]))[0]!
+      }, 'Could not save the photo')
       photosChanged()
       return result
     }
@@ -143,10 +164,12 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     async (_event, request: IpcRequest<'photos:remove'>): Promise<IpcResponse<'photos:remove'>> => {
       requireAdminUnlocked()
       if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
-      const result = await photoWork(
-        () => photos().remove(request.id),
-        'Could not remove the photo'
-      )
+      const result = await photoChange(async () => {
+        requireAdminUnlocked()
+        const removed = await photos().remove(request.id)
+        if (removed) await narration().remove(request.id)
+        return removed
+      }, 'Could not remove the photo')
       if (result) photosChanged()
       return result
     }
