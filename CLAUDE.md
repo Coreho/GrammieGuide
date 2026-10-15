@@ -66,6 +66,14 @@ Handlers that only a caregiver may use must call `requireAdminUnlocked()` first.
 - **Volume:** the volume ceiling uses the `loudness` native module, with a C# fallback (`resources/reliability/VolumeHelper.cs`; the compiled DLL is gitignored).
 - **Wi-Fi:** `wifiHealer.ts` handles adapter discovery and self-healing.
 
+### Caregiver checks
+
+- **Panel:** admin's Checks tab (`components/ChecksTab.tsx`) runs four checks, one at a time, on her actual computer: Buddy's voice, the microphone, the internet connection, and getting back Home from a broken page. The logic is `services/checks/caregiverChecks.ts` (every dependency injected, unit tested) behind `ipc/checksIpc.ts`. Every `checks:*` handler calls `requireAdminUnlocked()`, and `onAdminLocked()` in `adminAuth.ts` cancels whatever is running, as do Stop, leaving the tab and the admin window closing or reloading. Results are kept in memory only and carry `checkedAt`; the panel always shows the time and calls a result older than 10 minutes history, so neither a restart nor an old pass reads as "working now". Results log as content-free `caregiver-check-<id>-<status>` activity events.
+- **Voice:** main synthesizes the test line with the saved Edge voice, or tells the panel to use the Windows voice and says whether that is the setting or a fallback. The panel plays it under a `buddyVoice` audio hold and reports `played`; only then, and only for that run, can the caregiver answer heard or not heard. Playback finishing is never a pass. `lastHeardSound()` is the record TASK-25's dashboard should reuse rather than keep its own.
+- **Microphone:** one `listenOnce` under a main-owned `listening` audio hold. `runPowerShell` takes an `AbortSignal`, so cancelling kills the recognizer. What it heard goes back to the panel once and is never stored or logged.
+- **Connectivity:** Windows' online state (through the same e2e stand-in as the recovery screen), then Windows' own probe address (`msftconnecttest.com/connecttest.txt`); any other reply is reported as a sign-in page in the way.
+- **Browser recovery:** refused while a page is open, so it never closes hers. Main reserves a closed local port and sends `checks:recovery-start`; Home opens it, only from plain Home, through the launcher-only `browser:openRecoveryCheck`, which carries no address. Once the recovery screen's state appears, main closes the page with `closeEmbeddedBrowser()` (her Home button's path) and sends `browser:return-home`. Cancelled or failed runs close the check page too.
+
 ### Buddy chat
 
 - **Main process only:** `buddy:chat` → `services/ai/buddyChatService.ts`. The API key, the client (`anthropicClient.ts`) and the frozen system prompt (`buddyPrompt.ts`) all live in main.

@@ -19,6 +19,7 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **Only one GrammieGuide at a time** - opening it again (a desktop shortcut, the installer's "run now") just brings the running Home to the front instead of starting a second kiosk on top of it.
 - **Illustrated Home cards** - the built-in Photos, Music, Weather and News tiles show sculpted clay pictures, and any tile can be given Games or Websites artwork. The new **Clay cards** theme matches the approved design (cream background, bigger labels). Not yet checked on the real kiosk.
 - **Buddy opens Home tiles by name** - in chat she can say or type "open Family Albums" (or "go to …", "show me …") to open any tile showing on Home, with no AI key needed. Two tiles with the same name get large choices instead of a guess, and Buddy only says it opened once it actually did. Not yet tried with the kiosk's microphone.
+- **Caregiver checks** - admin → Checks tests, on her computer, that Buddy's voice can be heard (you confirm it), that the microphone hears speech, that the internet is reachable, and that a page which won't load still leaves her a way back Home. Each result shows when it was checked; nothing carries over a restart. Not yet run on the real kiosk.
 
 ## Home tiles
 

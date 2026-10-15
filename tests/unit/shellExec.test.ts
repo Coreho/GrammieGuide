@@ -69,4 +69,16 @@ describe('runPowerShell', () => {
     const result = await runPowerShell('noop', { execFileImpl })
     expect(result.durationMs).toBeGreaterThanOrEqual(0)
   })
+
+  it('hands a stop signal to execFile, which kills PowerShell when it aborts', async () => {
+    let passed: unknown
+    const execFileImpl = ((_cmd: unknown, _args: unknown, opts: { signal?: AbortSignal }, cb: unknown) => {
+      passed = opts.signal
+      ;(cb as (e: Error | null, o: string, s: string) => void)(null, '', '')
+      return {} as ReturnType<ExecFileFn>
+    }) as unknown as ExecFileFn
+    const controller = new AbortController()
+    await runPowerShell('noop', { execFileImpl, signal: controller.signal })
+    expect(passed).toBe(controller.signal)
+  })
 })

@@ -14,6 +14,13 @@ import type {
   BuddyActionResult,
   BuddyTileChoice
 } from './buddy/actions'
+import type {
+  CheckId,
+  CheckResults,
+  CheckRunResult,
+  VoiceReport,
+  VoiceStart
+} from './checks/caregiverChecks'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -161,6 +168,13 @@ export interface IpcApi {
   'reliability:testWifiDiscovery': { request: void; response: ReliabilityEvent }
   'reliability:testWatchdogRegistration': { request: void; response: ReliabilityEvent }
 
+  /** The caregiver's checks (admin-only in main); every result says when it was observed. */
+  'checks:list': { request: void; response: CheckResults }
+  'checks:run': { request: { id: Exclude<CheckId, 'voice'> }; response: CheckRunResult }
+  'checks:cancel': { request: { id?: CheckId }; response: CheckResults }
+  'checks:voiceStart': { request: void; response: VoiceStart }
+  'checks:voiceReport': { request: { runId: number; report: VoiceReport }; response: CheckResults }
+
   'activity:get': { request: { limit?: number }; response: ActivityEvent[] }
 
   'admin:isPinSet': { request: void; response: boolean }
@@ -205,6 +219,8 @@ export interface IpcApi {
   'browser:retry': { request: void; response: void }
   /** Her "Back to the page" after a blocked link. */
   'browser:dismissBlocked': { request: void; response: void }
+  /** Home opening the caregiver's recovery check page. It carries no address: main chose it. */
+  'browser:openRecoveryCheck': { request: void; response: { ok: boolean } }
 }
 
 export type IpcChannel = keyof IpcApi
@@ -226,6 +242,12 @@ export interface IpcEvents {
   'browser:page-problem': { kind: PageProblem | null }
   'browser:can-go-back-changed': { canGoBack: boolean }
   'browser:idle-timeout': Record<string, never>
+  /** Main closed the page for Home (the recovery check finished); show Home, nothing else. */
+  'browser:return-home': Record<string, never>
+  /** The caregiver's recovery check asks Home to open its page, if Home is showing. */
+  'checks:recovery-start': Record<string, never>
+  /** Pushed to admin whenever a caregiver check result changes. */
+  'checks:changed': CheckResults
   /** Pushed to the launcher whenever config changes, so admin edits show up live. */
   'config:changed': PublicConfig
 }

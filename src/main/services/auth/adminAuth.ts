@@ -82,9 +82,23 @@ export function unlockAdmin(pin: string): { ok: boolean; reason?: string } {
   return result
 }
 
+const lockListeners = new Set<() => void>()
+
+/**
+ * Work started by an unlocked caregiver (a microphone check, a test voice)
+ * must stop the moment the panel locks, not finish on its own afterwards.
+ */
+export function onAdminLocked(listener: () => void): () => void {
+  lockListeners.add(listener)
+  return () => {
+    lockListeners.delete(listener)
+  }
+}
+
 export function lockAdmin(): void {
   unlocked = false
   logActivity('admin-locked')
+  for (const listener of lockListeners) listener()
 }
 
 export function isAdminUnlocked(): boolean {

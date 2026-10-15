@@ -40,6 +40,8 @@ export function runPowerShell(
     execImpl(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded],
+      // Aborting kills PowerShell, so a closed chat or a stopped microphone
+      // check can't keep recording; the callback then reports ok: false.
       { timeout: timeoutMs, windowsHide: true, ...(opts.signal ? { signal: opts.signal } : {}) },
       (err: ExecFileException | null, stdout: string, stderr: string) => {
         const durationMs = Date.now() - start

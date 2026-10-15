@@ -11,6 +11,7 @@ import { registerLibraryIpc } from './libraryIpc'
 import { registerMusicIpc } from './musicIpc'
 import { registerAudioIpc } from './audioIpc'
 import { registerBackupIpc } from './backupIpc'
+import { registerChecksIpc } from './checksIpc'
 
 /**
  * Composes every IPC domain into one registration call. Replaces the old
@@ -31,4 +32,5 @@ export function registerAllIpc(): void {
   registerNewsIpc()
   registerMusicIpc(getLibrary)
   registerBackupIpc()
+  registerChecksIpc()
 }
