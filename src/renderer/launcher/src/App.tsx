@@ -8,10 +8,11 @@ import {
 import type { Tile as TileType, PublicConfig } from '@shared/configSchema'
 import type { WeatherSnapshot } from '@shared/ipcContract'
 import { RapidTapTracker } from '@shared/confusionDetector'
-import { THEMES, fontScaleForStep, type ThemeName } from '@shared/theme'
+import { THEMES, THEME_ONLY_KEYS, fontScaleForStep, type ThemeName } from '@shared/theme'
 import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
+import { timeParts } from './components/HomeHeader'
 import { NavBar } from './components/NavBar'
 import { PageRecovery } from './components/PageRecovery'
 import type { PageProblem } from '@shared/browser/loadFailure'
@@ -39,39 +40,6 @@ declare global {
 
 type View = 'home' | 'browser'
 const WEATHER_REFRESH_MS = 15 * 60 * 1000
-const THEME_ONLY_KEYS = [
-  'tile1',
-  'tile2',
-  'tile3',
-  'tile4',
-  'tInk',
-  'tInk1',
-  'tInk2',
-  'tInk3',
-  'tInk4',
-  'wi',
-  'well',
-  'card-art-size',
-  'card-label-size',
-  'card-label-weight',
-  'card-shadow',
-  'category-card-height',
-  'category-card-aspect',
-  'category-card-align',
-  'category-card-padding',
-  'category-card-gap'
-]
-
-function timeParts(now: Date): { time: string; ampm: string; date: string } {
-  const h = now.getHours()
-  const m = now.getMinutes()
-  const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : h < 21 ? 'evening' : 'night'
-  return {
-    time: `${h % 12 || 12}:${String(m).padStart(2, '0')}`,
-    ampm: h < 12 ? 'AM' : 'PM',
-    date: `${now.toLocaleDateString('en-US', { weekday: 'long' })} ${part}, ${now.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`
-  }
-}
 
 export default function App() {
   const { player: music, state: musicState } = useMusicPlayer()

@@ -1,3 +1,4 @@
+import type { LauncherApi } from '../../../../preload/launcher'
 import { useEffect, useState } from 'react'
 import type { Tile as TileType } from '@shared/configSchema'
 import { HOME_LAYOUTS, tilesInHome, type HomeLayoutName } from '@shared/homeLayout'
@@ -14,11 +15,14 @@ export function TileGrid({
 }) {
   const [images, setImages] = useState<Record<string, string>>({})
   useEffect(() => {
+    // Admin's Home preview has no launcher API: its tiles show their icon or artwork instead.
+    const launcher = window.launcher as LauncherApi | undefined
+    if (!launcher?.getTileImages) return
     let live = true
     let request = 0
     const refresh = (): void => {
       const sequence = ++request
-      window.launcher.getTileImages().then(
+      launcher.getTileImages().then(
         (result) => {
           if (live && sequence === request) setImages(result)
         },
@@ -28,7 +32,7 @@ export function TileGrid({
       )
     }
     refresh()
-    const off = window.launcher.onPhotosChanged(refresh)
+    const off = launcher.onPhotosChanged(refresh)
     return () => {
       live = false
       off()
