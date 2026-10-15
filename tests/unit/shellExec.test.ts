@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { runPowerShell, encodeCommand } from '../../src/main/services/reliability/shellExec'
 import type { ExecFileFn } from '../../src/main/services/reliability/shellExec'
 
-function fakeExecFile(impl: (cmd: string, args: string[]) => { err: Error | null; stdout: string; stderr: string }): ExecFileFn {
+function fakeExecFile(
+  impl: (cmd: string, args: string[]) => { err: Error | null; stdout: string; stderr: string }
+): ExecFileFn {
   return ((cmd: unknown, args: unknown, _opts: unknown, cb: unknown) => {
     const { err, stdout, stderr } = impl(cmd as string, args as string[])
     ;(cb as (e: Error | null, o: string, s: string) => void)(err, stdout, stderr)
@@ -19,6 +21,18 @@ describe('encodeCommand', () => {
 })
 
 describe('runPowerShell', () => {
+  it('passes cancellation to the child process without changing the encoded script', async () => {
+    const controller = new AbortController()
+    const execFileImpl = ((_cmd, _args, opts, cb) => {
+      expect(opts.signal).toBe(controller.signal)
+      expect(opts.windowsHide).toBe(true)
+      controller.abort()
+      cb(new Error('aborted'), '', '')
+    }) as unknown as ExecFileFn
+    expect((await runPowerShell('recognize', { signal: controller.signal, execFileImpl })).ok).toBe(
+      false
+    )
+  })
   it('calls powershell.exe with -EncodedCommand carrying the exact encoded script', async () => {
     let capturedArgs: string[] = []
     const execFileImpl = fakeExecFile((cmd, args) => {
@@ -54,5 +68,17 @@ describe('runPowerShell', () => {
     const execFileImpl = fakeExecFile(() => ({ err: null, stdout: '', stderr: '' }))
     const result = await runPowerShell('noop', { execFileImpl })
     expect(result.durationMs).toBeGreaterThanOrEqual(0)
+  })
+
+  it('hands a stop signal to execFile, which kills PowerShell when it aborts', async () => {
+    let passed: unknown
+    const execFileImpl = ((_cmd: unknown, _args: unknown, opts: { signal?: AbortSignal }, cb: unknown) => {
+      passed = opts.signal
+      ;(cb as (e: Error | null, o: string, s: string) => void)(null, '', '')
+      return {} as ReturnType<ExecFileFn>
+    }) as unknown as ExecFileFn
+    const controller = new AbortController()
+    await runPowerShell('noop', { execFileImpl, signal: controller.signal })
+    expect(passed).toBe(controller.signal)
   })
 })

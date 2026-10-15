@@ -122,6 +122,13 @@ describe('speech recognition', () => {
     expect(await listenOnce(async () => shell('{"status":"no-recognizer"}'))).toEqual({ ok: false, reason: 'unavailable' })
   })
 
+  it('passes a stop signal through, so a cancelled check can kill the recording', async () => {
+    const signal = new AbortController().signal
+    const run = vi.fn(async () => shell('{"status":"nothing"}'))
+    await listenOnce(run, signal)
+    expect(run).toHaveBeenCalledWith(LISTEN_SCRIPT, expect.objectContaining({ signal }))
+  })
+
   it('canListen is true only when the recognizer and mic both check out', async () => {
     expect(await canListen(async () => shell('{"status":"ok"}'))).toBe(true)
     expect(await canListen(async () => shell('{"status":"no-mic"}'))).toBe(false)

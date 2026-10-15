@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buddyConfigSchema,
   CURRENT_SCHEMA_VERSION,
-  defaultConfig
+  defaultConfig,
+  idleDimConfigSchema
 } from '../../src/shared/configSchema'
 import { migrations } from '../../src/main/config/migrations'
 import { runMigrations } from '../../src/main/config/migrations/runner'
@@ -107,5 +108,90 @@ describe('fixed Home layout migration 008', () => {
     }) as { display: { homeLayout: string }; tiles: Array<{ slot: number | null }> }
     expect(migrated.display.homeLayout).toBe('simple4')
     expect(migrated.tiles.map(({ slot }) => slot)).toEqual([0, 2])
+  })
+})
+
+describe('idle dimming setting and migration 013', () => {
+  it('disables idle dimming by default and bounds minutes (2-60) and level (0.1-0.5)', () => {
+    expect(defaultConfig().display.idleDim).toEqual({
+      enabled: false,
+      afterMinutes: 10,
+      level: 0.3
+    })
+    expect(idleDimConfigSchema.parse({})).toEqual({
+      enabled: false,
+      afterMinutes: 10,
+      level: 0.3
+    })
+    // Invalid boundaries
+    expect(idleDimConfigSchema.safeParse({ afterMinutes: 1 }).success).toBe(false)
+    expect(idleDimConfigSchema.safeParse({ afterMinutes: 61 }).success).toBe(false)
+    expect(idleDimConfigSchema.safeParse({ afterMinutes: 10.5 }).success).toBe(false)
+    expect(idleDimConfigSchema.safeParse({ level: 0.05 }).success).toBe(false)
+    expect(idleDimConfigSchema.safeParse({ level: 0.55 }).success).toBe(false)
+    expect(idleDimConfigSchema.safeParse({ enabled: 'true' }).success).toBe(false)
+  })
+
+  it('migrates a version 12 config to version 13, adding idleDim off without mutating input', () => {
+    const raw = {
+      ...defaultConfig(),
+      schemaVersion: 12,
+      display: {
+        fontStep: 2,
+        theme: 'tilesBold',
+        homeLayout: 'simple4',
+        ambientBackground: true,
+        volumeCeiling: 70
+      }
+    }
+    const before = structuredClone(raw)
+    const result = runMigrations(raw)
+    expect(result.ok).toBe(true)
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    expect(result.config.display.idleDim).toEqual({
+      enabled: false,
+      afterMinutes: 10,
+      level: 0.3
+    })
+    expect(raw).toEqual(before)
+    expect(runMigrations(result.config).config).toEqual(result.config)
+  })
+
+  it('preserves explicit existing idleDim settings on upgrade', () => {
+    const raw = {
+      ...defaultConfig(),
+      schemaVersion: 12,
+      display: {
+        ...defaultConfig().display,
+        idleDim: {
+          enabled: true,
+          afterMinutes: 20,
+          level: 0.4
+        }
+      }
+    }
+    const result = runMigrations(raw)
+    expect(result.ok).toBe(true)
+    expect(result.config.display.idleDim).toEqual({
+      enabled: true,
+      afterMinutes: 20,
+      level: 0.4
+    })
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+  })
+
+  it('registers a pure migration that handles absent display settings', () => {
+    const migration = migrations.find((m) => m.version === 13)
+    expect(migration).toBeDefined()
+    expect(migration?.migrate({ schemaVersion: 12 })).toEqual({
+      schemaVersion: 13,
+      display: {
+        idleDim: {
+          enabled: false,
+          afterMinutes: 10,
+          level: 0.3
+        }
+      }
+    })
   })
 })

@@ -39,22 +39,25 @@ const launcherApi = {
     invoke('weather:get', { label, units }),
 
   openBrowser: (url: string) => invoke('browser:open', { url }),
+  openBrowserTile: (tileId: string) => invoke('browser:openTile', { tileId }),
   goHome: () => invoke('browser:goHome'),
   goBack: () => invoke('browser:goBack'),
   retryPage: () => invoke('browser:retry'),
   dismissBlockedPage: () => invoke('browser:dismissBlocked'),
+  openRecoveryCheck: () => invoke('browser:openRecoveryCheck'),
   reportActivity: () => ipcRenderer.send('browserView:activity'),
 
   buddyChat: (turns: BuddyChatTurn[]) => invoke('buddy:chat', { turns }),
   buddySpeak: (text: string) => invoke('buddy:speak', { text }),
   buddyListen: () => invoke('buddy:listen'),
+  buddyCancelListen: () => invoke('buddy:cancelListen'),
   buddyCanListen: () => invoke('buddy:canListen'),
 
-  onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) =>
-    on('browser:blocked', cb),
   onPageProblem: (cb: (payload: IpcEvents['browser:page-problem']) => void) =>
     on('browser:page-problem', cb),
   onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb()),
+  onReturnHome: (cb: () => void) => on('browser:return-home', () => cb()),
+  onRecoveryCheck: (cb: () => void) => on('checks:recovery-start', () => cb()),
   onConfigChanged: (cb: (config: IpcEvents['config:changed']) => void) => on('config:changed', cb)
 }
 

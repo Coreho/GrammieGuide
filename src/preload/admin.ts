@@ -74,10 +74,23 @@ const adminApi = {
   applyOldLauncherImport: () => invoke('admin:applyOldLauncherImport'),
 
   getActivityLog: (limit?: number) => invoke('activity:get', { limit }),
+  getBlockedSites: () => invoke('browser:blockedSites'),
   getReliabilityLog: (limit?: number) => invoke('reliability:getLog', { limit }),
   testVolume: () => invoke('reliability:testVolume'),
   testWifiDiscovery: () => invoke('reliability:testWifiDiscovery'),
-  checkSystemTasks: () => invoke('reliability:testWatchdogRegistration')
+  checkSystemTasks: () => invoke('reliability:testWatchdogRegistration'),
+
+  listChecks: () => invoke('checks:list'),
+  runCheck: (id: IpcRequest<'checks:run'>['id']) => invoke('checks:run', { id }),
+  cancelChecks: (id?: IpcRequest<'checks:cancel'>['id']) => invoke('checks:cancel', { id }),
+  startVoiceCheck: () => invoke('checks:voiceStart'),
+  reportVoiceCheck: (request: IpcRequest<'checks:voiceReport'>) =>
+    invoke('checks:voiceReport', request),
+  onChecksChanged: (cb: (results: IpcEvents['checks:changed']) => void): (() => void) => {
+    const listener = (_event: unknown, results: IpcEvents['checks:changed']): void => cb(results)
+    ipcRenderer.on('checks:changed', listener)
+    return () => ipcRenderer.removeListener('checks:changed', listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('admin', adminApi)

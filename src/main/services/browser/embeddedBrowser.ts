@@ -3,6 +3,7 @@ import { join } from 'path'
 import {
   classifyLoadFailure,
   describeLoadFailure,
+  type PageOutcome,
   type PageProblem
 } from '@shared/browser/loadFailure'
 import { logActivity } from '../activityLog/activityLog'
@@ -12,6 +13,9 @@ import { WEB_PARTITION, hardenWebSession } from './webSession'
 import { WEB_VIEW_PREFERENCES, shouldPreventUnload } from '@shared/browser/webHardening'
 import { wirePageAudio } from '../audio/pageAudio'
 import { getAudioCoordinator } from '../audio/audioRuntime'
+import { getConfig } from '../../config/store'
+import { navigationAllowed, webHostname, type NavigationKind } from '@shared/browser/approvedSites'
+import { blockedSites } from './blockedSites'
 
 /**
  * Embedded web-tile browser. Ports the escape-guard/popup-block logic from
@@ -34,6 +38,8 @@ let activityListenerRegistered = false
 // A News story is her reading, not a caregiver-chosen site: while one is open,
 // the logs say what happened but not where (the old app logged every URL).
 let privateNavigation = false
+let trustedPage: string | null = null
+let committedPage: string | null = null
 
 // The recovery screen: which problem Home is showing instead of the page, the
 // address to retry, and whether the current navigation has already failed.
@@ -47,6 +53,11 @@ let isDeviceOnline = (): boolean => net.isOnline()
 /** E2E only: Chromium's offline emulation stalls loads instead of failing them. */
 export function overrideOnlineCheckForTests(check: () => boolean): void {
   isDeviceOnline = check
+}
+
+/** Windows' online state, through the same e2e stand-in the recovery screen uses. */
+export function deviceOnline(): boolean {
+  return isDeviceOnline()
 }
 
 export function initEmbeddedBrowser(win: BrowserWindow): void {
@@ -74,11 +85,18 @@ function layout(): void {
 
 export function openUrl(
   url: string,
-  options: { privateNavigation?: boolean } = {}
+  options: {
+    privateNavigation?: boolean
+    trustedInitialPage?: boolean
+    onLoaded?: (outcome: PageOutcome) => void
+  } = {}
 ): { ok: boolean; reason?: string } {
   if (!hostWindow) return { ok: false, reason: 'no host window' }
   if (!isAllowedUrl(url)) {
-    logActivity('browser-open-rejected', options.privateNavigation ? undefined : url)
+    logActivity(
+      'browser-open-rejected',
+      options.privateNavigation ? undefined : (webHostname(url) ?? undefined)
+    )
     return { ok: false, reason: 'only http/https URLs are allowed' }
   }
 
@@ -109,18 +127,16 @@ export function openUrl(
     })
 
     view.webContents.on('will-navigate', (event, targetUrl) => {
-      if (!isAllowedUrl(targetUrl)) {
-        event.preventDefault()
-        logActivity('browser-navigation-blocked', privateNavigation ? undefined : targetUrl)
-        logReliabilityEvent({
-          op: 'browser-escape-guard',
-          ok: true,
-          detail: privateNavigation ? 'blocked navigation' : `blocked: ${targetUrl}`
-        })
-        hostWindow?.webContents.send('browser:blocked', { url: targetUrl })
-        // A tap that silently does nothing is confusing; say why, on the same screen.
-        showProblem('blocked')
-      }
+      if (!allowNavigation(targetUrl, 'navigate')) event.preventDefault()
+    })
+    view.webContents.on('will-frame-navigate', (event) => {
+      if (event.isMainFrame && !allowNavigation(event.url, 'navigate')) event.preventDefault()
+    })
+    view.webContents.on('will-redirect', (event, targetUrl, _inPlace, isMainFrame) => {
+      if (isMainFrame && !allowNavigation(targetUrl, 'redirect')) event.preventDefault()
+    })
+    view.webContents.on('did-navigate', (_event, targetUrl) => {
+      committedPage = targetUrl
     })
 
     view.webContents.on('did-start-navigation', (details) => {
@@ -130,14 +146,16 @@ export function openUrl(
     view.webContents.on(
       'did-fail-load',
       (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-        if (!isMainFrame) return
+        if (!isMainFrame || problem === 'blocked') return
         const kind = classifyLoadFailure(errorCode, isDeviceOnline())
         if (!kind) return
         navigationFailed = true
         failedUrl = validatedURL
         showProblem(kind)
         // Auto-retries fail the same way every few seconds; log each failure once.
-        const detail = describeLoadFailure(validatedURL, errorDescription)
+        const detail = privateNavigation
+          ? 'private page load failed'
+          : describeLoadFailure(validatedURL, errorDescription)
         if (detail !== lastLoggedFailure) {
           logActivity('browser-load-failed', detail)
           lastLoggedFailure = detail
@@ -153,25 +171,60 @@ export function openUrl(
     })
 
     view.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
-      logActivity('browser-popup-blocked', privateNavigation ? undefined : targetUrl)
+      logActivity(
+        'browser-popup-blocked',
+        privateNavigation ? undefined : (webHostname(targetUrl) ?? undefined)
+      )
       return { action: 'deny' }
     })
   }
 
   privateNavigation = Boolean(options.privateNavigation)
+  trustedPage = options.trustedInitialPage ? url : null
   resetProblem()
+  if (!allowNavigation(url, 'open')) {
+    options.onLoaded?.('failed')
+    return { ok: true }
+  }
   view.setVisible(true)
   // loadURL rejects on a failed load; did-fail-load below already owns what she
   // sees, so swallow it rather than leaving an unhandled rejection in main.
-  view.webContents.loadURL(url).catch(() => undefined)
+  const openedView = view
+  const settled = (): PageOutcome =>
+    view !== openedView ? 'pending' : navigationFailed || problem !== null ? 'failed' : 'loaded'
+  view.webContents.loadURL(url).then(
+    () => options.onLoaded?.(settled()),
+    // A rejection without a recorded failure is a redirect or replaced load
+    // (ERR_ABORTED), not a broken page: say nothing either way.
+    () => options.onLoaded?.(settled() === 'failed' ? 'failed' : 'pending')
+  )
   lastActivityAt = Date.now()
   logActivity('browser-open', privateNavigation ? undefined : url)
   return { ok: true }
 }
 
+/** For Buddy's confirmations, which wait for the page rather than creation of its view. */
+export async function openUrlAndWait(url: string, timeoutMs = 20_000): Promise<PageOutcome> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve('pending'), timeoutMs)
+    const finish = (outcome: PageOutcome): void => {
+      clearTimeout(timer)
+      resolve(outcome)
+    }
+    try {
+      // A failed load leaves Home's recovery screen up, exactly as after a tap.
+      if (!openUrl(url, { privateNavigation: true, onLoaded: finish }).ok) finish('refused')
+    } catch {
+      finish('refused')
+    }
+  })
+}
+
 export function goBack(): void {
   const nav = view?.webContents.navigationHistory
   if (nav?.canGoBack()) {
+    const entry = nav.getEntryAtIndex(nav.getActiveIndex() - 1)
+    if (!entry || !allowNavigation(entry.url, 'back')) return
     nav.goBack()
     lastActivityAt = Date.now()
   }
@@ -185,13 +238,36 @@ export function retryPage(): void {
 
 /** Her "Back to the page" after a blocked link: the page underneath is still there. */
 export function dismissBlocked(): void {
-  if (problem === 'blocked') clearProblem()
+  if (problem !== 'blocked') return
+  // A fresh tile may redirect before any page commits. There is no page to
+  // reveal in that case, so Back must return Home instead of exposing a blank view.
+  if (!committedPage) {
+    closeEmbeddedBrowser()
+    hostWindow?.webContents.send('browser:return-home', {})
+  } else if (allowNavigation(committedPage, 'back')) clearProblem()
 }
 
 function reloadFailedPage(): void {
   if (!view || !failedUrl || problem === null || problem === 'blocked') return
+  if (!allowNavigation(failedUrl, 'retry')) return
   navigationFailed = false
   view.webContents.loadURL(failedUrl).catch(() => undefined)
+}
+
+function allowNavigation(url: string, kind: NavigationKind): boolean {
+  // Read current config for every decision, so an admin edit also affects an
+  // already-open page. Private browsing controls logs, never site permissions.
+  if (navigationAllowed(url, getConfig(), kind, trustedPage)) return true
+  const domain = blockedSites.record(url)
+  logActivity('browser-navigation-blocked', privateNavigation ? undefined : (domain ?? undefined))
+  logReliabilityEvent({
+    op: 'browser-escape-guard',
+    ok: true,
+    detail: privateNavigation || !domain ? 'blocked navigation' : `blocked: ${domain}`
+  })
+  navigationFailed = true
+  showProblem('blocked')
+  return false
 }
 
 function showProblem(kind: PageProblem): void {
@@ -234,6 +310,8 @@ export function closeEmbeddedBrowser(): void {
   const closingView = view
   view = null
   privateNavigation = false
+  trustedPage = null
+  committedPage = null
   resetProblem()
   if (!closingView) return
 
@@ -249,6 +327,15 @@ export function closeEmbeddedBrowser(): void {
 
 export function isBrowserOpen(): boolean {
   return view !== null
+}
+
+/**
+ * What Home's recovery screen is showing instead of the page, or null. The
+ * caregiver's recovery check reads this; showProblem() hides the page view
+ * whenever it is set.
+ */
+export function getPageProblem(): PageProblem | null {
+  return problem
 }
 
 export function getIdleMs(): number {
