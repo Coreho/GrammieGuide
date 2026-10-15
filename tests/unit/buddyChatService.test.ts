@@ -97,7 +97,8 @@ describe('buddyChat', () => {
     expect(create.mock.calls[0]![0].tools?.map((tool) => tool.name)).toEqual([
       'play_my_music',
       'show_my_pictures',
-      'go_home'
+      'go_home',
+      'open_saved_tile'
     ])
     expect(create.mock.calls[0]![0].system).toBe(BUDDY_SYSTEM_PROMPT)
   })

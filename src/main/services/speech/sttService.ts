@@ -13,7 +13,10 @@ import { runPowerShell, type ShellResult } from '../reliability/shellExec'
  * Scripts print one line of JSON so the parsing below never has to guess.
  */
 
-type Run = (script: string, opts?: { timeoutMs?: number }) => Promise<ShellResult>
+type Run = (
+  script: string,
+  opts?: { timeoutMs?: number; signal?: AbortSignal }
+) => Promise<ShellResult>
 
 // Dictation hears noise as words; below this it's more likely a cough than a sentence.
 export const MIN_CONFIDENCE = 0.1
@@ -58,8 +61,11 @@ function parse(result: ShellResult): ScriptOutput | null {
   }
 }
 
-export async function listenOnce(run: Run = runPowerShell): Promise<BuddyListenResult> {
-  const out = parse(await run(LISTEN_SCRIPT, { timeoutMs: 35_000 }))
+export async function listenOnce(
+  run: Run = runPowerShell,
+  signal?: AbortSignal
+): Promise<BuddyListenResult> {
+  const out = parse(await run(LISTEN_SCRIPT, { timeoutMs: 35_000, signal }))
   if (!out) return { ok: false, reason: 'unavailable' }
   if (out.status === 'no-mic') return { ok: false, reason: 'no-mic' }
   if (out.status !== 'ok') return { ok: false, reason: out.status === 'nothing' ? 'nothing-heard' : 'unavailable' }

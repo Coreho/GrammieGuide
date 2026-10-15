@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultConfig } from '../../src/shared/configSchema'
 
 const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
@@ -28,9 +29,19 @@ describe('configured app tiles', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getLauncher.mockReturnValue(launcher)
-    mocks.getConfig.mockReturnValue({
-      tiles: [{ id: 'app', type: 'app', appPath: 'C:\\Apps\\Family.exe' }]
-    })
+    const config = defaultConfig()
+    config.tiles = [
+      {
+        id: 'app',
+        label: 'Saved app',
+        type: 'app',
+        appPath: 'C:\\Apps\\Family.exe',
+        size: 'normal',
+        slot: 0,
+        colorIndex: 0
+      }
+    ]
+    mocks.getConfig.mockReturnValue(config)
     mocks.openPath.mockResolvedValue('')
     registerTileIpc()
   })
@@ -63,4 +74,13 @@ describe('configured app tiles', () => {
       expect(launcher.setAlwaysOnTop).toHaveBeenLastCalledWith(true)
     }
   )
+  it('rechecks visibility at the actual launch, including overflow and layout changes', async () => {
+    const config = mocks.getConfig()
+    config.tiles[0].slot = null
+    expect(await invoke(launcher.webContents, { id: 'app' })).toEqual({ ok: false })
+    config.display.homeLayout = 'simple4'
+    config.tiles[0].slot = 7
+    expect(await invoke(launcher.webContents, { id: 'app' })).toEqual({ ok: false })
+    expect(mocks.openPath).not.toHaveBeenCalled()
+  })
 })

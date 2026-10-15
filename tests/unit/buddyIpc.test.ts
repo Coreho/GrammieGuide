@@ -6,8 +6,10 @@ const mocks = vi.hoisted(() => ({
   getConfig: vi.fn(),
   getClient: vi.fn(),
   create: vi.fn(),
-  sender: { id: 99 },
-  list: vi.fn()
+  sender: { id: 99, once: vi.fn(), removeListener: vi.fn() },
+  list: vi.fn(),
+  listen: vi.fn(),
+  run: vi.fn()
 }))
 vi.mock('electron', () => ({ ipcMain: { handle: mocks.handle } }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.getConfig }))
@@ -19,9 +21,10 @@ vi.mock('../../src/main/services/speech/ttsService', () => ({
   createTtsService: () => ({ speak: vi.fn() })
 }))
 vi.mock('../../src/main/services/speech/sttService', () => ({
-  listenOnce: vi.fn(),
+  listenOnce: mocks.listen,
   canListen: vi.fn()
 }))
+vi.mock('../../src/main/services/reliability/shellExec', () => ({ runPowerShell: mocks.run }))
 vi.mock('../../src/main/windows/windowManager', () => ({
   getLauncherWindow: () => ({ webContents: mocks.sender })
 }))
@@ -115,5 +118,36 @@ describe('buddy:chat', () => {
       await invoke({ sender: mocks.sender }, { turns: [{ role: 'user', text: 'Hello' }] })
     ).toMatchObject({ ok: false, reason: 'no-key' })
     expect(mocks.getClient).not.toHaveBeenCalled()
+  })
+  it('cancels the live recognition process and rejects disabled or foreign listening requests', async () => {
+    const config = defaultConfig()
+    mocks.getConfig.mockReturnValue(config)
+    const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:listen')![1]
+    const cancel = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:cancelListen')![1]
+    mocks.listen.mockImplementation(async (run) => {
+      await run('recognize', { timeoutMs: 35_000 })
+      return { ok: true, text: 'open private tile name' }
+    })
+    let complete!: () => void
+    mocks.run.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          complete = resolve
+        })
+    )
+    expect(await invoke({ sender: {} })).toMatchObject({ ok: false })
+    config.buddy.chatEnabled = false
+    expect(await invoke({ sender: mocks.sender })).toMatchObject({ ok: false })
+    expect(mocks.listen).not.toHaveBeenCalled()
+    config.buddy.chatEnabled = true
+    const pending = invoke({ sender: mocks.sender })
+    const signal = mocks.run.mock.calls[0]![1].signal as AbortSignal
+    cancel({ sender: {} })
+    expect(signal.aborted).toBe(false)
+    cancel({ sender: mocks.sender })
+    expect(signal.aborted).toBe(true)
+    complete()
+    expect(await pending).toEqual({ ok: false, reason: 'unavailable' })
+    expect(mocks.sender.removeListener).toHaveBeenCalledWith('destroyed', expect.any(Function))
   })
 })

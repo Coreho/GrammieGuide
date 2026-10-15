@@ -8,6 +8,8 @@ import {
   BUDDY_ACTION_LABELS,
   ACTION_REPLIES,
   type BuddyAction,
+  type BuddyActionRequest,
+  type BuddyTileChoice,
   type BuddyActionPlan
 } from '@shared/buddy/actions'
 
@@ -25,7 +27,7 @@ import {
  * She can talk instead of typing (the Talk button, Windows' offline
  * recognizer) and, if the caregiver leaves it on, hears his replies.
  */
-type Message = { from: 'user' | 'buddy'; text: string }
+type Message = { from: 'user' | 'buddy'; text: string; choices?: BuddyTileChoice[] }
 
 const GREETING = "Hi! It's nice to see you. What would you like to talk about?"
 const LINES = {
@@ -99,6 +101,7 @@ export function BuddyChatPanel({
       live = false
       releaseChat?.()
       open.current = false
+      void window.launcher.buddyCancelListen()
       stopSpeaking()
       phaseRef.current('idle')
     }
@@ -116,14 +119,14 @@ export function BuddyChatPanel({
     if (open.current && phaseGen.current === mine) setPhase('idle')
   }
 
-  function say(text: string): void {
-    setMessages((prev) => [...prev, { from: 'buddy', text }])
+  function say(text: string, choices?: BuddyTileChoice[]): void {
+    setMessages((prev) => [...prev, { from: 'buddy', text, choices }])
     void voice(text)
   }
 
   async function sendText(raw: string): Promise<void> {
     const text = raw.trim()
-    if (!open.current || !text || waiting) return
+    if (!open.current || !text || waiting || hearing) return
     stopSpeaking()
     const next: Message[] = [...messagesRef.current, { from: 'user', text }]
     setMessages(next)
@@ -131,6 +134,7 @@ export function BuddyChatPanel({
     setWaiting(true)
     setPhase('thinking')
     let reply: string
+    let choices: BuddyTileChoice[] | undefined
     try {
       const result = await window.launcher.buddyChat(toTurns(next))
       if (!open.current) return
@@ -139,15 +143,16 @@ export function BuddyChatPanel({
         return
       }
       reply = result.reply
+      if (!result.ok) choices = result.choices
     } catch {
       reply = LINES.trouble
     }
     if (!open.current) return
     setWaiting(false)
-    say(reply)
+    say(reply, choices)
   }
 
-  async function requestAction(action: BuddyAction): Promise<void> {
+  async function requestAction(action: BuddyActionRequest): Promise<void> {
     if (!open.current || waiting || hearing) return
     stopSpeaking()
     setWaiting(true)
@@ -156,7 +161,7 @@ export function BuddyChatPanel({
       const result = await window.launcher.buddyAction(action)
       if (!open.current) return
       if (result.ok) await onAction(result.plan)
-      else say(result.reply)
+      else say(result.reply, result.choices)
     } catch {
       if (open.current) say(ACTION_REPLIES.unavailable)
     } finally {
@@ -300,6 +305,36 @@ export function BuddyChatPanel({
               }}
             >
               {m.text}
+              {m.choices && i === messages.length - 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                  {m.choices.map((choice) => (
+                    <button
+                      key={choice.tileId}
+                      disabled={busy}
+                      onClick={() =>
+                        void requestAction({
+                          action: 'chooseTile',
+                          tileId: choice.tileId,
+                          expectedLabel: choice.label
+                        })
+                      }
+                      style={{
+                        minHeight: 72,
+                        padding: '12px 18px',
+                        border: 'none',
+                        borderRadius: 18,
+                        fontSize: bigText,
+                        overflowWrap: 'anywhere',
+                        background: accent,
+                        color: 'var(--ai,#1F5A45)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {choice.label} — {choice.position}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {(waiting || hearing) && (

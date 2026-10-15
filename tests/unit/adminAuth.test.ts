@@ -64,4 +64,15 @@ describe('adminAuth', () => {
     auth.lockAdmin()
     expect(auth.isAdminUnlocked()).toBe(false)
   })
+
+  it('tells lock listeners, so caregiver checks stop the moment it locks', async () => {
+    const auth = await import('../../src/main/services/auth/adminAuth')
+    const listener = vi.fn(() => expect(auth.isAdminUnlocked()).toBe(false))
+    const off = auth.onAdminLocked(listener)
+    auth.lockAdmin()
+    expect(listener).toHaveBeenCalledTimes(1)
+    off()
+    auth.lockAdmin()
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
 })

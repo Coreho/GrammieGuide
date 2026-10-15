@@ -8,6 +8,13 @@ export type PageLoadProblem = 'offline' | 'unreachable'
 /** What the recovery screen is showing; 'blocked' comes from the navigation guard. */
 export type PageProblem = PageLoadProblem | 'blocked'
 
+/**
+ * How a page Buddy opened ended up. 'pending' means neither loaded nor failed
+ * yet (a slow site), so a confirmation must claim neither; 'refused' means no
+ * page was opened at all.
+ */
+export type PageOutcome = 'loaded' | 'failed' | 'pending' | 'refused'
+
 /** Chromium net errors that mean this device has no working connection. */
 const OFFLINE_ERRORS = new Set([
   -106, // ERR_INTERNET_DISCONNECTED
