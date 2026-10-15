@@ -1,4 +1,4 @@
-import { BrowserWindow, globalShortcut, app } from 'electron'
+import { BrowserWindow, globalShortcut, app, type BrowserWindowConstructorOptions } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { stopHeartbeat, writeQuitFlag } from '../services/reliability/watchdog'
@@ -29,6 +29,36 @@ const FORCED_KILL_REPORT_TIMEOUT_MS = 5_000
 /** After that backstop, a kill report arriving this late is still the same recovery, not a new crash. */
 const LATE_KILL_REPORT_MS = 30_000
 
+/**
+ * A full e2e run launches the app about 35 times, and each window used to pop
+ * up on the developer's screen and take focus mid-typing. Under
+ * GRAMMIEGUIDE_E2E the windows open where they normally would, but fully
+ * transparent, click-through, unfocused and out of the taskbar, so the
+ * developer sees nothing and keeps typing into their own window. Playwright
+ * drives pages through the DevTools protocol with focus emulation, so nothing
+ * needs the real focus or mouse; native occlusion detection is already off in
+ * this mode (index.ts), so an invisible window still paints and resizes.
+ *
+ * Moving them off-screen instead broke the kiosk-size tests: a window beyond
+ * every display has no monitor to take its scaling from, and even one tucked
+ * into a screen corner came out a few pixels off after setContentSize().
+ */
+export const QUIET_E2E_WINDOWS = process.env['GRAMMIEGUIDE_E2E'] === '1'
+
+function quietWindowOptions(): Partial<BrowserWindowConstructorOptions> {
+  return QUIET_E2E_WINDOWS ? { skipTaskbar: true, opacity: 0 } : {}
+}
+
+/** Shows a window the way it should appear: taking focus normally, never under e2e. */
+function showWindow(win: BrowserWindow | null): void {
+  if (!win || win.isDestroyed()) return
+  if (!QUIET_E2E_WINDOWS) return win.show()
+  // The OS mouse passes through to whatever is underneath; Playwright's
+  // clicks arrive through DevTools and are unaffected.
+  win.setIgnoreMouseEvents(true)
+  win.showInactive()
+}
+
 let launcherWindow: BrowserWindow | null = null
 let adminWindow: BrowserWindow | null = null
 export function getAdminWindow(): BrowserWindow | null {
@@ -39,6 +69,7 @@ export function createLauncherWindow(): BrowserWindow {
   launcherWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    ...quietWindowOptions(),
     show: false,
     fullscreen: KIOSK_ENABLED,
     alwaysOnTop: KIOSK_ENABLED,
@@ -52,7 +83,7 @@ export function createLauncherWindow(): BrowserWindow {
     }
   })
 
-  launcherWindow.on('ready-to-show', () => launcherWindow?.show())
+  launcherWindow.on('ready-to-show', () => showWindow(launcherWindow))
   launcherWindow.setMenuBarVisibility(false)
   installHomeRecovery(launcherWindow)
 
@@ -194,13 +225,16 @@ export function getLauncherWindow(): BrowserWindow | null {
 
 export function createAdminWindow(): BrowserWindow {
   if (adminWindow && !adminWindow.isDestroyed()) {
-    adminWindow.focus()
+    if (!QUIET_E2E_WINDOWS) adminWindow.focus()
     return adminWindow
   }
 
   adminWindow = new BrowserWindow({
     width: 1000,
     height: 720,
+    ...quietWindowOptions(),
+    // Shown at once as before; under e2e, quietly once it can paint.
+    show: !QUIET_E2E_WINDOWS,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/admin.cjs'),
@@ -216,6 +250,7 @@ export function createAdminWindow(): BrowserWindow {
     adminWindow.loadFile(join(__dirname, '../renderer/admin/index.html'))
   }
 
+  if (QUIET_E2E_WINDOWS) adminWindow.once('ready-to-show', () => showWindow(adminWindow))
   adminWindow.on('closed', () => {
     adminWindow = null
   })
