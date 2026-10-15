@@ -17,6 +17,7 @@ import {
 } from '@shared/homeLayout'
 import { useConfigStore } from '../state/useConfigStore'
 import { TilePhotoPicker } from './TilePhotoPicker'
+import { HomePreview } from './HomePreview'
 
 const ICONS = ['🌐', '🌤️', '📷', '🎵', '🎲', '📰', '📺', '💌', '👪', '🌷', '📚', '💻']
 const BUILTIN_LABELS: Record<(typeof BUILTIN_TILE_KEYS)[number], string> = {
@@ -187,6 +188,7 @@ export function TilesTab() {
   return (
     <div>
       <h2>Home Screen Tiles</h2>
+      <HomePreview />
 
       <section aria-labelledby="home-layout-heading">
         <h3 id="home-layout-heading">Home layout</h3>

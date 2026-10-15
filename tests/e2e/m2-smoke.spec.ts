@@ -70,7 +70,8 @@ test('admin window: PIN setup gates the panel, then tile CRUD persists', async (
   await adminWindow.getByPlaceholder('https://...').fill('https://example.com')
   await adminWindow.getByRole('button', { name: 'Add Tile' }).click()
 
-  await expect(adminWindow.getByText('Test Site')).toBeVisible({ timeout: 5_000 })
+  // The tile list entry, not the Home preview above it, which shows the same label.
+  await expect(adminWindow.getByText('🌐 Test Site')).toBeVisible({ timeout: 5_000 })
 
   await adminWindow.getByRole('button', { name: 'Reliability' }).click()
   await adminWindow.getByRole('button', { name: 'Test Wi-Fi adapter discovery' }).click()

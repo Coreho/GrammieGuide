@@ -1,5 +1,6 @@
 import { useConfigStore } from '../state/useConfigStore'
 import { THEME_NAMES, THEME_LABELS, FONT_STEPS, type ThemeName } from '@shared/theme'
+import { HomePreview } from './HomePreview'
 
 export function DisplayTab() {
   const config = useConfigStore((s) => s.config)
@@ -13,6 +14,7 @@ export function DisplayTab() {
   return (
     <div>
       <h2>Display</h2>
+      <HomePreview />
       <label>
         Theme:{' '}
         <select
