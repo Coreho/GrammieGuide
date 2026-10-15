@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-12_
+_Last updated: 2026-10-15_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -17,6 +17,13 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **Kiosk install done** - GrammieGuide now does on its own what the old launcher did: starts at login (scheduled task, no time limit), is watched by the external watchdog (which now actually runs: execution policy fixed), holds the volume ceiling, and heals Wi-Fi. Windows installer (`npm run package`), a one-click import of her settings (not tiles, which are set up fresh) from Grandma's Launcher, and switch/rollback scripts that keep the old launcher installed as the fallback. See [docs/kiosk-install.md](docs/kiosk-install.md).
 - **Home recovers by itself** - if the Home screen crashes, it reloads at once; if it freezes for 10 seconds, it is reloaded. Any open web page is closed first, so she is never left without a Home button. If Home fails 4 times within 5 minutes, the app closes, and the watchdog starts it again a minute or two later. Each recovery shows in admin → Reliability.
 - **Only one GrammieGuide at a time** - opening it again (a desktop shortcut, the installer's "run now") just brings the running Home to the front instead of starting a second kiosk on top of it.
+- **Illustrated Home cards** - the built-in Photos, Music, Weather and News tiles show sculpted clay pictures, and any tile can be given Games or Websites artwork. The new **Clay cards** theme matches the approved design (cream background, bigger labels). Not yet checked on the real kiosk.
+- **Buddy opens Home tiles by name** - in chat she can say or type "open Family Albums" (or "go to …", "show me …") to open any tile showing on Home, with no AI key needed. Two tiles with the same name get large choices instead of a guess, and Buddy only says it opened once it actually did. Not yet tried with the kiosk's microphone.
+- **Caregiver checks** - admin → Checks tests, on her computer, that Buddy's voice can be heard (you confirm it), that the microphone hears speech, that the internet is reachable, and that a page which won't load still leaves her a way back Home. Each result shows when it was checked; nothing carries over a restart. Not yet run on the real kiosk.
+- **Gentle idle dimming (optional)** - in admin → Display, Home can dim a little after 2 to 60 minutes without a tap. Her first tap only brightens it again and never opens anything; it never dims mid-use (web pages, Buddy's chat, voice or listening), and music's Stop still works. Off unless you turn it on. Not yet checked for legibility on the real kiosk.
+- **Home preview in admin** - in admin → Tiles and admin → Display, a scaled-down, non-interactive replica of Home shows the caregiver how Home looks to her at her chosen text size, layout, theme and tiles, updating immediately as changes are saved without affecting her real Home screen.
+
+- **Approved browsing sites** - web tiles automatically approve their own site and subdomains. Admin → Sites adds or removes extra hostnames and lists the last 50 blocked domains with an Approve this site button. Unapproved links and redirects show the friendly Back/Home screen; cross-domain images, scripts and embedded frames still load. Main-served News stories stay readable, but their links and redirects need normal approval. Changes apply immediately. Not yet checked on the real kiosk.
 
 ## Home tiles
 
@@ -24,7 +31,11 @@ In **admin → Tiles**, add websites, installed apps (full Windows paths), or a 
 
 Home has a fixed layout chosen in **admin → Tiles → Home layout**: **Simple four** (four large tiles in two rows, labels up to 28 characters) or **More choices** (eight smaller tiles in two rows, labels up to 18 characters). Where a tile sits is part of how she finds it, so every tile keeps its position: adding, editing or removing another tile never moves it, and removing a tile leaves a gap rather than sliding the others over. A wide tile takes two neighbouring spaces in the same row. Home always fits on one screen at every text size, with no scrolling. Labels never break in the middle of a word; if a long word doesn't fit its tile at a large text size (say "photographs" in More choices at the largest size), only that label's text shrinks, just enough to fit. When the layout is full, admin says so; a tile that doesn't fit is kept and listed as "Not shown on Home" instead of being deleted, and admin flags labels longer than the layout allows. Space is reserved at the bottom of Home for a future "Ask {name} to call" button and beside the date for a now-playing chip, so adding those later won't reshuffle the tiles.
 
-Each tile also keeps its own color when tiles are added or removed, because the color is part of how she recognizes it; new tiles start with a color Home isn't using yet. Colors look different only in the two "Tiles" themes; the four clay themes share one tile color. Leaving a web page, by the Home button or the idle timeout, closes it completely, so a video or radio stream stops instead of playing on out of sight.
+The built-in Photos, Music, Weather and News tiles show a clay picture of a photo stack, a radio, a sun and cloud, and a newspaper. The pictures are bundled with the app, so they work offline; the weather picture is only there so she recognizes the tile, not a forecast. In **admin → Tiles → Card artwork** any tile can use one of these pictures, or the Games or Websites artwork; the picture never changes where the tile goes. A photo chosen for the tile takes priority, and a custom icon replaces the artwork. In **More choices**, normal-width tiles have room only for their label, so the artwork appears on wide tiles. If a picture can't load, the tile shows its usual icon.
+
+**Clay cards** (admin → Display) is the theme that matches the approved card design: a cream background, deeper tile colors and bigger, bolder labels. It is opt-in, so updating never changes the theme she already has.
+
+Each tile also keeps its own color when tiles are added or removed, because the color is part of how she recognizes it; new tiles start with a color Home isn't using yet. Colors look different in the two "Tiles" themes and in Clay cards; the four other clay themes share one tile color. Leaving a web page, by the Home button or the idle timeout, closes it completely, so a video or radio stream stops instead of playing on out of sight.
 
 If a web page won't load, she never sees Chromium's technical error page. A calm screen says "This page won't open right now." with big **Try again** and **Home** buttons. When the internet is down it says so, and the page opens by itself once the connection is back. A link the kiosk won't follow gets the same screen with **Back to the page**. The Home button stays in its usual place at the top, and admin → Activity shows which site failed and why.
 
@@ -46,7 +57,7 @@ Backups exclude both Buddy API keys and caregiver PIN hash/salt; restore keeps t
 
 **Recorded photo stories (admin → Photos).** Record a familiar voice with the microphone or attach an audio file, preview it, re-record it or delete the story while keeping the photo. Audio is limited to five minutes and 20 MB, validated before saving, and stored as its own managed copy; the original audio file is kept. Microphone access is restricted to the unlocked caregiver panel. Leaving Photos or locking admin ends recording and preview playback. In the viewer, **Listen to the story** plays the narration offline and **Stop story** ends it. Autoplay is off unless the caregiver enables it for that photo. Narration pauses music, stops on paging or Home, and holds the slideshow on its current picture until it ends. Recorded audio is not included in settings backups; import it separately on another device.
 
-Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors, seeded so upgrading doesn't repaint Home), 006 (Buddy tap and motion choices), 007 (the chat switch, on for existing setups), 008 (fixed Home layouts, with no tile dropped), 009 (photo slideshow off by default), 010 (optional tile photos), and 011 (music playlists and listening settings) preserve existing settings.
+Config migrations 003 (tile sizes), 004 (saved Buddy messages), 005 (tile colors, seeded so upgrading doesn't repaint Home), 006 (Buddy tap and motion choices), 007 (the chat switch, on for existing setups), 008 (fixed Home layouts, with no tile dropped), 009 (photo slideshow off by default), 010 (optional tile photos), 011 (music playlists and listening settings), 012 (optional card artwork and the Clay cards theme), 013 (idle dimming, off for existing setups) and 014 (the caregiver's approved sites, empty for existing setups) preserve existing settings.
 
 Every config save is validated against the schema before anything is written, and the parsed result is what reaches disk. One unvalidated value used to cost everything: the next boot would fail validation, fall back to defaults, and wipe her tiles, the API key and the PIN hash - after which anyone at the kiosk could set a new PIN. If the config file itself is unreadable (truncated, zero-length or hand-edited), the app now copies it byte-for-byte to `config.corrupt-<timestamp>.json`, records a `config-reset` event in the reliability log, and starts from defaults instead of crash-looping. The reset log never contains config values or a parser message, because both can quote the file's contents. **After such a reset, set the PIN again straight away**, since the kiosk is running without one.
 
@@ -112,7 +123,7 @@ Two things to know after such a reset:
 - `npm run test` - unit tests (Vitest)
 - `npm run typecheck` - TypeScript project references, no emit
 - `npm run lint` - ESLint
-- `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first)
+- `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first). The app windows it opens are invisible and never take focus, so you can keep working while it runs
 - `npm run package` - Windows installer via electron-builder (`dist/GrammieGuide Setup <version>.exe`)
 - `sh scripts/blender/buildBuddy.sh` - rebuild Buddy's model from the Meshy downloads (needs Blender)
 

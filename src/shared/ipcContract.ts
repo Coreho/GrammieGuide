@@ -2,13 +2,25 @@ import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
 import type { BuddyProvider } from './buddy/providers'
-import type { PageProblem } from './browser/loadFailure'
+import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
 import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
 import type { MusicTrack, MusicImportResult, MusicImportProgress } from './music/musicTypes'
 import type { MusicSettings } from './music/musicSchema'
 import type { AudioUpdate, ClientAudioEvent } from './audio/audioContract'
-import type { BuddyAction, BuddyActionPlan, BuddyActionResult } from './buddy/actions'
+import type {
+  BuddyActionRequest,
+  BuddyActionPlan,
+  BuddyActionResult,
+  BuddyTileChoice
+} from './buddy/actions'
+import type {
+  CheckId,
+  CheckResults,
+  CheckRunResult,
+  VoiceReport,
+  VoiceStart
+} from './checks/caregiverChecks'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -66,7 +78,12 @@ export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
  */
 export type BuddyChatResult =
   | { ok: true; reply: string; action?: BuddyActionPlan }
-  | { ok: false; reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'; reply: string }
+  | {
+      ok: false
+      reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'
+      reply: string
+      choices?: BuddyTileChoice[]
+    }
 
 /** Base64 MP3 of Buddy's line, or why there's none (the renderer then uses the Windows voice). */
 export type BuddySpeakResult =
@@ -161,6 +178,13 @@ export interface IpcApi {
   'reliability:testWifiDiscovery': { request: void; response: ReliabilityEvent }
   'reliability:testWatchdogRegistration': { request: void; response: ReliabilityEvent }
 
+  /** The caregiver's checks (admin-only in main); every result says when it was observed. */
+  'checks:list': { request: void; response: CheckResults }
+  'checks:run': { request: { id: Exclude<CheckId, 'voice'> }; response: CheckRunResult }
+  'checks:cancel': { request: { id?: CheckId }; response: CheckResults }
+  'checks:voiceStart': { request: void; response: VoiceStart }
+  'checks:voiceReport': { request: { runId: number; report: VoiceReport }; response: CheckResults }
+
   'activity:get': { request: { limit?: number }; response: ActivityEvent[] }
 
   'admin:isPinSet': { request: void; response: boolean }
@@ -182,7 +206,10 @@ export interface IpcApi {
   'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
   'buddy:chat': { request: { turns: BuddyChatTurn[] }; response: BuddyChatResult }
-  'buddy:action': { request: BuddyAction; response: BuddyActionResult }
+  'buddy:action': { request: BuddyActionRequest; response: BuddyActionResult }
+  'buddy:cancelListen': { request: void; response: void }
+  /** Buddy opening a saved web tile by ID; resolves once the page loads or fails. */
+  'browser:openTile': { request: { tileId: string }; response: PageOutcome }
   /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */
   'buddy:speak': { request: { text: string; voice?: string }; response: BuddySpeakResult }
   /** One spoken phrase through Windows' offline recognizer; returns once she pauses. */
@@ -197,11 +224,15 @@ export interface IpcApi {
 
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
+  /** Caregiver-only, bounded domain history; never full addresses. */
+  'browser:blockedSites': { request: void; response: string[] }
   'browser:goBack': { request: void; response: void }
   /** Her "Try again" on the recovery screen: reload the page that failed. */
   'browser:retry': { request: void; response: void }
   /** Her "Back to the page" after a blocked link. */
   'browser:dismissBlocked': { request: void; response: void }
+  /** Home opening the caregiver's recovery check page. It carries no address: main chose it. */
+  'browser:openRecoveryCheck': { request: void; response: { ok: boolean } }
 }
 
 export type IpcChannel = keyof IpcApi
@@ -218,11 +249,16 @@ export interface IpcEvents {
   'photos:changed': Record<string, never>
   'photos:importProgress': PhotoImportProgress
   'buddy:command': BuddyCommand
-  'browser:blocked': { url: string }
   /** The page failed or a link was blocked (Home shows its recovery screen), or null once it's fine again. */
   'browser:page-problem': { kind: PageProblem | null }
   'browser:can-go-back-changed': { canGoBack: boolean }
   'browser:idle-timeout': Record<string, never>
+  /** Main closed the page for Home (the recovery check finished); show Home, nothing else. */
+  'browser:return-home': Record<string, never>
+  /** The caregiver's recovery check asks Home to open its page, if Home is showing. */
+  'checks:recovery-start': Record<string, never>
+  /** Pushed to admin whenever a caregiver check result changes. */
+  'checks:changed': CheckResults
   /** Pushed to the launcher whenever config changes, so admin edits show up live. */
   'config:changed': PublicConfig
 }

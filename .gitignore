@@ -23,3 +23,6 @@ AGENTS.md
 # backlog/config.yml, so nothing breaks, but the export is a throwaway artifact
 # that must never be committed - export to a path under backlog/ instead.
 /Backlog.md
+
+# Impeccable review screenshots; the committed copies live in design/home-cards/.
+.impeccable/review/

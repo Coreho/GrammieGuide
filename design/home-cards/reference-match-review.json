@@ -1,0 +1,70 @@
+{
+  "scope": "Approved Home card reference matching only; no full Home approval",
+  "reviewer": "impeccable-finish-reviewer",
+  "disposition": "ship",
+  "dispositionQualifier": "AT FIX-LIST SCOPE",
+  "referenceRelationship": "Close visual match; pixel identity not established",
+  "references": [
+    "design/home-cards/home-cards-clay-v1.png",
+    "design/home-cards/games-websites-clay-v1.png"
+  ],
+  "initialDisposition": "fix",
+  "resolvedFindings": [
+    {
+      "finding": "Objects too small",
+      "resolution": "Fit measured Games/Websites alpha bounds and use reference proportions",
+      "status": "resolved"
+    },
+    {
+      "finding": "Type too small",
+      "resolution": "Matching-palette illustrated labels use 72px/800 before font scaling and measured fitting",
+      "status": "resolved"
+    },
+    {
+      "finding": "Ground darkens",
+      "resolution": "Matching page and all three Stage stops use #FDF9EF",
+      "status": "resolved"
+    },
+    {
+      "finding": "Exaggerated surface ramps",
+      "resolution": "Stable yellow/green faces with localized edge shading",
+      "status": "resolved"
+    }
+  ],
+  "captures": [
+    ".impeccable/review/card-reference/home-cream.png",
+    ".impeccable/review/card-reference/games.png",
+    ".impeccable/review/card-reference/websites.png",
+    ".impeccable/review/card-reference/simple4-largest.png",
+    ".impeccable/review/card-reference/more8-largest.png"
+  ],
+  "verified": {
+    "buildAndTypechecks": "passed",
+    "lint": "passed",
+    "unitTests": "875 passed",
+    "selectionPersistenceThemeFontE2E": "2 passed",
+    "artworkLayoutFocusFallbackE2E": "4 passed after fixes",
+    "priorPhotoColorRegressions": "8 passed before this matching pass",
+    "onceOnlyDetector": [],
+    "rasterProvenance": {
+      "assets": 2,
+      "missing": 0
+    }
+  },
+  "verificationAuthority": "Coordinating session and finish reviewer; documentation pass did not rerun tests or detector",
+  "limits": [
+    "Real kiosk hardware not checked",
+    "Games and Websites collection menus are not implemented",
+    "Six-card Home layout is not implemented",
+    "The opt-in matching palette does not replace other users saved themes",
+    "No whole-surface approval or exact-pixel guarantee"
+  ],
+  "contextGap": "PRODUCT.md absent; incumbent kiosk and approved scoped extension context retained",
+  "userFacingCaptures": [
+    "design/home-cards/home-cream-working-v2.png",
+    "design/home-cards/games-working-v2.png",
+    "design/home-cards/websites-working-v2.png"
+  ],
+  "userFacingCaptureProvenance": "Capture provenance embedded by coordinating agent.",
+  "developmentTheme": "clayCards applied to this user development configuration; startup verified by coordinating agent."
+}

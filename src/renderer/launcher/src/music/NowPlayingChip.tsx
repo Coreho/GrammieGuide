@@ -18,7 +18,7 @@ export function NowPlayingChip({
           <strong>{state.title || state.currentLabel}</strong>
         </div>
       )}
-      <button onClick={onStop} aria-label="Stop music">
+      <button onClick={onStop} aria-label="Stop music" data-music-stop>
         ■ Stop
       </button>
     </div>

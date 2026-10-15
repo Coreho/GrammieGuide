@@ -5,13 +5,15 @@ import { quickMessageSchema } from './buddy/commands'
 import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
 import { HOME_LAYOUT_NAMES } from './homeLayout'
 import { musicSettingsSchema } from './music/musicSchema'
+import { TILE_ARTWORK_KEYS } from './tileArtwork'
+import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 11
+export const CURRENT_SCHEMA_VERSION = 14
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music'] as const
@@ -30,6 +32,8 @@ export const tileSchema = z.object({
     .min(0)
     .max(TILE_COLOR_COUNT - 1),
   icon: z.string().optional(),
+  /** Named bundled artwork only. This never changes what the tile opens. */
+  artwork: z.enum(TILE_ARTWORK_KEYS).optional(),
   /** Managed photo ID only; paths and image URLs never enter tile configuration. */
   photoId: z.string().uuid().optional(),
   url: z.string().optional(),
@@ -87,6 +91,13 @@ export const buddyConfigSchema = z.object({
   quickMessages: z.array(quickMessageSchema).max(50).default([])
 })
 
+export const idleDimConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  afterMinutes: z.number().int().min(2).max(60).default(10),
+  level: z.number().min(0.1).max(0.5).default(0.3)
+})
+export type IdleDimConfig = z.infer<typeof idleDimConfigSchema>
+
 export const displayConfigSchema = z.object({
   /** Index into shared/theme.ts's FONT_STEPS, not a raw scale - matches the
    *  on-screen A-/A+ control's discrete 5-step model exactly. */
@@ -99,7 +110,12 @@ export const displayConfigSchema = z.object({
   theme: z.enum(THEME_NAMES).default('tilesBold'),
   homeLayout: z.enum(HOME_LAYOUT_NAMES).default('simple4'),
   ambientBackground: z.boolean().default(true),
-  volumeCeiling: z.number().min(0).max(100).default(70)
+  volumeCeiling: z.number().min(0).max(100).default(70),
+  idleDim: idleDimConfigSchema.default({
+    enabled: false,
+    afterMinutes: 10,
+    level: 0.3
+  })
 })
 
 export const reliabilityConfigSchema = z.object({
@@ -110,6 +126,19 @@ export const reliabilityConfigSchema = z.object({
 
 export const configSchema = z.object({
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
+  // Lenient on purpose: an entry the site rule no longer accepts (say a newly
+  // listed shared ending) is dropped, never a reason to fail the whole config
+  // at boot and reset her Home to defaults. Admin's Sites tab rejects bad input
+  // with a message before it gets here.
+  approvedSites: z
+    .array(z.string())
+    .default([])
+    .transform((sites) =>
+      [...new Set(sites.flatMap((site) => siteFor(site.toLowerCase()) ?? []))].slice(
+        0,
+        MAX_APPROVED_SITES
+      )
+    ),
   tiles: z.array(tileSchema).default([]),
   weather: weatherConfigSchema,
   confusion: confusionConfigSchema,
@@ -196,7 +225,12 @@ export function defaultConfig(): Config {
       theme: 'tilesBold',
       homeLayout: 'simple4',
       ambientBackground: true,
-      volumeCeiling: 70
+      volumeCeiling: 70,
+      idleDim: {
+        enabled: false,
+        afterMinutes: 10,
+        level: 0.3
+      }
     },
     reliability: {}
   })

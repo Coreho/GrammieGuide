@@ -1,0 +1,31 @@
+{
+  "scope": "Existing Home card illustrations and labels; no full Home redesign",
+  "reviewer": "impeccable-finish-reviewer",
+  "disposition": "ship",
+  "materialFixes": [],
+  "verified": {
+    "buildAndTypechecks": "passed",
+    "lint": "passed",
+    "unitTests": "871 passed in this checkout",
+    "newCardE2E": "4 passed",
+    "existingPhotoAndColorE2E": "8 passed",
+    "manualDetector": "ran once; no findings",
+    "artifactProvenance": "atlas scan: one raster, none missing provenance"
+  },
+  "captures": [
+    ".impeccable/review/home-cards/kiosk-1440.png",
+    ".impeccable/review/home-cards/kiosk-1920.png",
+    ".impeccable/review/home-cards/kiosk-1280.png",
+    ".impeccable/review/home-cards/mint.png",
+    ".impeccable/review/home-cards/evening.png",
+    ".impeccable/review/home-cards/wide-largest-font.png",
+    ".impeccable/review/home-cards/dense-largest-font.png"
+  ],
+  "savedPreview": "design/home-cards/home-cards-working-v1.png",
+  "captureContext": "Resting Home in isolated Playwright profiles. Widths name logical content viewports; Windows display scaling affects image pixel dimensions. Sample tiles do not replace saved device settings.",
+  "limits": [
+    "Real kiosk hardware has not been verified",
+    "PRODUCT.md and DESIGN.md are pre-existing documentation gaps; narrow incumbent refinement exemption applied",
+    "This is local implementation; no merge or publication"
+  ]
+}

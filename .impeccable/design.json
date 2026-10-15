@@ -1,0 +1,437 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-14T11:13:32.551080+00:00",
+  "title": "Design System: GrammieGuide",
+  "extensions": {
+    "colorMeta": {
+      "cream-ground": {
+        "role": "neutral",
+        "displayName": "Cream Ground",
+        "canonical": "#FDF9EF",
+        "tonalRamp": [
+          "oklch(15% 0.0139 88.68)",
+          "oklch(26% 0.0139 88.68)",
+          "oklch(38% 0.0139 88.68)",
+          "oklch(49% 0.0139 88.68)",
+          "oklch(61% 0.0139 88.68)",
+          "oklch(72% 0.0139 88.68)",
+          "oklch(84% 0.0139 88.68)",
+          "oklch(95% 0.0139 88.68)"
+        ]
+      },
+      "cream-surface": {
+        "role": "neutral",
+        "displayName": "Cream Surface",
+        "canonical": "#FFFCF5",
+        "tonalRamp": [
+          "oklch(15% 0.0098 87.47)",
+          "oklch(26% 0.0098 87.47)",
+          "oklch(38% 0.0098 87.47)",
+          "oklch(49% 0.0098 87.47)",
+          "oklch(61% 0.0098 87.47)",
+          "oklch(72% 0.0098 87.47)",
+          "oklch(84% 0.0098 87.47)",
+          "oklch(95% 0.0098 87.47)"
+        ]
+      },
+      "surface-shade": {
+        "role": "neutral",
+        "displayName": "Surface Shade",
+        "canonical": "#ECE6DA",
+        "tonalRamp": [
+          "oklch(15% 0.0173 84.59)",
+          "oklch(26% 0.0173 84.59)",
+          "oklch(38% 0.0173 84.59)",
+          "oklch(49% 0.0173 84.59)",
+          "oklch(61% 0.0173 84.59)",
+          "oklch(72% 0.0173 84.59)",
+          "oklch(84% 0.0173 84.59)",
+          "oklch(95% 0.0173 84.59)"
+        ]
+      },
+      "surface-deep": {
+        "role": "neutral",
+        "displayName": "Surface Deep",
+        "canonical": "#E6E0D4",
+        "tonalRamp": [
+          "oklch(15% 0.0174 84.59)",
+          "oklch(26% 0.0174 84.59)",
+          "oklch(38% 0.0174 84.59)",
+          "oklch(49% 0.0174 84.59)",
+          "oklch(61% 0.0174 84.59)",
+          "oklch(72% 0.0174 84.59)",
+          "oklch(84% 0.0174 84.59)",
+          "oklch(95% 0.0174 84.59)"
+        ]
+      },
+      "warm-ink": {
+        "role": "neutral",
+        "displayName": "Warm Ink",
+        "canonical": "#30291F",
+        "tonalRamp": [
+          "oklch(15% 0.0203 76.58)",
+          "oklch(26% 0.0203 76.58)",
+          "oklch(38% 0.0203 76.58)",
+          "oklch(49% 0.0203 76.58)",
+          "oklch(61% 0.0203 76.58)",
+          "oklch(72% 0.0203 76.58)",
+          "oklch(84% 0.0203 76.58)",
+          "oklch(95% 0.0203 76.58)"
+        ]
+      },
+      "secondary-ink": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "canonical": "#504738",
+        "tonalRamp": [
+          "oklch(15% 0.0269 80.42)",
+          "oklch(26% 0.0269 80.42)",
+          "oklch(38% 0.0269 80.42)",
+          "oklch(49% 0.0269 80.42)",
+          "oklch(61% 0.0269 80.42)",
+          "oklch(72% 0.0269 80.42)",
+          "oklch(84% 0.0269 80.42)",
+          "oklch(95% 0.0269 80.42)"
+        ]
+      },
+      "yellow-face": {
+        "role": "primary",
+        "displayName": "Yellow Face",
+        "canonical": "#FFC82C",
+        "tonalRamp": [
+          "oklch(15% 0.1659 87.06)",
+          "oklch(26% 0.1659 87.06)",
+          "oklch(38% 0.1659 87.06)",
+          "oklch(49% 0.1659 87.06)",
+          "oklch(61% 0.1659 87.06)",
+          "oklch(72% 0.1659 87.06)",
+          "oklch(84% 0.1659 87.06)",
+          "oklch(95% 0.1659 87.06)"
+        ]
+      },
+      "yellow-edge": {
+        "role": "primary",
+        "displayName": "Yellow Edge",
+        "canonical": "#FFC227",
+        "tonalRamp": [
+          "oklch(15% 0.1656 84.25)",
+          "oklch(26% 0.1656 84.25)",
+          "oklch(38% 0.1656 84.25)",
+          "oklch(49% 0.1656 84.25)",
+          "oklch(61% 0.1656 84.25)",
+          "oklch(72% 0.1656 84.25)",
+          "oklch(84% 0.1656 84.25)",
+          "oklch(95% 0.1656 84.25)"
+        ]
+      },
+      "yellow-ink": {
+        "role": "neutral",
+        "displayName": "Yellow Ink",
+        "canonical": "#331D05",
+        "tonalRamp": [
+          "oklch(15% 0.0500 64.88)",
+          "oklch(26% 0.0500 64.88)",
+          "oklch(38% 0.0500 64.88)",
+          "oklch(49% 0.0500 64.88)",
+          "oklch(61% 0.0500 64.88)",
+          "oklch(72% 0.0500 64.88)",
+          "oklch(84% 0.0500 64.88)",
+          "oklch(95% 0.0500 64.88)"
+        ]
+      },
+      "green-face": {
+        "role": "primary",
+        "displayName": "Green Face",
+        "canonical": "#1D7844",
+        "tonalRamp": [
+          "oklch(15% 0.1170 153.28)",
+          "oklch(26% 0.1170 153.28)",
+          "oklch(38% 0.1170 153.28)",
+          "oklch(49% 0.1170 153.28)",
+          "oklch(61% 0.1170 153.28)",
+          "oklch(72% 0.1170 153.28)",
+          "oklch(84% 0.1170 153.28)",
+          "oklch(95% 0.1170 153.28)"
+        ]
+      },
+      "green-edge": {
+        "role": "primary",
+        "displayName": "Green Edge",
+        "canonical": "#18733F",
+        "tonalRamp": [
+          "oklch(15% 0.1165 152.83)",
+          "oklch(26% 0.1165 152.83)",
+          "oklch(38% 0.1165 152.83)",
+          "oklch(49% 0.1165 152.83)",
+          "oklch(61% 0.1165 152.83)",
+          "oklch(72% 0.1165 152.83)",
+          "oklch(84% 0.1165 152.83)",
+          "oklch(95% 0.1165 152.83)"
+        ]
+      },
+      "blue-face": {
+        "role": "secondary",
+        "displayName": "Blue Face",
+        "canonical": "#348CCB",
+        "tonalRamp": [
+          "oklch(15% 0.1262 243.89)",
+          "oklch(26% 0.1262 243.89)",
+          "oklch(38% 0.1262 243.89)",
+          "oklch(49% 0.1262 243.89)",
+          "oklch(61% 0.1262 243.89)",
+          "oklch(72% 0.1262 243.89)",
+          "oklch(84% 0.1262 243.89)",
+          "oklch(95% 0.1262 243.89)"
+        ]
+      },
+      "blue-edge": {
+        "role": "secondary",
+        "displayName": "Blue Edge",
+        "canonical": "#1C71B6",
+        "tonalRamp": [
+          "oklch(15% 0.1327 248.55)",
+          "oklch(26% 0.1327 248.55)",
+          "oklch(38% 0.1327 248.55)",
+          "oklch(49% 0.1327 248.55)",
+          "oklch(61% 0.1327 248.55)",
+          "oklch(72% 0.1327 248.55)",
+          "oklch(84% 0.1327 248.55)",
+          "oklch(95% 0.1327 248.55)"
+        ]
+      },
+      "violet-face": {
+        "role": "secondary",
+        "displayName": "Violet Face",
+        "canonical": "#7857CD",
+        "tonalRamp": [
+          "oklch(15% 0.1750 292.61)",
+          "oklch(26% 0.1750 292.61)",
+          "oklch(38% 0.1750 292.61)",
+          "oklch(49% 0.1750 292.61)",
+          "oklch(61% 0.1750 292.61)",
+          "oklch(72% 0.1750 292.61)",
+          "oklch(84% 0.1750 292.61)",
+          "oklch(95% 0.1750 292.61)"
+        ]
+      },
+      "violet-edge": {
+        "role": "secondary",
+        "displayName": "Violet Edge",
+        "canonical": "#603EB2",
+        "tonalRamp": [
+          "oklch(15% 0.1747 291.71)",
+          "oklch(26% 0.1747 291.71)",
+          "oklch(38% 0.1747 291.71)",
+          "oklch(49% 0.1747 291.71)",
+          "oklch(61% 0.1747 291.71)",
+          "oklch(72% 0.1747 291.71)",
+          "oklch(84% 0.1747 291.71)",
+          "oklch(95% 0.1747 291.71)"
+        ]
+      },
+      "white-ink": {
+        "role": "neutral",
+        "displayName": "White Ink",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(26% 0.0000 89.88)",
+          "oklch(38% 0.0000 89.88)",
+          "oklch(49% 0.0000 89.88)",
+          "oklch(61% 0.0000 89.88)",
+          "oklch(72% 0.0000 89.88)",
+          "oklch(84% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "mint-accent": {
+        "role": "secondary",
+        "displayName": "Mint Accent",
+        "canonical": "#BCE5CB",
+        "tonalRamp": [
+          "oklch(15% 0.0556 157.25)",
+          "oklch(26% 0.0556 157.25)",
+          "oklch(38% 0.0556 157.25)",
+          "oklch(49% 0.0556 157.25)",
+          "oklch(61% 0.0556 157.25)",
+          "oklch(72% 0.0556 157.25)",
+          "oklch(84% 0.0556 157.25)",
+          "oklch(95% 0.0556 157.25)"
+        ]
+      },
+      "mint-accent-deep": {
+        "role": "secondary",
+        "displayName": "Mint Accent Deep",
+        "canonical": "#89CBA7",
+        "tonalRamp": [
+          "oklch(15% 0.0848 159.79)",
+          "oklch(26% 0.0848 159.79)",
+          "oklch(38% 0.0848 159.79)",
+          "oklch(49% 0.0848 159.79)",
+          "oklch(61% 0.0848 159.79)",
+          "oklch(72% 0.0848 159.79)",
+          "oklch(84% 0.0848 159.79)",
+          "oklch(95% 0.0848 159.79)"
+        ]
+      },
+      "accent-ink": {
+        "role": "neutral",
+        "displayName": "Accent Ink",
+        "canonical": "#174B32",
+        "tonalRamp": [
+          "oklch(15% 0.0703 158.94)",
+          "oklch(26% 0.0703 158.94)",
+          "oklch(38% 0.0703 158.94)",
+          "oklch(49% 0.0703 158.94)",
+          "oklch(61% 0.0703 158.94)",
+          "oklch(72% 0.0703 158.94)",
+          "oklch(84% 0.0703 158.94)",
+          "oklch(95% 0.0703 158.94)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "illustrated-label": {
+        "displayName": "Illustrated Label",
+        "purpose": "Matching-palette live recognition labels."
+      },
+      "incumbent-illustrated-label": {
+        "displayName": "Incumbent Illustrated Label",
+        "purpose": "Illustrated fallback in the six incumbent palettes."
+      },
+      "ordinary-label": {
+        "displayName": "Ordinary Label",
+        "purpose": "Photo and icon cards."
+      },
+      "dense-label": {
+        "displayName": "Dense Label",
+        "purpose": "Normal-width More choices cards."
+      }
+    },
+    "shadows": [
+      {
+        "name": "matching-card",
+        "value": "inset 0 7px 12px rgba(255,255,255,.36), inset 0 -8px 12px rgba(55,31,5,.22), 0 10px 16px rgba(80,57,27,.23), 0 3px 5px rgba(80,57,27,.16)",
+        "purpose": "Localized matching-palette edge light, lift and contact."
+      },
+      {
+        "name": "active-card",
+        "value": "inset 0 3px 1px rgba(255,255,255,.55), 0 4px 10px rgba(80,57,27,.14)",
+        "purpose": "Matching-palette resolution of the incumbent active shadow."
+      },
+      {
+        "name": "incumbent-card",
+        "value": "inset 0 3px 1px var(--hl,#fff), inset 0 -6px 12px rgba(0,0,0,.05), 0 16px 30px rgba(var(--sh,60,55,45),.16), 0 3px 5px rgba(var(--sh,60,55,45),.12)",
+        "purpose": "Resting fallback in the six incumbent palettes."
+      },
+      {
+        "name": "icon-well",
+        "value": "inset 0 3px 1px rgba(255,255,255,.75), inset 0 -5px 10px rgba(0,0,0,.08), 0 10px 18px rgba(var(--ag,63,162,126),.28)",
+        "purpose": "Non-illustrated photo/icon wells."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-ease",
+        "value": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        "purpose": "Shared button movement."
+      },
+      {
+        "name": "card-transition",
+        "value": "translate 140ms, scale 140ms, box-shadow 120ms",
+        "purpose": "Home card transitions; removed under reduced motion."
+      },
+      {
+        "name": "press-duration",
+        "value": "70ms",
+        "purpose": "Shared active-button movement."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Games card (fallback icon)",
+      "kind": "card",
+      "refersTo": "games-card",
+      "description": "Matching-palette category proportions with the shipped generic-link fallback. Bundled raster recognition art is omitted from this self-contained panel snippet; the launcher uses its measured alpha frame.",
+      "html": "<button class=\"ds-games-card\" aria-label=\"Games\"><svg width=\"60\" height=\"60\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M9.5 14.5l5-5\"/><path d=\"M12 6.5l1.3-1.3a4 4 0 0 1 5.7 5.7L17.7 12M12 17.5l-1.3 1.3a4 4 0 0 1-5.7-5.7L6.3 12\"/></svg><span>Games</span></button>",
+      "css": ".ds-games-card{border: none; border-radius: 40px; cursor: pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; font-family:Figtree,system-ui,sans-serif; line-height:1.1; min-width:0; max-height:100%; transition:translate 140ms,scale 140ms,box-shadow 120ms; width:100%;height:auto;aspect-ratio:4;padding:8px 8%;gap:10%;background:linear-gradient(180deg,#FFC82C,#FFC227);color:#331D05;font-size:72px;font-weight:800;box-shadow:inset 0 7px 12px rgba(255,255,255,.36), inset 0 -8px 12px rgba(55,31,5,.22), 0 10px 16px rgba(80,57,27,.23), 0 3px 5px rgba(80,57,27,.16)} .ds-games-card span{min-width:0;flex:1 1 0;text-align:left}.ds-games-card:focus-visible{outline:4px solid currentColor;outline-offset:-8px} @media(hover:hover) and (pointer:fine){.ds-games-card:hover{translate:0 -3px;scale:1.012}} .ds-games-card:active{translate:0 2px;scale:.985;box-shadow:inset 0 3px 1px rgba(255,255,255,.55), 0 4px 10px rgba(80,57,27,.14);transition-duration:70ms} @media(prefers-reduced-motion:reduce){.ds-games-card,.ds-games-card:hover,.ds-games-card:active{translate:0 0;scale:1;transition:none}}"
+    },
+    {
+      "name": "Websites card (fallback icon)",
+      "kind": "card",
+      "refersTo": "websites-card",
+      "description": "Matching-palette category proportions with the shipped generic-link fallback. Bundled raster recognition art is omitted from this self-contained panel snippet; the launcher uses its measured alpha frame.",
+      "html": "<button class=\"ds-websites-card\" aria-label=\"Websites\"><svg width=\"60\" height=\"60\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M9.5 14.5l5-5\"/><path d=\"M12 6.5l1.3-1.3a4 4 0 0 1 5.7 5.7L17.7 12M12 17.5l-1.3 1.3a4 4 0 0 1-5.7-5.7L6.3 12\"/></svg><span>Websites</span></button>",
+      "css": ".ds-websites-card{border: none; border-radius: 40px; cursor: pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; font-family:Figtree,system-ui,sans-serif; line-height:1.1; min-width:0; max-height:100%; transition:translate 140ms,scale 140ms,box-shadow 120ms; width:100%;height:auto;aspect-ratio:4;padding:8px 8%;gap:10%;background:linear-gradient(180deg,#1D7844,#18733F);color:#FFFFFF;font-size:72px;font-weight:800;box-shadow:inset 0 7px 12px rgba(255,255,255,.36), inset 0 -8px 12px rgba(55,31,5,.22), 0 10px 16px rgba(80,57,27,.23), 0 3px 5px rgba(80,57,27,.16)} .ds-websites-card span{min-width:0;flex:1 1 0;text-align:left}.ds-websites-card:focus-visible{outline:4px solid currentColor;outline-offset:-8px} @media(hover:hover) and (pointer:fine){.ds-websites-card:hover{translate:0 -3px;scale:1.012}} .ds-websites-card:active{translate:0 2px;scale:.985;box-shadow:inset 0 3px 1px rgba(255,255,255,.55), 0 4px 10px rgba(80,57,27,.14);transition-duration:70ms} @media(prefers-reduced-motion:reduce){.ds-websites-card,.ds-websites-card:hover,.ds-websites-card:active{translate:0 0;scale:1;transition:none}}"
+    },
+    {
+      "name": "Illustrated Card (label treatment)",
+      "kind": "card",
+      "refersTo": "illustrated-card",
+      "description": "Live label and matching-palette surface. Dense source variant is label-only; illustrated preview intentionally omits the bundled raster object.",
+      "html": "<button class=\"ds-illustrated-card\">Music</button>",
+      "css": ".ds-illustrated-card{border: none; border-radius: 40px; cursor: pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; font-family:Figtree,system-ui,sans-serif; line-height:1.1; min-width:0; max-height:100%; transition:translate 140ms,scale 140ms,box-shadow 120ms;width:100%;height:100%;padding:14px 24px;gap:24px;background:linear-gradient(180deg,#1D7844,#18733F);color:#FFFFFF;font-size:72px;font-weight:800;box-shadow:inset 0 7px 12px rgba(255,255,255,.36), inset 0 -8px 12px rgba(55,31,5,.22), 0 10px 16px rgba(80,57,27,.23), 0 3px 5px rgba(80,57,27,.16)}.ds-illustrated-card:focus-visible{outline:4px solid currentColor;outline-offset:-8px} @media(hover:hover) and (pointer:fine){.ds-illustrated-card:hover{translate:0 -3px;scale:1.012}} .ds-illustrated-card:active{translate:0 2px;scale:.985;box-shadow:inset 0 3px 1px rgba(255,255,255,.55), 0 4px 10px rgba(80,57,27,.14);transition-duration:70ms} @media(prefers-reduced-motion:reduce){.ds-illustrated-card,.ds-illustrated-card:hover,.ds-illustrated-card:active{translate:0 0;scale:1;transition:none}}"
+    },
+    {
+      "name": "Dense Card (label treatment)",
+      "kind": "card",
+      "refersTo": "dense-card",
+      "description": "Live label and matching-palette surface. Dense source variant is label-only; illustrated preview intentionally omits the bundled raster object.",
+      "html": "<button class=\"ds-dense-card\">Music</button>",
+      "css": ".ds-dense-card{border: none; border-radius: 40px; cursor: pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; font-family:Figtree,system-ui,sans-serif; line-height:1.1; min-width:0; max-height:100%; transition:translate 140ms,scale 140ms,box-shadow 120ms;width:100%;height:100%;padding:14px 24px;gap:24px;background:linear-gradient(180deg,#1D7844,#18733F);color:#FFFFFF;font-size:29px;font-weight:700;box-shadow:inset 0 7px 12px rgba(255,255,255,.36), inset 0 -8px 12px rgba(55,31,5,.22), 0 10px 16px rgba(80,57,27,.23), 0 3px 5px rgba(80,57,27,.16)}.ds-dense-card:focus-visible{outline:4px solid currentColor;outline-offset:-8px} @media(hover:hover) and (pointer:fine){.ds-dense-card:hover{translate:0 -3px;scale:1.012}} .ds-dense-card:active{translate:0 2px;scale:.985;box-shadow:inset 0 3px 1px rgba(255,255,255,.55), 0 4px 10px rgba(80,57,27,.14);transition-duration:70ms} @media(prefers-reduced-motion:reduce){.ds-dense-card,.ds-dense-card:hover,.ds-dense-card:active{translate:0 0;scale:1;transition:none}}"
+    },
+    {
+      "name": "Browser navigation",
+      "kind": "nav",
+      "refersTo": "navigation-button",
+      "description": "Source bar and Home button without incumbent glyph decoration. Native browser focus treatment is retained.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-button\">Home</button></nav>",
+      "css": ".ds-nav{height:72px;display:flex;align-items:center;gap:16px;padding:0 20px;background:#FDF9EF;color:#30291F}.ds-nav-button{min-height:56px;font-size:1.1rem;padding:12px 24px;border-radius:16px;border:none;background:#FFFCF5;color:#30291F;cursor:pointer;transition:translate 140ms,scale 140ms;transition-timing-function:cubic-bezier(.2,.8,.2,1)} @media(hover:hover) and (pointer:fine){.ds-nav-button:hover{translate:0 -3px;scale:1.012}} .ds-nav-button:active{translate:0 2px;scale:.985;transition-duration:70ms} .ds-nav-button:focus-visible{outline:revert} @media(prefers-reduced-motion:reduce){.ds-nav-button,.ds-nav-button:hover,.ds-nav-button:active{translate:0 0;scale:1;transition:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Clay Launcher",
+    "overview": "This records the shipped launcher\u2019s incumbent Clay language: pillowy controls, large live labels and familiar recognition objects. The visual reference remains `UI Screenshots/clay-launcher-design/GrammieGuide Home.dc.html`. The approved card extension adds bundled illustrations and an opt-in matching palette without replacing saved placement or destinations.\n\nThe user selected the cream background with the reference appearance. Frontmatter color primitives describe `clayCards`; the other six palettes remain independently authoritative in `src/shared/theme.ts`. This record covers launcher controls and cards, not a redesign of the caregiver admin panel. `PRODUCT.md` is absent; existing kiosk requirements and approved card choices supply the scoped context, without inventing a new product identity.",
+    "keyCharacteristics": [
+      "Tactile rounded Clay controls with local edge light and contact shadows.",
+      "Large live labels that scale in five discrete steps.",
+      "Decorative offline artwork with caregiver overrides.",
+      "Stable saved slots and opt-in theme changes."
+    ],
+    "rules": [
+      {
+        "name": "The Stable Ground Rule",
+        "body": "Keep the matching palette\u2019s page and Stage background stops equal; its ground does not darken toward the bottom.",
+        "section": "colors"
+      },
+      {
+        "name": "The Saved Palette Rule",
+        "body": "Colors follow saved `colorIndex`, cycling four slots; rearrangement does not recolor a tile. `clayCards` is opt-in. Tiles Bold, Tiles, Mint, Butter, Sky and Evening retain their source tokens and typography fallbacks.",
+        "section": "colors"
+      },
+      {
+        "name": "The Whole Word Rule",
+        "body": "Labels remain live text and do not break within words. Font steps are 1, 1.15, 1.3, 1.45 and 1.6. Measured fitting decreases in 0.04 steps to 0.6 when text or its button overflows; that minimum is a limit, not a promise for arbitrarily long text.",
+        "section": "typography"
+      },
+      {
+        "name": "The Local Depth Rule",
+        "body": "Card edge shading supplies shape; the matching cream ground stays steady. Pointer press temporarily uses the incumbent active shadow, then restores the selected palette shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** preserve saved labels, slots, color indices, destinations and caregiver photo/icon choices.",
+      "**Do** use named bundled artwork as a presentation choice and keep live text separate.",
+      "**Do** keep the matching cream ground stable and category cards bounded by saved slots.",
+      "**Do** check dense and wide cards at all five font steps."
+    ],
+    "donts": [
+      "**Don't** switch an existing saved palette merely because the application updates.",
+      "**Don't** infer destination behavior from Games or Websites artwork.",
+      "**Don't** treat a card reference as approval of the entire Home surface or proof of pixel identity."
+    ]
+  }
+}

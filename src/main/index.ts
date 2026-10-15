@@ -8,7 +8,8 @@ import {
   createLauncherWindow,
   createAdminWindow,
   getLauncherWindow,
-  unregisterAllShortcuts
+  unregisterAllShortcuts,
+  QUIET_E2E_WINDOWS
 } from './windows/windowManager'
 import {
   initEmbeddedBrowser,
@@ -48,7 +49,8 @@ if (!app.requestSingleInstanceLock()) {
     const win = getLauncherWindow()
     if (!win) return
     if (win.isMinimized()) win.restore()
-    win.focus()
+    // The single-instance e2e test only needs the second launch to exit.
+    if (!QUIET_E2E_WINDOWS) win.focus()
   })
 }
 

@@ -1,0 +1,39 @@
+{
+  "status": "concept-only",
+  "provider": "ChatGPT built-in image generation",
+  "created": "2026-10-14",
+  "asset": "home-cards-clay-v1.png",
+  "prompt": "Create one high-quality UI concept sheet for the four Home activity cards of GrammieGuide, a Windows touch kiosk used by an older adult with dementia. This is a visual concept only, not a full homepage. Show exactly four wide horizontal cards in a clean 2 by 2 grid on a warm ivory background, equal size, generous spacing. Existing design authority: tactile softly rounded Clay cards, Figtree-like bold sans-serif typography, restrained real depth from upper-left light, large clear words, no visual clutter. Preserve the incumbent strong permanent-color palette: top-left Photos in warm golden yellow with very dark brown lettering; top-right Music in deep green with white lettering; bottom-left Weather in rich blue with white lettering; bottom-right News in deep violet with white lettering. Each card has a single generous sculpted illustration on the left and its single label on the right. Exact text only: Photos, Music, Weather, News. Large sentence-case labels, very legible, not embossed text. Photos: two tactile printed landscape photographs, the front one showing a simple green hill and blue sky, no people, no invented family images. Music: one unmistakable rounded tabletop radio with a large speaker and tuning dial, no tiny writing. Weather: a warm sun partly behind one rounded white cloud, decorative representation only, not a temperature or live weather claim. News: a folded newspaper with broad simple blocks, no readable invented headlines. Illustrations should be professionally art-directed rounded 3D clay objects, generous silhouette, few details, consistent camera, consistent scale, cohesive matte materials, high recognition at small size. No busy scenes, faces, people, mascots, logos, subtitles, instructions, badges, unread indicators, arrows, CTA buttons, header, clock, footer, UI controls or extra words. Card proportions around 2.5 to 1, substantial but gentle corner rounding, no excessively chunky surrounding frames or nested cards; objects integrated into card surface. Crisp polished production-design presentation. Flat frontal view of the card layout, no perspective on the overall page. Strong text contrast, simple and calm. Output landscape image, large enough to inspect all four cards.",
+  "cards": [
+    {
+      "label": "Photos",
+      "color": "gold",
+      "object": "landscape prints"
+    },
+    {
+      "label": "Music",
+      "color": "green",
+      "object": "tabletop radio"
+    },
+    {
+      "label": "Weather",
+      "color": "blue",
+      "object": "sun and cloud"
+    },
+    {
+      "label": "News",
+      "color": "violet",
+      "object": "folded newspaper"
+    }
+  ],
+  "review": {
+    "labels": "All four labels are spelled correctly and readable in the full-size sheet.",
+    "recognition": "Four distinct objects with simple silhouettes; the radio has more surface detail than the other objects and should be simplified for a small tile illustration.",
+    "constraints": "Incumbent Clay identity and 2-by-2 proportions preserved as a concept. No family images or invented live information.",
+    "limitations": "Raster text is presentation only. Working cards need HTML labels, saved color/slot behavior, photo override precedence, focus/pressed states and all font-step checks. The generated sheet is not installed or a verified working Home."
+  },
+  "dimensions": {
+    "width": 1983,
+    "height": 793
+  }
+}
