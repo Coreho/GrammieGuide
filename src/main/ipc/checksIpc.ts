@@ -71,7 +71,7 @@ export const caregiverChecks = createCaregiverChecks({
     isOpen: isBrowserOpen,
     problem: getPageProblem,
     // Private: the activity log records that a page opened, not the check's address.
-    open: (url) => openUrl(url, { privateNavigation: true }),
+    open: (url) => openUrl(url, { privateNavigation: true, trustedInitialPage: true }),
     close: closeEmbeddedBrowser
   },
   home: {

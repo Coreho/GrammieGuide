@@ -214,6 +214,8 @@ export interface IpcApi {
 
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
+  /** Caregiver-only, bounded domain history; never full addresses. */
+  'browser:blockedSites': { request: void; response: string[] }
   'browser:goBack': { request: void; response: void }
   /** Her "Try again" on the recovery screen: reload the page that failed. */
   'browser:retry': { request: void; response: void }
@@ -237,7 +239,6 @@ export interface IpcEvents {
   'photos:changed': Record<string, never>
   'photos:importProgress': PhotoImportProgress
   'buddy:command': BuddyCommand
-  'browser:blocked': { url: string }
   /** The page failed or a link was blocked (Home shows its recovery screen), or null once it's fine again. */
   'browser:page-problem': { kind: PageProblem | null }
   'browser:can-go-back-changed': { canGoBack: boolean }

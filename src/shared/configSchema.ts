@@ -6,13 +6,14 @@ import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
 import { HOME_LAYOUT_NAMES } from './homeLayout'
 import { musicSettingsSchema } from './music/musicSchema'
 import { TILE_ARTWORK_KEYS } from './tileArtwork'
+import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 13
+export const CURRENT_SCHEMA_VERSION = 14
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music'] as const
@@ -125,6 +126,19 @@ export const reliabilityConfigSchema = z.object({
 
 export const configSchema = z.object({
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
+  // Lenient on purpose: an entry the site rule no longer accepts (say a newly
+  // listed shared ending) is dropped, never a reason to fail the whole config
+  // at boot and reset her Home to defaults. Admin's Sites tab rejects bad input
+  // with a message before it gets here.
+  approvedSites: z
+    .array(z.string())
+    .default([])
+    .transform((sites) =>
+      [...new Set(sites.flatMap((site) => siteFor(site.toLowerCase()) ?? []))].slice(
+        0,
+        MAX_APPROVED_SITES
+      )
+    ),
   tiles: z.array(tileSchema).default([]),
   weather: weatherConfigSchema,
   confusion: confusionConfigSchema,

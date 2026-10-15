@@ -23,6 +23,8 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **Gentle idle dimming (optional)** - in admin → Display, Home can dim a little after 2 to 60 minutes without a tap. Her first tap only brightens it again and never opens anything; it never dims mid-use (web pages, Buddy's chat, voice or listening), and music's Stop still works. Off unless you turn it on. Not yet checked for legibility on the real kiosk.
 - **Home preview in admin** - in admin → Tiles and admin → Display, a scaled-down, non-interactive replica of Home shows the caregiver how Home looks to her at her chosen text size, layout, theme and tiles, updating immediately as changes are saved without affecting her real Home screen.
 
+- **Approved browsing sites** - web tiles automatically approve their own site and subdomains. Admin → Sites adds or removes extra hostnames and lists the last 50 blocked domains with an Approve this site button. Unapproved links and redirects show the friendly Back/Home screen; cross-domain images, scripts and embedded frames still load. Main-served News stories stay readable, but their links and redirects need normal approval. Changes apply immediately. Not yet checked on the real kiosk.
+
 ## Home tiles
 
 In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather, News, Photos or Music). Pick an icon, a color, normal or wide size, and a position on Home. Changes reach Home immediately.
