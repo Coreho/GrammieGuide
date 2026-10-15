@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-14_
+_Last updated: 2026-10-15_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -121,7 +121,7 @@ Two things to know after such a reset:
 - `npm run test` - unit tests (Vitest)
 - `npm run typecheck` - TypeScript project references, no emit
 - `npm run lint` - ESLint
-- `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first)
+- `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first). The app windows it opens are invisible and never take focus, so you can keep working while it runs
 - `npm run package` - Windows installer via electron-builder (`dist/GrammieGuide Setup <version>.exe`)
 - `sh scripts/blender/buildBuddy.sh` - rebuild Buddy's model from the Meshy downloads (needs Blender)
 

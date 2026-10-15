@@ -99,7 +99,6 @@ test('a tap inside a web page reaches main, so it resets the idle timer', async 
   // A real mouse press inside the page, arriving the way her finger would.
   const viewSandboxed = await app.evaluate(({ webContents }, url) => {
     const view = webContents.getAllWebContents().find((w) => w.getURL() === url)!
-    view.focus()
     view.sendInputEvent({ type: 'mouseDown', x: 100, y: 100, button: 'left', clickCount: 1 })
     view.sendInputEvent({ type: 'mouseUp', x: 100, y: 100, button: 'left', clickCount: 1 })
     return view.getLastWebPreferences()?.sandbox

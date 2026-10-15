@@ -25,9 +25,9 @@ const problems: string[] = []
 async function setSize(width: number, height: number): Promise<void> {
   await app.evaluate(({ BrowserWindow }, [w, h]) => {
     const win = BrowserWindow.getAllWindows()[0]
+    // No moveTop/focus: e2e windows stay invisible and unfocused (windowManager),
+    // and native occlusion detection is off, so the new size is still reported.
     win.setContentSize(w as number, h as number)
-    win.moveTop()
-    win.focus()
   }, [width, height])
   // An occluded window would never report the new size, so poll rather than wait.
   await expect
