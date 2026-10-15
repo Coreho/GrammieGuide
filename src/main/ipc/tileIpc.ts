@@ -2,6 +2,7 @@ import { ipcMain, shell } from 'electron'
 import { getConfig } from '../config/store'
 import { getLauncherWindow } from '../windows/windowManager'
 import { logActivity } from '../services/activityLog/activityLog'
+import { tilesInHome } from '@shared/homeLayout'
 
 export function registerTileIpc(): void {
   let opening = false
@@ -10,7 +11,10 @@ export function registerTileIpc(): void {
     // Only open a path already saved by the caregiver, never a path supplied by web content.
     const launcher = getLauncherWindow()
     if (!launcher || event.sender !== launcher.webContents) return { ok: false }
-    const tile = getConfig().tiles.find((t) => t.id === req?.id && t.type === 'app')
+    const config = getConfig()
+    const tile = tilesInHome(config.display.homeLayout, config.tiles).find(
+      (t) => t.id === req?.id && t.type === 'app'
+    )
     if (!tile?.appPath) return { ok: false }
     if (opening) return { ok: false }
     restoreFocus?.()

@@ -3,6 +3,7 @@ import { join } from 'path'
 import {
   classifyLoadFailure,
   describeLoadFailure,
+  type PageOutcome,
   type PageProblem
 } from '@shared/browser/loadFailure'
 import { logActivity } from '../activityLog/activityLog'
@@ -79,7 +80,7 @@ function layout(): void {
 
 export function openUrl(
   url: string,
-  options: { privateNavigation?: boolean } = {}
+  options: { privateNavigation?: boolean; onLoaded?: (outcome: PageOutcome) => void } = {}
 ): { ok: boolean; reason?: string } {
   if (!hostWindow) return { ok: false, reason: 'no host window' }
   if (!isAllowedUrl(url)) {
@@ -168,10 +169,35 @@ export function openUrl(
   view.setVisible(true)
   // loadURL rejects on a failed load; did-fail-load below already owns what she
   // sees, so swallow it rather than leaving an unhandled rejection in main.
-  view.webContents.loadURL(url).catch(() => undefined)
+  const openedView = view
+  const settled = (): PageOutcome =>
+    view !== openedView ? 'pending' : navigationFailed || problem !== null ? 'failed' : 'loaded'
+  view.webContents.loadURL(url).then(
+    () => options.onLoaded?.(settled()),
+    // A rejection without a recorded failure is a redirect or replaced load
+    // (ERR_ABORTED), not a broken page: say nothing either way.
+    () => options.onLoaded?.(settled() === 'failed' ? 'failed' : 'pending')
+  )
   lastActivityAt = Date.now()
   logActivity('browser-open', privateNavigation ? undefined : url)
   return { ok: true }
+}
+
+/** For Buddy's confirmations, which wait for the page rather than creation of its view. */
+export async function openUrlAndWait(url: string, timeoutMs = 20_000): Promise<PageOutcome> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve('pending'), timeoutMs)
+    const finish = (outcome: PageOutcome): void => {
+      clearTimeout(timer)
+      resolve(outcome)
+    }
+    try {
+      // A failed load leaves Home's recovery screen up, exactly as after a tap.
+      if (!openUrl(url, { privateNavigation: true, onLoaded: finish }).ok) finish('refused')
+    } catch {
+      finish('refused')
+    }
+  })
 }
 
 export function goBack(): void {

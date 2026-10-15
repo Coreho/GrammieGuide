@@ -39,17 +39,10 @@ export function runPowerShell(
   return new Promise((resolvePromise) => {
     execImpl(
       'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-WindowStyle',
-        'Hidden',
-        '-EncodedCommand',
-        encoded
-      ],
-      // Aborting kills PowerShell, so a microphone check the caregiver stopped
-      // can't keep recording; the callback then reports ok: false.
-      { timeout: timeoutMs, windowsHide: true, signal: opts.signal },
+      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded],
+      // Aborting kills PowerShell, so a closed chat or a stopped microphone
+      // check can't keep recording; the callback then reports ok: false.
+      { timeout: timeoutMs, windowsHide: true, ...(opts.signal ? { signal: opts.signal } : {}) },
       (err: ExecFileException | null, stdout: string, stderr: string) => {
         const durationMs = Date.now() - start
         if (err) {
