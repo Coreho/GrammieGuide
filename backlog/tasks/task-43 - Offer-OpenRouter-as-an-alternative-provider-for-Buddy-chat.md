@@ -1,10 +1,11 @@
 ---
 id: TASK-43
 title: Offer OpenRouter as an alternative provider for Buddy chat
-status: In Progress
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2026-10-05 07:46'
-updated_date: '2026-10-05 11:57'
+updated_date: '2026-10-13 23:59'
 labels: []
 milestone: m-9
 dependencies: []
@@ -32,7 +33,7 @@ The safety constraint is the reason this is offerable at all. Left to itself Ope
 - [x] #6 Model choices are per provider because ids are provider-specific; switching provider lands on a model that provider accepts, and a saved model the new provider does not offer is still shown rather than silently rewritten
 - [x] #7 Effort is sent only to models that accept it, under either provider id format
 - [x] #8 Unit tests cover the provider data, key-per-provider IPC routing and both keys surviving mergeAdminPatch; an e2e test proves the OpenRouter URL, the routing pin, the unchanged prompt and that neither key reaches a renderer
-- [ ] #9 A check in the real app with a real OpenRouter key confirms a reply comes back
+- [x] #9 A check in the real app with a real OpenRouter key confirms a reply comes back
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -59,4 +60,12 @@ Still open: AC 9 needs a real OpenRouter key, which only the owner has. Until th
 Merged to main 2026-10-05 as PR #30 (squash 42e0790), on top of PR #31 which carried the ad-blocker verification suite the OpenRouter branch had picked up by accident. Branch was rebased onto main after the squash and re-verified in full: typecheck clean, lint clean, unit 41 files / 688 tests, build clean, e2e 77 passed (4.5m). ACs 1-8 checked against that run; AC 9 stays unchecked and the task stays In Progress because it needs a real OpenRouter key only the owner has.
 
 A note on how this branch was untangled, since the same trap could recur: the deletion of anthropicClient.ts had been sitting staged in the index from the original uncommitted work, so a notes-only commit silently swallowed it and produced a commit that was broken in isolation. It passed every suite because the replacement file arrived in a later commit on the same branch. The swap is now atomic in one commit. Worth a pre-push \git diff --staged\ when unrelated work is already staged.
+
+2026-10-13: four live replies succeeded in the built app using the saved OpenRouter key, configured anthropic/claude-sonnet-5.5 model and production Anthropic-only routing. No key values or config contents were printed or saved in task notes.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Provider choice and separate write-only keys are implemented and tested; four replies succeeded through the real app with the saved OpenRouter key.
+<!-- SECTION:FINAL_SUMMARY:END -->

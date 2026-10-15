@@ -1,11 +1,11 @@
 ---
 id: TASK-11
 title: Keep Buddy from inventing facts or promises
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-09-29 05:53'
-updated_date: '2026-09-30 19:22'
+updated_date: '2026-10-13 23:59'
 labels: []
 milestone: m-9
 dependencies: []
@@ -23,12 +23,18 @@ The prompt is deliberately frozen (no per-request values) so it stays a cacheabl
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Buddy still responds to the feeling behind confused statements without correcting or arguing
-- [ ] #2 Buddy never confirms a false statement as true, and never invents facts about her family, plans, visits or appointments
-- [ ] #3 Asked about plans or people he has no saved information on, he answers warmly without guessing, for example by suggesting she ask her family
+- [x] #1 Buddy still responds to the feeling behind confused statements without correcting or arguing
+- [x] #2 Buddy never confirms a false statement as true, and never invents facts about her family, plans, visits or appointments
+- [x] #3 Asked about plans or people he has no saved information on, he answers warmly without guessing, for example by suggesting she ask her family
 - [x] #4 The prompt stays a single frozen string with no per-request values
-- [ ] #5 A test pins the key rules in the prompt, and a manual check with a few confused statements (a parent coming to visit, needing to go to work) gets kind replies with no invented facts
+- [x] #5 A test pins the key rules in the prompt, and a manual check with a few confused statements (a parent coming to visit, needing to go to work) gets kind replies with no invented facts
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Retain the frozen prompt and approved Sonnet default. Verify its prompt unit tests and real request wiring; exercise confused statements and unknown plans in the built app with the locally configured key before finalizing.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
@@ -46,4 +52,12 @@ Prompt tuning, 2026-09-30 (Claude, via `claude -p` on the owner's Claude subscri
 Decision for the owner: keep Haiku with the new rule (better, not reliable), or switch Buddy to Sonnet 5.5 (reliable in these checks; slower and costs more per message), which needs Sonnet 5.5 added to the admin model list. AC 2 is not checked until that is decided.
 
 Owner approved on 2026-09-30: keep the new prompt rule and make Claude Sonnet 5.5 the default model. configSchema default and defaultConfig() now use claude-sonnet-5-5 (saved configs keep their model; no migration, the installer has not been run on her machine yet); the admin model list offers Sonnet 5.5 as recommended and says Haiku is more likely to play along with confused statements; CLAUDE.md and README updated. Unit test pins the default and that it is sent effort low (the API reference confirms Sonnet 5.5 accepts effort low; Haiku 4.5 still gets none). Verified: typecheck, lint, unit tests 262 passed, build, e2e 22 passed. Still open: a short check in the real app with an API key before merging, since the tuning ran through Claude Code rather than the app's own request.
+
+2026-10-13: real built app with locally saved OpenRouter key, configured anthropic/claude-sonnet-5.5 and the production Anthropic-only routing pin. Four synthetic statements returned successful replies: mother pickup redirected to asking about her mother; work redirected to her past work; daughter visit and appointment time explicitly said Buddy did not know and suggested asking family. No contradiction, invented appointment, confirmed visit or action promise in this sample. Earlier unit/wiring checks remain applicable. This is sampled behavioral evidence, not a guarantee for all future replies.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Frozen prompt rules and approved Sonnet default are implemented. The built app returned kind replies without confirmed confused premises or invented plans for four live synthetic statements through OpenRouter pinned to Anthropic.
+<!-- SECTION:FINAL_SUMMARY:END -->
