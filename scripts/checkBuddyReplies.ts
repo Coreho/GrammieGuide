@@ -7,29 +7,32 @@ import { defaultConfig, configSchema } from '../src/shared/configSchema'
 import { BUDDY_REPLY_CASES, flagBuddyReply } from './buddyReplyChecks'
 import type { BuddyChatResult } from '../src/shared/ipcContract'
 
+/** This script's own messages: safe to print, unlike provider, parse or filesystem errors. */
+class CheckError extends Error {}
+
 /** Manual only: real requests cost API credit. Normal unit/E2E suites never import this CLI. */
 async function main(): Promise<void> {
   if (!process.argv.includes('--live') || process.env.CI) {
-    throw new Error(
+    throw new CheckError(
       'Run by hand with --live. This check sends synthetic statements using your saved Buddy API key.'
     )
   }
   const workspace = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const configArgument = process.argv.indexOf('--config')
   if (configArgument >= 0 && !process.argv[configArgument + 1])
-    throw new Error('Provide a local settings file after --config.')
+    throw new CheckError('Provide a local settings file after --config.')
   const configPath =
     configArgument >= 0
       ? resolve(process.argv[configArgument + 1]!)
       : join(process.env.APPDATA ?? '', 'grammieguide', 'grammieguide-config.json')
   const parsed = configSchema.safeParse(JSON.parse(await readFile(configPath, 'utf8')))
   if (!parsed.success)
-    throw new Error(
+    throw new CheckError(
       'The local settings are invalid. Open the app to migrate or repair them before running this check.'
     )
   const saved = parsed.data.buddy
   const key = saved.provider === 'openrouter' ? saved.openrouterApiKey : saved.anthropicApiKey
-  if (!key) throw new Error('Set the selected provider API key in admin → Buddy first.')
+  if (!key) throw new CheckError('Set the selected provider API key in admin → Buddy first.')
   const config = defaultConfig()
   // Copy only the selected chat credentials/settings, never the real profile, PIN or library.
   config.buddy = {
@@ -100,10 +103,12 @@ async function main(): Promise<void> {
   if (cases.length !== BUDDY_REPLY_CASES.length || cases.some((entry) => entry.flags.length))
     process.exitCode = 1
 }
-main().catch(() => {
-  // Provider/parse errors can quote private configuration. Keep CLI failures generic.
+main().catch((error: unknown) => {
+  // Provider/parse errors can quote private configuration, so only CheckError messages are shown.
   console.error(
-    'Buddy reply check could not finish. Check that the app is built and the selected provider has a working key in local settings. Use --live only by hand; see docs/buddy-reply-checks.md.'
+    error instanceof CheckError
+      ? error.message
+      : 'Buddy reply check could not finish. Check that the app is built and the selected provider has a working key in local settings. Use --live only by hand; see docs/buddy-reply-checks.md.'
   )
   process.exitCode = 1
 })
