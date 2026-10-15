@@ -29,7 +29,7 @@ export type ExecFileFn = typeof execFile
  */
 export function runPowerShell(
   script: string,
-  opts: { timeoutMs?: number; execFileImpl?: ExecFileFn } = {}
+  opts: { timeoutMs?: number; execFileImpl?: ExecFileFn; signal?: AbortSignal } = {}
 ): Promise<ShellResult> {
   const timeoutMs = opts.timeoutMs ?? 15000
   const execImpl = opts.execFileImpl ?? execFile
@@ -47,7 +47,9 @@ export function runPowerShell(
         '-EncodedCommand',
         encoded
       ],
-      { timeout: timeoutMs, windowsHide: true },
+      // Aborting kills PowerShell, so a microphone check the caregiver stopped
+      // can't keep recording; the callback then reports ok: false.
+      { timeout: timeoutMs, windowsHide: true, signal: opts.signal },
       (err: ExecFileException | null, stdout: string, stderr: string) => {
         const durationMs = Date.now() - start
         if (err) {

@@ -49,6 +49,11 @@ export function overrideOnlineCheckForTests(check: () => boolean): void {
   isDeviceOnline = check
 }
 
+/** Windows' online state, through the same e2e stand-in the recovery screen uses. */
+export function deviceOnline(): boolean {
+  return isDeviceOnline()
+}
+
 export function initEmbeddedBrowser(win: BrowserWindow): void {
   hostWindow = win
   hardenWebSession()
@@ -249,6 +254,15 @@ export function closeEmbeddedBrowser(): void {
 
 export function isBrowserOpen(): boolean {
   return view !== null
+}
+
+/**
+ * What Home's recovery screen is showing instead of the page, or null. The
+ * caregiver's recovery check reads this; showProblem() hides the page view
+ * whenever it is set.
+ */
+export function getPageProblem(): PageProblem | null {
+  return problem
 }
 
 export function getIdleMs(): number {

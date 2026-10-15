@@ -101,6 +101,8 @@ export default function App() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const stageRef = useRef<HTMLDivElement>(null)
   const themeRef = useRef<HTMLDivElement>(null)
+  // Read from an IPC listener registered once, so it must not be a stale closure.
+  const recoveryCheckAllowed = useRef(false)
 
   useEffect(() => {
     window.launcher.getConfig().then(setConfig)
@@ -156,9 +158,20 @@ export default function App() {
       setShowConfusion(true)
     })
     const offProblem = window.launcher.onPageProblem(({ kind }) => setPageProblem(kind))
+    // The caregiver's recovery check opens its page the way a tile does, but
+    // only from plain Home: it must never cover something she is using.
+    const offCheck = window.launcher.onRecoveryCheck(() => {
+      if (!recoveryCheckAllowed.current) return
+      void window.launcher.openRecoveryCheck().then((result) => {
+        if (result.ok) setView('browser')
+      })
+    })
+    const offReturn = window.launcher.onReturnHome(() => setView('home'))
     return () => {
       offIdle()
       offProblem()
+      offCheck()
+      offReturn()
     }
   }, [])
 
@@ -169,6 +182,7 @@ export default function App() {
 
   const buddyMenuAvailable =
     Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
+  recoveryCheckAllowed.current = buddyMenuAvailable && !buddyMenuAnchor
 
   useEffect(() => {
     if (!buddyMenuAvailable) closeBuddyMenu()
