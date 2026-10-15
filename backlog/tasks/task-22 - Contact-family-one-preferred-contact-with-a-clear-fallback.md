@@ -4,7 +4,7 @@ title: 'Contact family: one preferred contact with a clear fallback'
 status: To Do
 assignee: []
 created_date: '2026-09-29 05:54'
-updated_date: '2026-10-05 21:29'
+updated_date: '2026-10-14 17:18'
 labels: []
 milestone: m-7
 dependencies:
@@ -14,6 +14,8 @@ dependencies:
   - TASK-06
 references:
   - decision-02
+  - TASK-54
+  - 'C:/Users/koreo/GrammieGuide-analysis/seniorsui-1.0.34/REPORT.md'
 priority: high
 ordinal: 21000
 ---
@@ -42,3 +44,13 @@ A familiar face and "Call Sarah" is more concrete than a generic Help button. To
 <!-- SECTION:NOTES:BEGIN -->
 Channel fixed by accepted decision-02: ordinary Twilio SMS. Her-facing button copy is “Ask {name} to call,” never “Call {name}.” The recipient receives a normal text and needs no app or account. UI states map strictly to the main-process lifecycle: Sending; Request delivered (Twilio device-delivery status); {name} saw it (inbound reply from that configured phone after this request); trying fallback; or no request confirmed. A second configured SMS contact is the automatic fallback. If SMS cannot be sent or neither contact answers, direct her to the real telephone without implying anyone is coming. Twilio Account SID, API Key SID/secret, Messaging Service/sender, and contact phone numbers are caregiver-only data; secrets never reach a renderer or log.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @codex
+created: 2026-10-14 17:18
+---
+The SeniorsUI comparison reinforces this task's truthful callback-request wording, fixed Home footprint and confirmed delivery/acknowledgement requirements. Existing decision-02 remains authoritative: this is an SMS request to call back, not live calling. TASK-54 supplies the repeatable caregiver verification after this flow is implemented.
+---
+<!-- COMMENTS:END -->
