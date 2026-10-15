@@ -84,6 +84,32 @@ test('a key wakes it too, and the idle time starts again', async () => {
   await expect(veil()).toHaveAttribute('data-idle-dimmed', 'false')
 })
 
+test('a scroll wakes it as well', async () => {
+  await page.clock.fastForward('10:30')
+  await expect(veil()).toHaveAttribute('data-idle-dimmed', 'true')
+  await page.mouse.move(400, 400)
+  await page.mouse.wheel(0, 120)
+  await expect(veil()).toHaveAttribute('data-idle-dimmed', 'false')
+})
+
+test('never dims while a voice, listening or narration holds the sound', async () => {
+  // The same hold Buddy's voice takes through the audio coordinator.
+  const id = '9b1f4c2e-5a6d-4e7f-8a9b-0c1d2e3f4a5b'
+  await page.evaluate(
+    (holdId) => window.launcher.audioEvent({ type: 'start', source: 'narration', id: holdId }),
+    id
+  )
+  await page.clock.fastForward('30:00')
+  await expect(veil()).toHaveAttribute('data-idle-dimmed', 'false')
+  await page.evaluate((holdId) => window.launcher.audioEvent({ type: 'end', id: holdId }), id)
+  // The time it was in use doesn't count as idle: no dimming straight after.
+  await page.clock.fastForward('02:00')
+  await expect(veil()).toHaveAttribute('data-idle-dimmed', 'false')
+  await page.clock.fastForward('09:00')
+  await expect(veil()).toHaveAttribute('data-idle-dimmed', 'true')
+  await page.keyboard.press('Shift')
+})
+
 test("never dims while Buddy's chat is open", async () => {
   await page.getByRole('button', { name: 'Say hello to Buddy', exact: true }).focus()
   await page.keyboard.press('Control+Shift+B')

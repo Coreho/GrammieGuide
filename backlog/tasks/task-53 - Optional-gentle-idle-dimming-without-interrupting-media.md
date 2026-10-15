@@ -6,7 +6,7 @@ assignee:
   - '@agy'
   - '@claude'
 created_date: '2026-10-14 17:17'
-updated_date: '2026-10-15 02:07'
+updated_date: '2026-10-15 02:34'
 labels: []
 milestone: m-6
 dependencies: []
@@ -28,9 +28,9 @@ The kiosk can remain visually bright while nobody is interacting with it. Option
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The caregiver can enable idle dimming and set a bounded inactivity time and dim level; it is off for existing installations and preserves other settings on upgrade.
+- [x] #1 The caregiver can enable idle dimming and set a bounded inactivity time and dim level; it is off for existing installations and preserves other settings on upgrade.
 - [ ] #2 Dimming is gradual and bounded so visible Home/navigation controls remain identifiable; it does not change tile positions, font size or saved theme.
-- [ ] #3 The first genuine tap, key or scroll restores normal brightness immediately; a wake-up tap does not accidentally activate a tile or send a contact request.
+- [x] #3 The first genuine tap, key or scroll restores normal brightness immediately; a wake-up tap does not accidentally activate a tile or send a contact request.
 - [ ] #4 Active video, Buddy speaking/listening/chat, photo narration and a pending contact flow are not dimmed mid-use; music-only playback may continue while the screen dims and its Stop control remains visible.
 - [ ] #5 Passive photo/news reading is accommodated by the configurable timeout and gentle dim level; returning Home remains a separate setting and dimming does not start that navigation.
 - [ ] #6 Leaving a view, restart and recovery do not leave the screen stuck dimmed; animation respects the existing reduced-motion preference.
@@ -58,4 +58,6 @@ Implemented pure logic in src/shared/idleDim.ts and integrated hasHold reporting
 agy (Gemini 3.8 Flash High) was stopped by a low-memory reap after the schema, migration 013, the pure rule and an unwired overlay; Claude finished it. Changes after review: simplified shared/idleDim.ts (one blocker check; narration and Buddy's voice/listening are covered by the audio coordinator's new hasHold), wired useIdleDim + IdleDimOverlay into App, made the veil input-free (pointer-events none, top zLayers.idleDim) with a capture-phase wake listener that swallows the wake-up event and its click/keyup, let data-music-stop buttons pass through, added the admin Display controls, and dropped agy's test-only preload flag in favour of Playwright's clock. Verified: typecheck, lint, npm test 889 passed, build, idle-dimming.spec 5/5.
 
 Real-device legibility check (not yet performed): enable dimming at 2 minutes and 50% (darkest), wait, and confirm every tile label, the clock and the music chip are still readable at text sizes 1-5 in both themes (tilesBold, clayCards); repeat at 30%. Confirm the first tap only brightens, music Stop works on the first tap while dimmed, and nothing dims during a web page, Buddy's chat or speech.
+
+Verification: npm test 889 passed; full e2e suite 128 passed; idle-dimming.spec now 7/7 (dims only at the chosen time, wake-up tap opens nothing, key and scroll wake, an audio hold and the chat panel block it and restart the idle time, the admin switch reaches Home live). Left unchecked until the kiosk check: AC2 (identifiable at every text size), AC4 (music Stop pass-through and the web-page blocker are covered by code and the pure rule, not e2e), AC5, AC6 (restart/recovery start bright by design; not separately tested) and AC7 (on-device legibility).
 <!-- SECTION:NOTES:END -->
