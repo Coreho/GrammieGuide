@@ -92,6 +92,22 @@ describe('caregiver story IPC', () => {
     expect(mocks.open).not.toHaveBeenCalled()
     expect(mocks.save).not.toHaveBeenCalled()
   })
+  it('keeps photo changes moving while the story picker is open', async () => {
+    let close!: (value: { canceled: boolean; filePaths: string[] }) => void
+    mocks.picker.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          close = resolve
+        })
+    )
+    const attach = invoke(channels[1]!)
+    await vi.waitFor(() => expect(mocks.picker).toHaveBeenCalledOnce())
+    await expect(invoke(channels[2]!)).resolves.toBeNull()
+    expect(mocks.remove).toHaveBeenCalledOnce()
+    close({ canceled: true, filePaths: [] })
+    await expect(attach).resolves.toBeNull()
+    expect(mocks.save).not.toHaveBeenCalled()
+  })
   it('rechecks the lock after waiting behind a replacement', async () => {
     let release!: () => void
     mocks.save.mockImplementationOnce(

@@ -254,6 +254,24 @@ describe('photo IPC boundaries', () => {
     expect(await invoke('photos:import')).toEqual({ imported: 0, failed: 0 })
   })
 
+  it('lets Home read photos and admin change them while the photo picker is open', async () => {
+    let release!: (value: unknown) => void
+    mocks.dialog.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        })
+    )
+    mocks.list.mockResolvedValue([entry])
+    mocks.remove.mockResolvedValue(true)
+    const importing = invoke('photos:import')
+    await vi.waitFor(() => expect(mocks.dialog).toHaveBeenCalledOnce())
+    expect(await invoke('photos:listVisible')).toHaveLength(1)
+    expect(await invoke('photos:remove', { id: 'generated' })).toBe(true)
+    release({ canceled: true, filePaths: [] })
+    expect(await importing).toEqual({ imported: 0, failed: 0 })
+  })
+
   it.each(['listAll', 'listVisible', 'update', 'remove', 'import'])(
     'keeps filesystem errors path-free for %s',
     async (op) => {

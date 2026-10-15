@@ -15,6 +15,22 @@ import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { getAdminWindow } from '../windows/windowManager'
 
 const photoId = z.string().uuid()
+/** Reads a picked story file whole, refusing anything that is not a supported, bounded file. */
+async function readNarrationFile(path: string): Promise<Buffer> {
+  if (!isLibraryMediaExtension('narration', extname(path))) throw new Error('Unsupported audio')
+  const file = await open(path, 'r')
+  try {
+    const info = await file.stat()
+    if (!info.isFile() || !info.size || info.size > MAX_NARRATION_BYTES)
+      throw new Error('Audio too large')
+    const bytes = Buffer.alloc(info.size)
+    const { bytesRead } = await file.read(bytes, 0, bytes.length, 0)
+    if (bytesRead !== bytes.length) throw new Error('Audio unavailable')
+    return bytes
+  } finally {
+    await file.close()
+  }
+}
 function requireNarrationAdmin(sender: WebContents): void {
   requireAdminUnlocked()
   if (sender !== getAdminWindow()?.webContents) throw new Error('Story controls unavailable')
@@ -67,33 +83,29 @@ export function registerNarrationIpc(getStore: (kind: MediaLibrary) => LibrarySt
   )
   ipcMain.handle(
     'photos:attachNarration',
-    (_event, request: IpcRequest<'photos:attachNarration'>) => {
-      requireNarrationAdmin(_event.sender)
+    async (event, request: IpcRequest<'photos:attachNarration'>) => {
+      requireNarrationAdmin(event.sender)
       if (!request || !photoId.safeParse(request.id).success) throw new Error('Invalid photo')
-      return run(async () => {
+      // The picker and file read stay outside the photo queue: a picker left open must not
+      // hold up her viewer or other photo changes. Only publishing the story is queued.
+      let bytes: Buffer | null
+      let extension: string
+      try {
         const selected = await dialog.showOpenDialog({
           properties: ['openFile', 'dontAddToRecent'],
           filters: [{ name: 'Story audio', extensions: [...LIBRARY_EXTENSIONS.narration] }]
         })
-        requireAdminUnlocked()
-        if (selected.canceled) return result(request.id)
+        requireNarrationAdmin(event.sender)
         const path = selected.filePaths[0]
-        if (!path || !isLibraryMediaExtension('narration', extname(path)))
-          throw new Error('Unsupported audio')
-        const file = await open(path, 'r')
-        let bytes: Buffer
-        try {
-          const info = await file.stat()
-          if (!info.isFile() || !info.size || info.size > MAX_NARRATION_BYTES)
-            throw new Error('Audio too large')
-          bytes = Buffer.alloc(info.size)
-          const { bytesRead } = await file.read(bytes, 0, bytes.length, 0)
-          if (bytesRead !== bytes.length) throw new Error('Audio unavailable')
-        } finally {
-          await file.close()
-        }
-        requireAdminUnlocked()
-        await narration().save(request.id, bytes, extname(path).toLowerCase())
+        extension = path ? extname(path).toLowerCase() : ''
+        bytes = selected.canceled || !path ? null : await readNarrationFile(path)
+      } catch {
+        // Filesystem errors name the path; the caregiver gets the same plain message as a save.
+        throw new Error('Could not save the story. Please try again.')
+      }
+      return run(async () => {
+        if (!bytes) return result(request.id)
+        await narration().save(request.id, bytes, extension)
         photosChanged()
         return result(request.id)
       })

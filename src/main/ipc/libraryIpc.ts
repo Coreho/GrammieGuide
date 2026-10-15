@@ -65,13 +65,20 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     )
 
   async function photoWork<T>(work: () => Promise<T>, message: string): Promise<T> {
-    return runPhotoOperation(async () => {
-      try {
-        return await work()
-      } catch {
-        throw new Error(message)
-      }
-    })
+    try {
+      return await work()
+    } catch {
+      // Native codec errors do not reliably have errno codes. Replace every service error.
+      throw new Error(message)
+    }
+  }
+  /**
+   * Changes share one queue with story edits so a removed photo can't keep its story. Reads
+   * and pickers stay out of it: her viewer and tile pictures must not wait on an open picker
+   * or a long import.
+   */
+  function photoChange<T>(work: () => Promise<T>, message: string): Promise<T> {
+    return runPhotoOperation(() => photoWork(work, message))
   }
 
   ipcMain.handle('photos:open', (): Promise<IpcResponse<'photos:open'>> => {
@@ -125,7 +132,7 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
       }, 'Could not open the photo picker')
       requireAdminUnlocked()
       if (selection.canceled) return { imported: 0, failed: 0 }
-      const result = await photoWork(() => {
+      const result = await photoChange(() => {
         requireAdminUnlocked()
         return photos().import(selection.filePaths, (count) => {
           if (!event.sender.isDestroyed()) event.sender.send('photos:importProgress', count)
@@ -143,7 +150,7 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
       requireAdminUnlocked()
       if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
       const patch = validatePhotoPatch(request.patch)
-      const result = await photoWork(async () => {
+      const result = await photoChange(async () => {
         requireAdminUnlocked()
         const updated = await photos().update(request.id, patch)
         return (await narration().decorate([updated]))[0]!
@@ -157,7 +164,7 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     async (_event, request: IpcRequest<'photos:remove'>): Promise<IpcResponse<'photos:remove'>> => {
       requireAdminUnlocked()
       if (!request || typeof request.id !== 'string') throw new Error('Invalid photo')
-      const result = await photoWork(async () => {
+      const result = await photoChange(async () => {
         requireAdminUnlocked()
         const removed = await photos().remove(request.id)
         if (removed) await narration().remove(request.id)
