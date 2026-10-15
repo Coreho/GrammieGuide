@@ -12,7 +12,7 @@ import { TILE_ARTWORK_KEYS } from './tileArtwork'
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 12
+export const CURRENT_SCHEMA_VERSION = 13
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music'] as const
@@ -90,6 +90,13 @@ export const buddyConfigSchema = z.object({
   quickMessages: z.array(quickMessageSchema).max(50).default([])
 })
 
+export const idleDimConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  afterMinutes: z.number().int().min(2).max(60).default(10),
+  level: z.number().min(0.1).max(0.5).default(0.3)
+})
+export type IdleDimConfig = z.infer<typeof idleDimConfigSchema>
+
 export const displayConfigSchema = z.object({
   /** Index into shared/theme.ts's FONT_STEPS, not a raw scale - matches the
    *  on-screen A-/A+ control's discrete 5-step model exactly. */
@@ -102,7 +109,12 @@ export const displayConfigSchema = z.object({
   theme: z.enum(THEME_NAMES).default('tilesBold'),
   homeLayout: z.enum(HOME_LAYOUT_NAMES).default('simple4'),
   ambientBackground: z.boolean().default(true),
-  volumeCeiling: z.number().min(0).max(100).default(70)
+  volumeCeiling: z.number().min(0).max(100).default(70),
+  idleDim: idleDimConfigSchema.default({
+    enabled: false,
+    afterMinutes: 10,
+    level: 0.3
+  })
 })
 
 export const reliabilityConfigSchema = z.object({
@@ -199,7 +211,12 @@ export function defaultConfig(): Config {
       theme: 'tilesBold',
       homeLayout: 'simple4',
       ambientBackground: true,
-      volumeCeiling: 70
+      volumeCeiling: 70,
+      idleDim: {
+        enabled: false,
+        afterMinutes: 10,
+        level: 0.3
+      }
     },
     reliability: {}
   })

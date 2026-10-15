@@ -94,7 +94,12 @@ export function MusicOverlay({ tile, onClose }: BuiltinViewProps) {
           <button disabled={!state.currentId} onClick={() => void player.togglePause()}>
             {state.state === 'paused' ? '▶ Play music' : 'Ⅱ Pause music'}
           </button>
-          <button className="music-stop" disabled={!state.currentId} onClick={() => player.stop()}>
+          <button
+            className="music-stop"
+            data-music-stop
+            disabled={!state.currentId}
+            onClick={() => player.stop()}
+          >
             ■ Stop music
           </button>
           <button className="music-next" disabled={!state.currentId} onClick={() => player.next()}>

@@ -27,7 +27,9 @@ export const zLayers = {
   helpOverlay: 400,
   incomingCall: 500,
   activeCall: 510,
-  dailyCheckin: 600
+  dailyCheckin: 600,
+  /** Idle dimming sits over everything but never takes input (see useIdleDim). */
+  idleDim: 700
 } as const
 
 export type ZLayerName = keyof typeof zLayers

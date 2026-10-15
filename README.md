@@ -18,6 +18,7 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **Home recovers by itself** - if the Home screen crashes, it reloads at once; if it freezes for 10 seconds, it is reloaded. Any open web page is closed first, so she is never left without a Home button. If Home fails 4 times within 5 minutes, the app closes, and the watchdog starts it again a minute or two later. Each recovery shows in admin → Reliability.
 - **Only one GrammieGuide at a time** - opening it again (a desktop shortcut, the installer's "run now") just brings the running Home to the front instead of starting a second kiosk on top of it.
 - **Illustrated Home cards** - the built-in Photos, Music, Weather and News tiles show sculpted clay pictures, and any tile can be given Games or Websites artwork. The new **Clay cards** theme matches the approved design (cream background, bigger labels). Not yet checked on the real kiosk.
+- **Gentle idle dimming (optional)** - in admin → Display, Home can dim a little after 2 to 60 minutes without a tap. Her first tap only brightens it again and never opens anything; it never dims mid-use (web pages, Buddy's chat, voice or listening), and music's Stop still works. Off unless you turn it on. Not yet checked for legibility on the real kiosk.
 
 ## Home tiles
 
