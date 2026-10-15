@@ -27,6 +27,7 @@ import { useMusicPlayer } from './music/useMusicPlayer'
 import { NowPlayingChip } from './music/NowPlayingChip'
 import { zLayers } from '@shared/zLayers'
 import { ACTION_REPLIES, type BuddyActionPlan } from '@shared/buddy/actions'
+import { openBuddyTile } from './buddy/openBuddyTile'
 
 declare global {
   interface Window {
@@ -73,6 +74,8 @@ function timeParts(now: Date): { time: string; ampm: string; date: string } {
 export default function App() {
   const { player: music, state: musicState } = useMusicPlayer()
   const [config, setConfig] = useState<PublicConfig | null>(null)
+  const configRef = useRef(config)
+  configRef.current = config
   const [view, setView] = useState<View>('home')
   /** A web page that failed or was blocked; Home's recovery screen stands in for it. */
   const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
@@ -246,23 +249,38 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 1800)
   }
 
-  async function activateTile(tile: TileType): Promise<void> {
+  /**
+   * A tap and Buddy open tiles the same way. Buddy also needs to know whether
+   * it worked before saying so: true opened, false failed, null not known yet
+   * (a slow page), which Buddy must not call either.
+   */
+  async function activateTile(tile: TileType, viaBuddy = false): Promise<boolean | null> {
     setBuddyCommand(null)
     clearChatInvitation()
-    flashToast(`Opening ${tile.label}...`)
+    // Buddy's reply comes after the open; a tap gets this at once.
+    if (!viaBuddy) flashToast(`Opening ${tile.label}...`)
     if (tile.type === 'web' && tile.url) {
-      const result = await window.launcher.openBrowser(tile.url)
-      if (result.ok) setView('browser')
-      return
+      if (!viaBuddy) {
+        const result = await window.launcher.openBrowser(tile.url)
+        if (result.ok) setView('browser')
+        return result.ok
+      }
+      setView('browser')
+      // By saved ID only; a failed load keeps Home's recovery screen, as after a tap.
+      const outcome = await window.launcher.openBrowserTile(tile.id)
+      if (outcome === 'refused') await goHome()
+      return outcome === 'loaded' ? true : outcome === 'pending' ? null : false
     }
     if (builtinFor(tile)) {
       setOpenBuiltin(tile)
-      return
+      return true
     }
     if (tile.type === 'app') {
       const result = await window.launcher.openAppTile(tile.id)
-      if (!result.ok) flashToast("Let's try something else for now.")
+      if (!result.ok && !viaBuddy) flashToast("Let's try something else for now.")
+      return result.ok
     }
+    return false
   }
 
   async function goHome(): Promise<void> {
@@ -275,6 +293,8 @@ export default function App() {
   }
 
   async function runBuddyAction(plan: BuddyActionPlan): Promise<void> {
+    clearTimeout(toastTimer.current)
+    setToast(null)
     await window.launcher.goHome()
     setView('home')
     setOpenBuiltin(null)
@@ -282,7 +302,16 @@ export default function App() {
     setShowBuddyChat(false)
     setBuddyChatPhase('idle')
     clearChatInvitation()
-    if (plan.action === 'playMusic') {
+    if (plan.action === 'openTile') {
+      const reply = await openBuddyTile(
+        plan.tileId,
+        config,
+        () => configRef.current,
+        window.launcher.buddyAction,
+        (tile) => activateTile(tile, true)
+      )
+      if (reply) flashToast(reply)
+    } else if (plan.action === 'playMusic') {
       const started = await music.playAndConfirm(plan.playlistId)
       flashToast(started ? ACTION_REPLIES.musicPlaying : ACTION_REPLIES.musicFailed)
     } else if (plan.action === 'showPhotos') {
@@ -402,11 +431,17 @@ export default function App() {
             }}
           />
         )}
-        {toast && <Toast message={toast} />}
+        {toast && view === 'home' && !openBuiltin && <Toast message={toast} />}
       </Stage>
+      {toast && openBuiltin && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: zLayers.toast, pointerEvents: 'none' }}>
+          <Toast message={toast} />
+        </div>
+      )}
 
       {view === 'browser' && (
         <NavBar
+          message={toast}
           onHome={goHome}
           onBack={goBack}
           onStopMusic={

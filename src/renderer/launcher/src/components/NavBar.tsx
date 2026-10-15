@@ -4,11 +4,13 @@ import { zLayers } from '@shared/zLayers'
 export function NavBar({
   onHome,
   onBack,
-  onStopMusic
+  onStopMusic,
+  message
 }: {
   onHome: () => void
   onBack: () => void
   onStopMusic?: () => void
+  message?: string | null
 }) {
   return (
     <div
@@ -40,6 +42,11 @@ export function NavBar({
         >
           ■ Stop music
         </button>
+      )}
+      {message && (
+        <span role="status" data-toast style={{ fontSize: 'calc(20px * var(--font-scale, 1))' }}>
+          {message}
+        </span>
       )}
     </div>
   )
