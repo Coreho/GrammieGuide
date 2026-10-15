@@ -22,6 +22,8 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **Caregiver checks** - admin → Checks tests, on her computer, that Buddy's voice can be heard (you confirm it), that the microphone hears speech, that the internet is reachable, and that a page which won't load still leaves her a way back Home. Each result shows when it was checked; nothing carries over a restart. Not yet run on the real kiosk.
 - **Gentle idle dimming (optional)** - in admin → Display, Home can dim a little after 2 to 60 minutes without a tap. Her first tap only brightens it again and never opens anything; it never dims mid-use (web pages, Buddy's chat, voice or listening), and music's Stop still works. Off unless you turn it on. Not yet checked for legibility on the real kiosk.
 
+- **Approved browsing sites** - web tiles automatically approve their own site and subdomains. Admin → Sites adds or removes extra hostnames and lists the last 50 blocked domains with an Approve this site button. Unapproved links and redirects show the friendly Back/Home screen; cross-domain images, scripts and embedded frames still load. Main-served News stories stay readable, but their links and redirects need normal approval. Changes apply immediately. Not yet checked on the real kiosk.
+
 ## Home tiles
 
 In **admin → Tiles**, add websites, installed apps (full Windows paths), or a built-in (Weather, News, Photos or Music). Pick an icon, a color, normal or wide size, and a position on Home. Changes reach Home immediately.

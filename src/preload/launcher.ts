@@ -53,8 +53,6 @@ const launcherApi = {
   buddyCancelListen: () => invoke('buddy:cancelListen'),
   buddyCanListen: () => invoke('buddy:canListen'),
 
-  onBrowserBlocked: (cb: (payload: IpcEvents['browser:blocked']) => void) =>
-    on('browser:blocked', cb),
   onPageProblem: (cb: (payload: IpcEvents['browser:page-problem']) => void) =>
     on('browser:page-problem', cb),
   onIdleTimeout: (cb: () => void) => on('browser:idle-timeout', () => cb()),

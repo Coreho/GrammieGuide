@@ -74,6 +74,7 @@ const adminApi = {
   applyOldLauncherImport: () => invoke('admin:applyOldLauncherImport'),
 
   getActivityLog: (limit?: number) => invoke('activity:get', { limit }),
+  getBlockedSites: () => invoke('browser:blockedSites'),
   getReliabilityLog: (limit?: number) => invoke('reliability:getLog', { limit }),
   testVolume: () => invoke('reliability:testVolume'),
   testWifiDiscovery: () => invoke('reliability:testWifiDiscovery'),

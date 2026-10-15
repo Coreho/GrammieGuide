@@ -147,7 +147,7 @@ describe('idle dimming setting and migration 013', () => {
     const before = structuredClone(raw)
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
-    expect(result.config.schemaVersion).toBe(13)
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config.display.idleDim).toEqual({
       enabled: false,
       afterMinutes: 10,
@@ -177,7 +177,7 @@ describe('idle dimming setting and migration 013', () => {
       afterMinutes: 20,
       level: 0.4
     })
-    expect(result.config.schemaVersion).toBe(13)
+    expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
   })
 
   it('registers a pure migration that handles absent display settings', () => {
@@ -195,4 +195,3 @@ describe('idle dimming setting and migration 013', () => {
     })
   })
 })
-
