@@ -103,6 +103,8 @@ export type AudioDecision = {
   muteWebPage: boolean
   /** When this decision changes with no new event (music coming back), or null. */
   changesAt: number | null
+  /** True when any audio hold is currently active. */
+  hasHold: boolean
 }
 
 export const initialAudioState: AudioState = { music: 'off', holds: {}, linger: null }
@@ -200,6 +202,7 @@ export function decideAudio(state: AudioState, now: number): AudioDecision {
     musicVolume: music === 'playing' ? 1 : music === 'lowered' ? MUSIC_LOWERED_VOLUME : 0,
     showStopMusic: state.music !== 'off',
     muteWebPage: Object.values(state.holds).some((source) => MUTES_WEB_PAGE.has(source)),
-    changesAt: pendingResume && state.linger ? state.linger.until : null
+    changesAt: pendingResume && state.linger ? state.linger.until : null,
+    hasHold: Object.keys(state.holds).length > 0
   }
 }

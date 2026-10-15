@@ -1,0 +1,24 @@
+/*
+ * Never catches input: useIdleDim swallows the wake-up tap itself, so the
+ * music Stop buttons underneath can still be pressed while dimmed.
+ */
+.idle-dim-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: #000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out;
+}
+
+/* Waking up is instant; only the dimming itself fades in. */
+.idle-dim-overlay:not(.dimmed),
+.idle-dim-overlay.reduced-motion {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .idle-dim-overlay {
+    transition: none;
+  }
+}

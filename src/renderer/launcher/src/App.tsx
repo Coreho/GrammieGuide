@@ -28,6 +28,8 @@ import { NowPlayingChip } from './music/NowPlayingChip'
 import { zLayers } from '@shared/zLayers'
 import { ACTION_REPLIES, type BuddyActionPlan } from '@shared/buddy/actions'
 import { openBuddyTile } from './buddy/openBuddyTile'
+import { IdleDimOverlay } from './components/IdleDimOverlay'
+import { useAudioHold, useIdleDim } from './components/useIdleDim'
 
 declare global {
   interface Window {
@@ -186,6 +188,15 @@ export default function App() {
   const buddyMenuAvailable =
     Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
   recoveryCheckAllowed.current = buddyMenuAvailable && !buddyMenuAnchor
+
+  const audioHold = useAudioHold()
+  const idleDimmed = useIdleDim(config?.display.idleDim, {
+    embeddedWebOpen: view === 'browser',
+    buddyChatOpen: showBuddyChat,
+    audioHold,
+    // TASK-22's help request will block dimming here once it exists.
+    contactFlow: false
+  })
 
   useEffect(() => {
     if (!buddyMenuAvailable) closeBuddyMenu()
@@ -484,7 +495,7 @@ export default function App() {
             musicState.currentId &&
             musicState.state !== 'off' &&
             openBuiltin.builtinKey !== 'music' ? (
-              <button className="music-inline-stop" onClick={() => music.stop()}>
+              <button className="music-inline-stop" data-music-stop onClick={() => music.stop()}>
                 ■ Stop music
               </button>
             ) : undefined
@@ -502,12 +513,18 @@ export default function App() {
         musicState.state !== 'off' && (
           <button
             className="music-global-stop"
+            data-music-stop
             style={{ zIndex: zLayers.musicStop }}
             onClick={() => music.stop()}
           >
             ■ Stop music
           </button>
         )}
+      <IdleDimOverlay
+        dimmed={idleDimmed}
+        level={config.display.idleDim.level}
+        reducedMotion={config.buddy.motion === 'reduced'}
+      />
     </div>
   )
 }

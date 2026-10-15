@@ -59,7 +59,8 @@ describe('audio policy: the starting point', () => {
       musicVolume: 0,
       showStopMusic: false,
       muteWebPage: false,
-      changesAt: null
+      changesAt: null,
+      hasHold: false
     })
   })
 
@@ -67,6 +68,15 @@ describe('audio policy: the starting point', () => {
     const h = harness()
     h.send(play)
     expect(h.decision()).toMatchObject({ music: 'playing', musicVolume: 1, showStopMusic: true })
+  })
+
+  it('reports hasHold when any voice, listening, or webPage hold is active', () => {
+    const h = harness()
+    expect(h.decision().hasHold).toBe(false)
+    h.send(start('buddyVoice', 'voice-1'))
+    expect(h.decision().hasHold).toBe(true)
+    h.send(end('voice-1'))
+    expect(h.decision().hasHold).toBe(false)
   })
 })
 
