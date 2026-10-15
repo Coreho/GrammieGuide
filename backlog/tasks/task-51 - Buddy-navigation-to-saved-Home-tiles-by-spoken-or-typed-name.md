@@ -6,7 +6,7 @@ assignee:
   - '@codex'
   - '@claude'
 created_date: '2026-10-14 17:17'
-updated_date: '2026-10-15 02:00'
+updated_date: '2026-10-15 02:34'
 labels: []
 milestone: m-9
 dependencies:
@@ -29,13 +29,13 @@ Buddy already handles music, pictures and Home through TASK-23. SeniorsUI demons
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 With Buddy chat enabled, common spoken and typed requests open an unambiguous visible saved tile by its current caregiver-defined name, alongside the existing music, pictures and Home actions.
-- [ ] #2 Explicit saved-tile requests work without an AI key or network beyond whatever the destination itself requires; removed, hidden or unavailable tiles receive calm wording.
-- [ ] #3 Main validates the requested tile/action against current saved configuration; input or model output cannot supply arbitrary URLs, executable paths or unknown actions.
-- [ ] #4 Ambiguous names do not silently choose a tile; she receives a simple clarification or visible choices without changing the stable Home layout.
-- [ ] #5 Navigation success is acknowledged only after the requested opening succeeds; failures never produce a claim that it opened.
-- [ ] #6 Recognition remains deliberately initiated through the existing Talk interaction and stops on close/cancel; disabling chat removes this entry path and no always-listening mode is introduced.
-- [ ] #7 Tests cover spoken/typed wiring, renamed/removed/hidden tiles, ambiguity, failed opening and arbitrary-target rejection; the real-device recognition check is documented.
+- [x] #1 With Buddy chat enabled, common spoken and typed requests open an unambiguous visible saved tile by its current caregiver-defined name, alongside the existing music, pictures and Home actions.
+- [x] #2 Explicit saved-tile requests work without an AI key or network beyond whatever the destination itself requires; removed, hidden or unavailable tiles receive calm wording.
+- [x] #3 Main validates the requested tile/action against current saved configuration; input or model output cannot supply arbitrary URLs, executable paths or unknown actions.
+- [x] #4 Ambiguous names do not silently choose a tile; she receives a simple clarification or visible choices without changing the stable Home layout.
+- [x] #5 Navigation success is acknowledged only after the requested opening succeeds; failures never produce a claim that it opened.
+- [x] #6 Recognition remains deliberately initiated through the existing Talk interaction and stops on close/cancel; disabling chat removes this entry path and no always-listening mode is introduced.
+- [x] #7 Tests cover spoken/typed wiring, renamed/removed/hidden tiles, ambiguity, failed opening and arbitrary-target rejection; the real-device recognition check is documented.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -56,4 +56,6 @@ Verification progress: typecheck passed; the full unit suite passed (67 files, 9
 Focused Electron run: offline typed saved-tile navigation and duplicate-name choices passed. The web-delay test exposed a previous action's success toast remaining visible during a new pending open; new actions now clear stale confirmations. Updated the test to assert absence of success even when no toast exists. Also rechecked native-app visibility at its final saved-ID launch boundary. Re-running required checks and the same focused spec.
 
 Codex stopped at its usage limit during the final e2e rerun; Claude finished it. Fixes after review: (1) taps keep their old path (browser:open, the 'Opening …' toast, and Home's recovery screen on a failed load); only Buddy uses ID-only browser:openTile. (2) openUrlAndWait now returns loaded/failed/pending/refused: a failed load keeps the recovery screen, a slow page (20s) or a replaced load (ERR_ABORTED) gets no claim either way. (3) An explicit 'open/go to/show me …' that names no saved tile at all goes on to chat when a key exists (so 'show me how to make tea' is answered), and gets the calm unavailable reply without a key; a saved-but-hidden tile is always answered as unavailable. (4) Names ignore a leading the/my/a. Verified: typecheck, lint, npm test 922 passed, build, buddy-actions.spec 6/6 and page-recovery.spec 4/4.
+
+Verification: npm test 922 passed; full e2e suite 126 passed (buddy-actions.spec covers offline typed opening, stubbed spoken routing, duplicate-name choices, arbitrary targets, web success only after load and failure without a claim). Remaining before Done: the spoken walkthrough on the kiosk's microphone above.
 <!-- SECTION:NOTES:END -->
