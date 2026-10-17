@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { httpUrl } from '@shared/news/httpUrl'
-import { DEFAULT_NEWS_FEED, DEFAULT_NEWS_SITE } from '@shared/news/types'
+import { DEFAULT_NEWS_SOURCES, newsSourceSchema } from '@shared/news/sources'
 import { BUILTIN_TILE_KEYS, type Config, type Tile } from '@shared/configSchema'
 import type { OldLauncherImportPreview } from '@shared/ipcContract'
 import { nextTileColor, TILE_COLOR_INDICES } from '@shared/tileColors'
@@ -18,13 +18,15 @@ import {
 import { useConfigStore } from '../state/useConfigStore'
 import { TilePhotoPicker } from './TilePhotoPicker'
 import { HomePreview } from './HomePreview'
+import { NewsSourcesEditor } from './NewsSourcesEditor'
 
 const ICONS = ['🌐', '🌤️', '📷', '🎵', '🎲', '📰', '📺', '💌', '👪', '🌷', '📚', '💻']
 const BUILTIN_LABELS: Record<(typeof BUILTIN_TILE_KEYS)[number], string> = {
   weather: 'Weather',
   news: 'News',
   photos: 'Photos',
-  music: 'Music'
+  music: 'Music',
+  games: 'Games'
 }
 type TileDraft = Omit<Tile, 'colorIndex'> & { colorIndex?: number }
 const emptyDraft = (): TileDraft => ({
@@ -122,7 +124,18 @@ export function TilesTab() {
       return
     }
     const isNews = tile.type === 'builtin' && tile.builtinKey === 'news'
-    if (isNews) {
+    if (isNews && tile.newsSources) {
+      const sources = tile.newsSources.map((source) => newsSourceSchema.safeParse(source))
+      if (sources.some((result) => !result.success)) {
+        setError(
+          'Give each news source a name and a complete http:// or https:// website address without a username or password.'
+        )
+        return
+      }
+      tile.newsSources = sources.map((result) => result.data!)
+      tile.feedUrl = undefined
+      tile.url = undefined
+    } else if (isNews) {
       const feed = httpUrl(tile.feedUrl)
       if (!feed) {
         setError('Enter a complete http:// or https:// feed address.')
@@ -153,6 +166,7 @@ export function TilesTab() {
     tile.appPath = tile.type === 'app' ? tile.appPath?.trim() : undefined
     tile.url = tile.type === 'web' || isNews ? tile.url : undefined
     tile.feedUrl = isNews ? tile.feedUrl : undefined
+    tile.newsSources = isNews ? tile.newsSources : undefined
     tile.builtinKey = tile.type === 'builtin' ? (tile.builtinKey ?? 'weather') : undefined
     const tiles = editing
       ? config.tiles.map((t) => (t.id === tile.id ? tile : t))
@@ -276,6 +290,9 @@ export function TilesTab() {
                 : ` · ${slotDescription(layoutName, tile.slot)}`}
               {tile.url ? ` · ${tile.url}` : ''}
               {tile.feedUrl ? ` · Feed: ${tile.feedUrl}` : ''}
+              {tile.newsSources
+                ? ` · Sources: ${tile.newsSources.map((source) => source.label).join(', ')}`
+                : ''}
               {tile.appPath ? ` · ${tile.appPath}` : ''}
             </div>
             {/* Switching to a denser layout lowers the limit under labels saved earlier. */}
@@ -384,8 +401,9 @@ export function TilesTab() {
                     ...(builtinKey === 'news'
                       ? {
                           size: 'wide' as const,
-                          feedUrl: DEFAULT_NEWS_FEED,
-                          url: DEFAULT_NEWS_SITE
+                          feedUrl: undefined,
+                          url: undefined,
+                          newsSources: DEFAULT_NEWS_SOURCES.map((source) => ({ ...source }))
                         }
                       : {})
                   })
@@ -400,25 +418,7 @@ export function TilesTab() {
             </label>
           )}
           {draft.type === 'builtin' && draft.builtinKey === 'news' && (
-            <>
-              <label>
-                Feed address{' '}
-                <input
-                  required
-                  placeholder="https://..."
-                  value={draft.feedUrl ?? ''}
-                  onChange={(e) => setDraft({ ...draft, feedUrl: e.target.value })}
-                />
-              </label>
-              <label>
-                News website{' '}
-                <input
-                  placeholder="https://... (optional)"
-                  value={draft.url ?? ''}
-                  onChange={(e) => setDraft({ ...draft, url: e.target.value })}
-                />
-              </label>
-            </>
+            <NewsSourcesEditor draft={{ ...draft, colorIndex }} onChange={setDraft} />
           )}
           <fieldset>
             <legend>Tile color</legend>

@@ -39,6 +39,7 @@ let activityListenerRegistered = false
 // the logs say what happened but not where (the old app logged every URL).
 let privateNavigation = false
 let trustedPage: string | null = null
+let returnToNewsTileId: string | null = null
 let committedPage: string | null = null
 
 // The recovery screen: which problem Home is showing instead of the page, the
@@ -88,6 +89,7 @@ export function openUrl(
   options: {
     privateNavigation?: boolean
     trustedInitialPage?: boolean
+    returnToNewsTileId?: string
     onLoaded?: (outcome: PageOutcome) => void
   } = {}
 ): { ok: boolean; reason?: string } {
@@ -181,6 +183,7 @@ export function openUrl(
 
   privateNavigation = Boolean(options.privateNavigation)
   trustedPage = options.trustedInitialPage ? url : null
+  returnToNewsTileId = options.returnToNewsTileId ?? null
   resetProblem()
   if (!allowNavigation(url, 'open')) {
     options.onLoaded?.('failed')
@@ -227,6 +230,10 @@ export function goBack(): void {
     if (!entry || !allowNavigation(entry.url, 'back')) return
     nav.goBack()
     lastActivityAt = Date.now()
+  } else if (returnToNewsTileId) {
+    const tileId = returnToNewsTileId
+    closeEmbeddedBrowser()
+    hostWindow?.webContents.send('news:return-to-shelf', { tileId })
   }
 }
 
@@ -311,6 +318,7 @@ export function closeEmbeddedBrowser(): void {
   view = null
   privateNavigation = false
   trustedPage = null
+  returnToNewsTileId = null
   committedPage = null
   resetProblem()
   if (!closingView) return

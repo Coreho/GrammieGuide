@@ -11,6 +11,7 @@ import { ActivityTab } from './components/ActivityTab'
 import { ReliabilityTab } from './components/ReliabilityTab'
 import { PhotosTab } from './components/PhotosTab'
 import { MusicTab } from './components/MusicTab'
+import { GamesTab } from './components/GamesTab'
 import { ChecksTab } from './components/ChecksTab'
 import { SitesTab } from './components/SitesTab'
 import { useConfigStore } from './state/useConfigStore'
@@ -26,6 +27,7 @@ type Tab =
   | 'tiles'
   | 'photos'
   | 'music'
+  | 'games'
   | 'display'
   | 'weather'
   | 'buddy'
@@ -61,6 +63,7 @@ export default function App() {
             'tiles',
             'photos',
             'music',
+            'games',
             'display',
             'weather',
             'buddy',
@@ -104,6 +107,7 @@ export default function App() {
         {tab === 'tiles' && <TilesTab />}
         {tab === 'photos' && <PhotosTab />}
         {tab === 'music' && <MusicTab />}
+        {tab === 'games' && <GamesTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'weather' && <WeatherTab />}
         {tab === 'buddy' && <BuddyTab />}

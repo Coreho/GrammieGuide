@@ -100,9 +100,15 @@ export function tileSites(tiles: readonly Tile[]): string[] {
         // The News fallback website is caregiver-saved too; feed hosts are not pages.
         if (tile.type !== 'web' && !(tile.type === 'builtin' && tile.builtinKey === 'news'))
           return []
-        const host = tile.url && webHostname(tile.url)
-        const site = host && siteFor(host)
-        return site ? [site] : []
+        const urls = [
+          tile.url,
+          ...(tile.type === 'builtin' ? (tile.newsSources?.map((source) => source.url) ?? []) : [])
+        ]
+        return urls.flatMap((url) => {
+          const host = url && webHostname(url)
+          const site = host && siteFor(host)
+          return site ? [site] : []
+        })
       })
     )
   ]

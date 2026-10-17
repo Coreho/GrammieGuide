@@ -81,6 +81,7 @@ test('caregiver adds a wide News tile; she previews stories and opens one', asyn
   await admin.getByLabel('Built-in feature').selectOption('news')
   await expect(admin.getByLabel('Tile label')).toHaveValue('News')
   await expect(admin.getByLabel('Tile size')).toHaveValue('wide')
+  await admin.getByLabel('News layout').selectOption('feed')
   await expect(admin.getByLabel('Feed address')).toHaveValue('https://feeds.npr.org/1001/rss.xml')
   await admin.getByLabel('Feed address').fill('not a web address')
   await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
