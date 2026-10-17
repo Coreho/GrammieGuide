@@ -8,13 +8,14 @@ import { musicSettingsSchema } from './music/musicSchema'
 import { TILE_ARTWORK_KEYS } from './tileArtwork'
 import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
+import { newsSourceSchema } from './news/sources'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 15
+export const CURRENT_SCHEMA_VERSION = 16
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music', 'games'] as const
@@ -40,6 +41,16 @@ export const tileSchema = z.object({
   url: z.string().optional(),
   /** Optional so existing tiles keep their version-4 shape; News validates it before fetching. */
   feedUrl: z.string().optional(),
+  /** Website shelf when present; absence preserves an existing single-feed tile. */
+  newsSources: z
+    .array(newsSourceSchema)
+    .min(1)
+    .max(6)
+    .refine(
+      (sources) => new Set(sources.map((source) => source.id)).size === sources.length,
+      'Each news source needs a unique ID.'
+    )
+    .optional(),
   appPath: z.string().optional(),
   builtinKey: z.string().optional()
 })

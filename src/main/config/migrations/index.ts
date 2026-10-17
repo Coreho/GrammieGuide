@@ -12,6 +12,7 @@ import { migration as migration012 } from './012-tile-artwork'
 import { migration as migration013 } from './013-idle-dimming'
 import { migration as migration014 } from './014-approved-sites'
 import { migration as migration015 } from './015-games-library'
+import { migration as migration016 } from './016-news-sources'
 
 export interface Migration {
   version: number
@@ -40,5 +41,6 @@ export const migrations: Migration[] = [
   migration012,
   migration013,
   migration014,
-  migration015
+  migration015,
+  migration016
 ]

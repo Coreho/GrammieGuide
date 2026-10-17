@@ -84,7 +84,7 @@ describe('games config schema and migration 015', () => {
     const migrated = runMigrations(v14)
     expect(migrated.ok).toBe(true)
     if (migrated.ok) {
-      expect(migrated.config.schemaVersion).toBe(15)
+      expect(migrated.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
       expect(migrated.config.tiles).toEqual(v14.tiles)
       expect(migrated.config.games.enabledBuiltins).toEqual([...BUILTIN_GAME_KEYS])
       expect(migrated.config.games.useFamilyPhotos).toBe(true)
