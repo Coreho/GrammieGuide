@@ -8,7 +8,8 @@ describe('named card artwork', () => {
     expect(tileArtworkFor({ type: 'web', artwork: 'games', builtinKey: 'weather' })).toBe('games')
     expect(tileArtworkFor({ type: 'app', artwork: 'websites' })).toBe('websites')
     expect(tileArtworkFor({ type: 'web', builtinKey: 'photos' })).toBeUndefined()
-    expect(tileArtworkFor({ type: 'builtin', builtinKey: 'games' })).toBeUndefined()
+    expect(tileArtworkFor({ type: 'builtin', builtinKey: 'websites' })).toBeUndefined()
+    expect(tileArtworkFor({ type: 'builtin', builtinKey: 'games' })).toBe('games')
     expect(tileArtworkFor({ type: 'builtin', builtinKey: 'photos' })).toBe('photos')
   })
   it('lets explicit icons and selected photos override artwork', () => {

@@ -31,6 +31,9 @@ const launcherApi = {
   getTileImages: () => invoke('photos:tileImages'),
   onPhotosChanged: (cb: () => void) => on('photos:changed', cb),
   openAppTile: (id: string) => invoke('tile:openApp', { id }),
+  openInstalledGame: (id: string) => invoke('games:openInstalled', { id }),
+  reportBuiltinGame: (game: IpcRequest<'games:reportBuiltin'>['game']) =>
+    invoke('games:reportBuiltin', { game }),
   onBuddyCommand: (cb: (command: IpcEvents['buddy:command']) => void) => on('buddy:command', cb),
   getNews: (tileId: string) => invoke('news:get', { tileId }),
   openNews: (tileId: string, storyId?: string) => invoke('news:open', { tileId, storyId }),

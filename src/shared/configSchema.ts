@@ -7,16 +7,17 @@ import { HOME_LAYOUT_NAMES } from './homeLayout'
 import { musicSettingsSchema } from './music/musicSchema'
 import { TILE_ARTWORK_KEYS } from './tileArtwork'
 import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
+import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 14
+export const CURRENT_SCHEMA_VERSION = 15
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
-export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music'] as const
+export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music', 'games'] as const
 
 export const tileSchema = z.object({
   id: z.string(),
@@ -151,6 +152,7 @@ export const configSchema = z.object({
     autoStopMinutes: 90,
     showNowPlayingChip: true
   }),
+  games: gamesConfigSchema.default(defaultGamesConfig()),
   display: displayConfigSchema,
   reliability: reliabilityConfigSchema
 })
@@ -220,6 +222,7 @@ export function defaultConfig(): Config {
       motion: 'roam',
       tapAction: 'reaction'
     },
+    games: defaultGamesConfig(),
     display: {
       fontStep: DEFAULT_FONT_STEP,
       theme: 'tilesBold',

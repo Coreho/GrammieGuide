@@ -226,8 +226,13 @@ export default function App() {
 
   const handlePointerDown = useCallback((e: ReactPointerEvent) => {
     window.launcher.reportActivity()
-    // Repeated pats are deliberate interaction, not a sign she is lost.
-    if ((e.target as HTMLElement).closest('[data-buddy-tap], [data-buddy-chat-invite]')) return
+    // Repeated pats and game taps are deliberate interaction, not a sign she is lost.
+    if (
+      (e.target as HTMLElement).closest(
+        '[data-buddy-tap], [data-buddy-chat-invite], [data-game-interactive]'
+      )
+    )
+      return
     const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
     if (triggered) {
       window.launcher.goHome()

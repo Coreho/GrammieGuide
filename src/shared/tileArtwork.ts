@@ -27,7 +27,8 @@ export function tileArtworkFor(tile: {
   if (tile.photoId || tile.icon) return undefined
   if (tile.artwork) return tile.artwork
   const builtin = tile.type === 'builtin' ? tile.builtinKey : undefined
-  return builtin && (['photos', 'music', 'weather', 'news'] as readonly string[]).includes(builtin)
+  return builtin &&
+    (['photos', 'music', 'weather', 'news', 'games'] as readonly string[]).includes(builtin)
     ? (builtin as TileArtwork)
     : undefined
 }

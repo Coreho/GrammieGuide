@@ -21,6 +21,7 @@ import type {
   VoiceReport,
   VoiceStart
 } from './checks/caregiverChecks'
+import type { BuiltinGameKey } from './games/gamesSchema'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -169,6 +170,8 @@ export interface IpcApi {
   'news:get': { request: { tileId: string }; response: NewsResult }
   'news:open': { request: { tileId: string; storyId?: string }; response: { ok: boolean } }
   'tile:openApp': { request: { id: string }; response: { ok: boolean } }
+  'games:openInstalled': { request: { id: string }; response: { ok: boolean } }
+  'games:reportBuiltin': { request: { game: BuiltinGameKey }; response: boolean }
   'buddy:command': { request: BuddyCommand; response: { ok: boolean } }
   'config:get': { request: void; response: PublicConfig }
   'config:set': { request: Partial<Config>; response: PublicConfig }
