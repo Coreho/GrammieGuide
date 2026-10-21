@@ -68,7 +68,8 @@ describe('migration 002 (Buddy voice + roaming)', () => {
       ttsVoice: 'en-US-AriaNeural',
       motion: 'roam',
       tapAction: 'reaction',
-      quickMessages: []
+      quickMessages: [],
+      personalFacts: []
     })
     expect(result.config.tiles).toEqual(
       v1.tiles.map((tile) => ({ ...tile, size: 'normal', colorIndex: 0, slot: 0 }))

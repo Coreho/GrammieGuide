@@ -10,6 +10,7 @@ import {
 import { BUDDY_SYSTEM_PROMPT } from '../../src/main/services/ai/buddyPrompt'
 import { defaultConfig } from '../../src/shared/configSchema'
 import type { BuddyChatTurn } from '../../src/shared/ipcContract'
+import { PersonalHistory, type PersonalFact } from '../../src/shared/buddy/personalFacts'
 
 type CreateFn = (params: Anthropic.MessageCreateParamsNonStreaming) => Promise<unknown>
 
@@ -57,6 +58,98 @@ describe('toApiMessages', () => {
 
 describe('buddyChat', () => {
   const log = vi.fn()
+  it.each(['deleted', 'cancelled', 'expired'])(
+    'discards a pending reply when a plan is %s while Buddy is thinking',
+    async (change) => {
+      let now = new Date('2026-10-20T12:00:00Z')
+      let finish!: (value: unknown) => void
+      const request = fakeClient(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          })
+      )
+      let facts: PersonalFact[] = [
+        {
+          id: '00000000-0000-4000-8000-000000000001',
+          kind: 'plan',
+          text: 'Sarah visits for tea',
+          date: '2026-10-20',
+          cancelled: false
+        }
+      ]
+      const pending = buddyChat([{ role: 'user', text: 'Is Sarah visiting?' }], {
+        chatEnabled: true,
+        apiKey: 'test',
+        provider: 'anthropic',
+        model: 'claude-sonnet-5-5',
+        client: request.client,
+        log: vi.fn(),
+        personal: {
+          facts: () => facts,
+          history: new PersonalHistory(),
+          now: () => now,
+          timeZone: 'America/New_York'
+        }
+      })
+      if (change === 'deleted') facts = []
+      if (change === 'cancelled') facts = facts.map((fact) => ({ ...fact, cancelled: true }))
+      if (change === 'expired') now = new Date('2026-10-21T04:00:00Z')
+      finish(textResponse('Sarah is visiting for tea today.'))
+      expect(await pending).toEqual({
+        ok: true,
+        reply: 'I am not sure about that. Your family can help.'
+      })
+    }
+  )
+  it('adds current approved facts to each conversation request, keeping the system frozen and logs private', async () => {
+    const request = fakeClient(() => textResponse('I am not sure. You could ask your family.'))
+    const history = new PersonalHistory()
+    let facts: PersonalFact[] = [
+      {
+        id: '00000000-0000-4000-8000-000000000001',
+        kind: 'plan',
+        text: 'Sarah visits for tea',
+        date: '2026-10-20',
+        cancelled: false
+      }
+    ]
+    const privateLog = vi.fn()
+    const opts = {
+      chatEnabled: true,
+      apiKey: 'test',
+      provider: 'anthropic' as const,
+      model: 'claude-sonnet-5-5',
+      client: request.client,
+      log: privateLog,
+      personal: {
+        facts: () => facts,
+        history,
+        now: () => new Date('2026-10-20T16:00:00Z'),
+        timeZone: 'America/New_York'
+      }
+    }
+    const turns: BuddyChatTurn[] = [{ role: 'user', text: 'Who is visiting?' }]
+    await buddyChat(turns, opts)
+    const first = request.create.mock.calls[0]![0]
+    expect(first.system).toBe(BUDDY_SYSTEM_PROMPT)
+    expect(JSON.stringify(first.messages)).toContain('Sarah visits for tea')
+    expect(JSON.stringify(first.messages)).toContain('2026-10-20 in America/New_York')
+    facts = []
+    await buddyChat(
+      [
+        ...turns,
+        { role: 'assistant', text: 'Sarah visits for tea' },
+        { role: 'user', text: 'What time?' }
+      ],
+      opts
+    )
+    const second = request.create.mock.calls[1]![0]
+    expect(second.system).toBe(BUDDY_SYSTEM_PROMPT)
+    expect(JSON.stringify(second.messages)).not.toContain('Sarah')
+    expect(JSON.stringify(second.messages)).toContain('say warmly that you do not know')
+    expect(privateLog).not.toHaveBeenCalled()
+  })
 
   it('resolves a direct request without a key or API call and returns a plan rather than a success claim', async () => {
     const resolveAction = vi.fn().mockResolvedValue({ ok: true, plan: { action: 'goHome' } })

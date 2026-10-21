@@ -13,6 +13,12 @@ import {
   type BuddyActionResult
 } from '@shared/buddy/actions'
 import { BUDDY_ACTION_TOOLS } from './buddyActions'
+import {
+  currentFacts,
+  personalContext,
+  type PersonalFact,
+  type PersonalHistory
+} from '@shared/buddy/personalFacts'
 
 /**
  * Buddy's real conversation (M4). The renderer owns the on-screen history
@@ -92,6 +98,12 @@ export async function buddyChat(
     client: MessagesClient | null
     log: (type: string, detail?: string) => void
     resolveAction?: (action: BuddyActionRequest) => Promise<BuddyActionResult>
+    personal?: {
+      facts: () => PersonalFact[]
+      history: PersonalHistory
+      now?: () => Date
+      timeZone?: string
+    }
   }
 ): Promise<BuddyChatResult> {
   if (!opts.chatEnabled) {
@@ -123,9 +135,19 @@ export async function buddyChat(
     return { ok: false, reason: 'no-key', reply: REPLIES.noKey }
   }
 
-  const messages = toApiMessages(turns)
+  const now = opts.personal?.now?.() ?? new Date()
+  const timeZone = opts.personal?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const facts = currentFacts(opts.personal?.facts() ?? [], now, timeZone)
+  const factsSignature = JSON.stringify(facts)
+  const messages = toApiMessages(
+    opts.personal ? opts.personal.history.prepare(turns, facts) : turns
+  )
   if (messages.length === 0 || messages[messages.length - 1]!.role !== 'user') {
     return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }
+  }
+  if (opts.personal) {
+    const latest = messages.at(-1)!
+    latest.content = `${personalContext(facts, now, timeZone)}\n\nHer message:\n${latest.content as string}`
   }
 
   try {
@@ -144,6 +166,16 @@ export async function buddyChat(
       ...routingFor(opts.provider)
     })
 
+    // A caregiver may cancel a visit while Buddy is thinking, or local midnight
+    // may pass. Never release text/tools generated against that stale context.
+    if (
+      opts.personal &&
+      JSON.stringify(
+        currentFacts(opts.personal.facts(), opts.personal.now?.() ?? new Date(), timeZone)
+      ) !== factsSignature
+    ) {
+      return { ok: true, reply: 'I am not sure about that. Your family can help.' }
+    }
     if (response.stop_reason === 'refusal') {
       opts.log('buddy-chat-declined', response.stop_details?.category ?? undefined)
       return { ok: false, reason: 'declined', reply: REPLIES.declined }

@@ -22,6 +22,7 @@ import { libraryPaths } from '../services/media/libraryPaths'
 import type { MediaLibrary } from '@shared/media/mediaPath'
 import type { LibraryStore } from '../services/media/libraryStore'
 import { runPowerShell } from '../services/reliability/shellExec'
+import { PersonalHistory } from '@shared/buddy/personalFacts'
 
 const tts = createTtsService()
 // The recognizer/mic check spawns PowerShell (~1s); the answer can't change
@@ -29,6 +30,7 @@ const tts = createTtsService()
 let canListenOnce: Promise<boolean> | null = null
 
 export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore): void {
+  const personalHistory = new PersonalHistory()
   const resolveAction = (action: BuddyActionRequest): Promise<BuddyActionResult> =>
     resolveBuddyAction(
       action,
@@ -73,6 +75,7 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       model,
       client: chatEnabled && apiKey ? getBuddyChatClient(provider, apiKey) : null,
       log: logActivity,
+      personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
       resolveAction
     })
     // Log that a conversation happened, never what was said - the activity

@@ -9,13 +9,14 @@ import { TILE_ARTWORK_KEYS } from './tileArtwork'
 import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
 import { newsSourceSchema } from './news/sources'
+import { personalFactsSchema } from './buddy/personalFacts'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 16
+export const CURRENT_SCHEMA_VERSION = 17
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music', 'games'] as const
@@ -100,7 +101,8 @@ export const buddyConfigSchema = z.object({
   /** Caregivers choose how much movement helps her, rather than assuming more is better. */
   motion: z.enum(['still', 'roam', 'reduced']).default('roam'),
   tapAction: z.enum(['reaction', 'chat']).default('reaction'),
-  quickMessages: z.array(quickMessageSchema).max(50).default([])
+  quickMessages: z.array(quickMessageSchema).max(50).default([]),
+  personalFacts: personalFactsSchema.default([])
 })
 
 export const idleDimConfigSchema = z.object({

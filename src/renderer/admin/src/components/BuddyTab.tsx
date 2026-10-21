@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { holdAudio } from '../../../audio/audioBridge'
 import { useConfigStore } from '../state/useConfigStore'
 import { BuddyCommands } from './BuddyCommands'
+import { BuddyFacts } from './BuddyFacts'
 import {
   BUDDY_PROVIDERS,
   defaultModelFor,
@@ -290,6 +291,7 @@ export function BuddyTab() {
         <option value="low">Low</option>
         <option value="normal">Normal</option>
       </select>
+      <BuddyFacts />
       <BuddyCommands />
     </div>
   )
