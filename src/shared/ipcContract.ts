@@ -234,6 +234,7 @@ export interface IpcApi {
 
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
+  'browser:readerMode': { request: 'article' | 'page'; response: boolean }
   'browser:videoCommand': {
     request: import('./browser/videoControls').VideoCommand
     response: boolean
@@ -258,6 +259,7 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'browser:reader': import('./news/reader').ReaderState
   'browser:video': import('./browser/videoControls').VideoState
   'audio:changed': AudioUpdate
   'music:importProgress': MusicImportProgress

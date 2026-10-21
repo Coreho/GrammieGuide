@@ -53,11 +53,40 @@ test('video controls follow the player, retain Home in fullscreen, and close med
     await expect(toolbar.getByRole('button', { name: 'Ⅱ Pause' })).toBeVisible()
     await toolbar.getByRole('button', { name: 'Ⅱ Pause' }).click()
     await expect(toolbar.getByRole('button', { name: '▶ Play', exact: true })).toBeVisible()
-    await toolbar.getByRole('button', { name: 'Full screen', exact: true }).click()
+    await app.evaluate(async ({ webContents }, fixture) => {
+      await webContents
+        .getAllWebContents()
+        .find((w) => w.getURL() === fixture)!
+        .executeJavaScript('document.querySelector("video").currentTime = 12')
+    }, url)
+    await toolbar.getByRole('button', { name: '↶ Back 10 seconds' }).click()
+    await expect
+      .poll(() =>
+        app.evaluate(
+          async ({ webContents }, fixture) =>
+            webContents
+              .getAllWebContents()
+              .find((w) => w.getURL() === fixture)!
+              .executeJavaScript('document.querySelector("video").currentTime'),
+          url
+        )
+      )
+      .toBeLessThan(3)
+    await toolbar.getByRole('button', { name: 'Full screen', exact: true }).focus()
+    await toolbar.getByRole('button', { name: 'Full screen', exact: true }).press('Enter')
     await expect(toolbar.getByRole('button', { name: 'Smaller video' })).toBeVisible()
     expect(await home.boundingBox()).toEqual(bounds)
-    await toolbar.getByRole('button', { name: 'Smaller video' }).click()
+    await toolbar.getByRole('button', { name: 'Smaller video' }).focus()
+    await toolbar.getByRole('button', { name: 'Smaller video' }).press('Space')
     await expect(toolbar.getByRole('button', { name: 'Full screen', exact: true })).toBeVisible()
+    for (let step = 0; step < 5; step++) {
+      await admin.evaluate(async (fontStep) => {
+        const config = await window.admin.getConfig()
+        await window.admin.setConfig({ display: { ...config.display, fontStep } })
+      }, step)
+      await expect.poll(() => toolbar.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    }
+    await page.screenshot({ path: 'test-results/video-controls.png' })
     await app.evaluate(async ({ webContents }, fixture) => {
       await webContents
         .getAllWebContents()
@@ -76,6 +105,10 @@ test('video controls follow the player, retain Home in fullscreen, and close med
         )
       )
       .toBe(false)
+    // Quitting the app with a live native view must also close cleanly. The
+    // host's closed event can arrive after Electron has destroyed its chrome.
+    await page.getByRole('button', { name: 'Videos', exact: true }).click()
+    await expect(toolbar).toBeVisible()
   } finally {
     await app.close()
     server.close()

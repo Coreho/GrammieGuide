@@ -12,6 +12,7 @@ export const zLayers = {
   buddyCanvas: 20,
   /** Stands in for a web page that failed or was blocked, below the nav bar. */
   pageRecovery: 25,
+  readerView: 26,
   navBar: 30,
   tilePicker: 100,
   weatherOverlay: 200,

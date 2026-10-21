@@ -16,6 +16,8 @@ import { getAudioCoordinator } from '../audio/audioRuntime'
 import { getConfig } from '../../config/store'
 import { navigationAllowed, webHostname, type NavigationKind } from '@shared/browser/approvedSites'
 import { blockedSites } from './blockedSites'
+import { EMPTY_READER, type ReaderState } from '@shared/news/reader'
+import { prepareArticle } from '../news/readerImages'
 import {
   NO_VIDEO,
   supportsVideoControls,
@@ -48,6 +50,70 @@ let trustedPage: string | null = null
 let returnToNewsTileId: string | null = null
 let committedPage: string | null = null
 let videoState: VideoState = { ...NO_VIDEO }
+let reader: ReaderState = { ...EMPTY_READER }
+let readerGeneration = 0
+let readerTimer: NodeJS.Timeout | null = null
+let autoReaderHeadline: string | undefined
+function updateReader(next: ReaderState): void {
+  reader = next
+  if (hostWindow && !hostWindow.isDestroyed() && !hostWindow.webContents.isDestroyed())
+    hostWindow.webContents.send('browser:reader', next)
+  if (view && !view.webContents.isDestroyed())
+    view.webContents.send(
+      'browserView:readerHidden',
+      next.mode === 'article' || next.mode === 'loading'
+    )
+  if (view && !view.webContents.isDestroyed() && hostWindow && !hostWindow.isDestroyed())
+    view.setVisible(!problem && next.mode !== 'article' && next.mode !== 'loading')
+}
+function resetReader(): void {
+  readerGeneration++
+  if (readerTimer) clearTimeout(readerTimer)
+  readerTimer = null
+  updateReader({ ...EMPTY_READER })
+}
+function waitForReader(headline: string): void {
+  updateReader({ ...EMPTY_READER, mode: 'loading', headline })
+  const generation = readerGeneration
+  if (readerTimer) clearTimeout(readerTimer)
+  readerTimer = setTimeout(() => {
+    if (generation !== readerGeneration) return
+    autoReaderHeadline = undefined
+    readerTimer = null
+    updateReader({ ...EMPTY_READER })
+  }, 15_000)
+}
+function extractArticle(): void {
+  if (!view || problem) return
+  const generation = ++readerGeneration
+  updateReader({ ...reader, mode: 'loading' })
+  view.webContents.send('browserView:extract', generation)
+  if (readerTimer) clearTimeout(readerTimer)
+  readerTimer = setTimeout(() => {
+    readerTimer = null
+    if (generation !== readerGeneration) return
+    readerGeneration++
+    updateReader({ ...EMPTY_READER })
+  }, 10_000)
+}
+export function setReaderMode(mode: 'article' | 'page'): boolean {
+  if (
+    !view ||
+    problem ||
+    !navigationAllowed(view.webContents.getURL(), getConfig(), 'back', trustedPage)
+  )
+    return false
+  lastActivityAt = Date.now()
+  if (mode === 'page') {
+    readerGeneration++
+    if (readerTimer) clearTimeout(readerTimer)
+    readerTimer = null
+    updateReader({ ...reader, mode: 'page' })
+  } else if (reader.article) updateReader({ ...reader, mode: 'article' })
+  else if (reader.available) extractArticle()
+  else return false
+  return true
+}
 // Test fixtures exercise the same adapter without granting arbitrary production sites.
 let testVideoUrl: string | null = null
 export function setVideoFixtureForTests(url: string): void {
@@ -62,7 +128,7 @@ function updateVideo(state: VideoState): void {
   videoState = state
   if (changed) {
     layout()
-    hostWindow?.webContents.send('browser:video', state)
+    if (hostWindow && !hostWindow.isDestroyed()) hostWindow.webContents.send('browser:video', state)
   }
 }
 export async function sendVideoCommand(command: unknown): Promise<boolean> {
@@ -76,11 +142,16 @@ export async function sendVideoCommand(command: unknown): Promise<boolean> {
     return false
   if (!navigationAllowed(view.webContents.getURL(), getConfig(), 'back', trustedPage)) return false
   lastActivityAt = Date.now()
+  const targetUrl = view.webContents.getURL()
   try {
     return (
       (await view.webContents.executeJavaScriptInIsolatedWorld(
         1001,
-        [{ code: `(${operateVideo.toString()})(${JSON.stringify(command)})` }],
+        [
+          {
+            code: `location.href === ${JSON.stringify(targetUrl)} && (${operateVideo.toString()})(${JSON.stringify(command)})`
+          }
+        ],
         true
       )) === true
     )
@@ -122,10 +193,49 @@ export function initEmbeddedBrowser(win: BrowserWindow): void {
       if (event.sender === view?.webContents || event.sender === hostWindow?.webContents)
         lastActivityAt = Date.now()
     })
+    ipcMain.on('browserView:readerable', (event, available: unknown) => {
+      if (
+        !view ||
+        event.sender !== view.webContents ||
+        event.senderFrame !== view.webContents.mainFrame ||
+        problem
+      )
+        return
+      if (typeof available === 'boolean' && available !== reader.available)
+        updateReader({ ...reader, available })
+    })
+    ipcMain.on(
+      'browserView:article',
+      async (event, payload: { generation: number; article: unknown }) => {
+        if (
+          !view ||
+          event.sender !== view.webContents ||
+          event.senderFrame !== view.webContents.mainFrame ||
+          !payload ||
+          payload.generation !== readerGeneration ||
+          reader.mode !== 'loading' ||
+          problem
+        )
+          return
+        const generation = readerGeneration
+        const article = await prepareArticle(payload.article).catch(() => null)
+        if (generation !== readerGeneration || !view || problem) return
+        if (readerTimer) clearTimeout(readerTimer)
+        readerTimer = null
+        // The real page is the quiet fallback, with no technical error wording.
+        updateReader(
+          article ? { ...reader, mode: 'article', available: true, article } : { ...EMPTY_READER }
+        )
+        if (article) {
+          updateVideo({ ...NO_VIDEO })
+        }
+      }
+    )
     ipcMain.on('browserView:videoState', (event, state: VideoState) => {
       if (event.sender !== view?.webContents || event.senderFrame !== view.webContents.mainFrame)
         return
-      if (problem || !supportedVideo()) return updateVideo({ ...NO_VIDEO })
+      if (problem || reader.mode === 'article' || reader.mode === 'loading' || !supportedVideo())
+        return updateVideo({ ...NO_VIDEO })
       if (
         !state ||
         ['available', 'paused', 'canRewind', 'fullscreen'].some(
@@ -145,7 +255,7 @@ export function initEmbeddedBrowser(win: BrowserWindow): void {
 }
 
 function layout(): void {
-  if (!view || !hostWindow) return
+  if (!view || !hostWindow || hostWindow.isDestroyed() || view.webContents.isDestroyed()) return
   const [width = 0, height = 0] = hostWindow.getContentSize()
   const top = NAV_BAR_HEIGHT + (videoState.available ? 88 : 0)
   view.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
@@ -157,6 +267,7 @@ export function openUrl(
     privateNavigation?: boolean
     trustedInitialPage?: boolean
     returnToNewsTileId?: string
+    readerHeadline?: string
     onLoaded?: (outcome: PageOutcome) => void
   } = {}
 ): { ok: boolean; reason?: string } {
@@ -210,7 +321,11 @@ export function openUrl(
     })
 
     view.webContents.on('did-start-navigation', (details) => {
-      if (details.isMainFrame) updateVideo({ ...NO_VIDEO })
+      if (details.isMainFrame) {
+        updateVideo({ ...NO_VIDEO })
+        resetReader()
+        if (autoReaderHeadline !== undefined) waitForReader(autoReaderHeadline)
+      }
       if (details.isMainFrame && !details.isSameDocument) navigationFailed = false
     })
     const enableVideo = (): void => {
@@ -241,6 +356,10 @@ export function openUrl(
     )
 
     view.webContents.on('did-finish-load', () => {
+      if (!navigationFailed && !problem && autoReaderHeadline !== undefined) {
+        autoReaderHeadline = undefined
+        extractArticle()
+      }
       // A blocked tap leaves the page itself fine; only she dismisses that screen.
       if (navigationFailed || problem === null || problem === 'blocked') return
       clearProblem()
@@ -258,12 +377,15 @@ export function openUrl(
   privateNavigation = Boolean(options.privateNavigation)
   trustedPage = options.trustedInitialPage ? url : null
   returnToNewsTileId = options.returnToNewsTileId ?? null
+  autoReaderHeadline = options.readerHeadline
+  resetReader()
   resetProblem()
   if (!allowNavigation(url, 'open')) {
     options.onLoaded?.('failed')
     return { ok: true }
   }
-  view.setVisible(true)
+  if (autoReaderHeadline !== undefined) waitForReader(autoReaderHeadline)
+  else view.setVisible(true)
   // loadURL rejects on a failed load; did-fail-load below already owns what she
   // sees, so swallow it rather than leaving an unhandled rejection in main.
   const openedView = view
@@ -352,6 +474,8 @@ function allowNavigation(url: string, kind: NavigationKind): boolean {
 }
 
 function showProblem(kind: PageProblem): void {
+  autoReaderHeadline = undefined
+  resetReader()
   updateVideo({ ...NO_VIDEO })
   problem = kind
   // The page is a native view drawn over Home; hide it so Home's screen shows.
@@ -361,7 +485,7 @@ function showProblem(kind: PageProblem): void {
 
 function clearProblem(): void {
   resetProblem()
-  view?.setVisible(true)
+  view?.setVisible(reader.mode !== 'article' && reader.mode !== 'loading')
   hostWindow?.webContents.send('browser:page-problem', { kind: null })
 }
 
@@ -387,6 +511,8 @@ function scheduleOfflineRetry(): void {
 }
 
 export function closeEmbeddedBrowser(): void {
+  autoReaderHeadline = undefined
+  resetReader()
   updateVideo({ ...NO_VIDEO })
   stopPageAudio?.()
   stopPageAudio = null
