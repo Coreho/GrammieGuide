@@ -14,6 +14,7 @@ import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { timeParts } from './components/HomeHeader'
 import { NavBar } from './components/NavBar'
+import { VideoControls } from './components/VideoControls'
 import { PageRecovery } from './components/PageRecovery'
 import type { PageProblem } from '@shared/browser/loadFailure'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
@@ -472,6 +473,7 @@ export default function App() {
         </div>
       )}
 
+      {view === 'browser' && <VideoControls />}
       {view === 'browser' && (
         <NavBar
           message={toast}

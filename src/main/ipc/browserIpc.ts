@@ -11,10 +11,18 @@ import {
   goBack,
   closeEmbeddedBrowser,
   retryPage,
-  dismissBlocked
+  dismissBlocked,
+  sendVideoCommand
 } from '../services/browser/embeddedBrowser'
 
 export function registerBrowserIpc(): void {
+  ipcMain.handle(
+    'browser:videoCommand',
+    (event, command: unknown) =>
+      event.sender === getLauncherWindow()?.webContents &&
+      event.senderFrame === event.sender.mainFrame &&
+      sendVideoCommand(command)
+  )
   ipcMain.handle('browser:blockedSites', () => {
     requireAdminUnlocked()
     return blockedSites.list()

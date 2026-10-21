@@ -16,7 +16,8 @@ import {
   isBrowserOpen,
   getIdleMs,
   closeEmbeddedBrowser,
-  overrideOnlineCheckForTests
+  overrideOnlineCheckForTests,
+  setVideoFixtureForTests
 } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
@@ -113,6 +114,7 @@ app.whenReady().then(() => {
   if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
     ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
       createAdminWindow,
+      setVideoFixtureForTests,
       closeBrowserIfIdle,
       setDeviceOnline: (online: boolean) => overrideOnlineCheckForTests(() => online),
       // The real refresh interval is 24 hours; a test needs to run one now, with

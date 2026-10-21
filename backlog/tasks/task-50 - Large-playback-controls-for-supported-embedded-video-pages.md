@@ -1,9 +1,11 @@
 ---
 id: TASK-50
 title: Large playback controls for supported embedded video pages
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-10-14 17:17'
+updated_date: '2026-10-21 00:29'
 labels: []
 milestone: m-10
 dependencies: []
@@ -33,3 +35,15 @@ YouTube's own controls are small and surrounded by distractions. SeniorsUI's lar
 - [ ] #6 Controls fit the supported screen and all configured text sizes, and avoid covering important video/page controls.
 - [ ] #7 Automated checks cover capability/state changes, unavailable players and Home/media shutdown using a controlled video fixture; a manual YouTube and real-device check is documented.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Add isolated YouTube video controls with main authorization, a separate toolbar below Home, and fixture tests for state, navigation and shutdown.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented isolated YouTube adapter, validated launcher-only fixed commands, actual player state, and separate 88px toolbar. Full screen uses a top-layer video popover inside the existing page bounds so Home remains reachable and session permissions remain deny-all. Controlled video E2E passes play/pause, expansion, missing player and Home shutdown. Live YouTube and real-device checks remain.
+<!-- SECTION:NOTES:END -->

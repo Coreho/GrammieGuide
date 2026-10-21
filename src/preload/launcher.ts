@@ -50,6 +50,9 @@ const launcherApi = {
   openBrowserTile: (tileId: string) => invoke('browser:openTile', { tileId }),
   goHome: () => invoke('browser:goHome'),
   goBack: () => invoke('browser:goBack'),
+  videoCommand: (command: IpcRequest<'browser:videoCommand'>) =>
+    invoke('browser:videoCommand', command),
+  onVideo: (cb: (state: IpcEvents['browser:video']) => void) => on('browser:video', cb),
   retryPage: () => invoke('browser:retry'),
   dismissBlockedPage: () => invoke('browser:dismissBlocked'),
   openRecoveryCheck: () => invoke('browser:openRecoveryCheck'),

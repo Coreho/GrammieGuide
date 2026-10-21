@@ -16,6 +16,12 @@ import { getAudioCoordinator } from '../audio/audioRuntime'
 import { getConfig } from '../../config/store'
 import { navigationAllowed, webHostname, type NavigationKind } from '@shared/browser/approvedSites'
 import { blockedSites } from './blockedSites'
+import {
+  NO_VIDEO,
+  supportsVideoControls,
+  operateVideo,
+  type VideoState
+} from '@shared/browser/videoControls'
 
 /**
  * Embedded web-tile browser. Ports the escape-guard/popup-block logic from
@@ -41,6 +47,47 @@ let privateNavigation = false
 let trustedPage: string | null = null
 let returnToNewsTileId: string | null = null
 let committedPage: string | null = null
+let videoState: VideoState = { ...NO_VIDEO }
+// Test fixtures exercise the same adapter without granting arbitrary production sites.
+let testVideoUrl: string | null = null
+export function setVideoFixtureForTests(url: string): void {
+  if (process.env.GRAMMIEGUIDE_E2E === '1') testVideoUrl = url
+}
+function supportedVideo(): boolean {
+  const url = view?.webContents.getURL() ?? ''
+  return supportsVideoControls(url) || (testVideoUrl !== null && url === testVideoUrl)
+}
+function updateVideo(state: VideoState): void {
+  const changed = JSON.stringify(videoState) !== JSON.stringify(state)
+  videoState = state
+  if (changed) {
+    layout()
+    hostWindow?.webContents.send('browser:video', state)
+  }
+}
+export async function sendVideoCommand(command: unknown): Promise<boolean> {
+  if (
+    !view ||
+    problem ||
+    !supportedVideo() ||
+    !videoState.available ||
+    !['play', 'pause', 'rewind', 'fullscreen'].includes(command as string)
+  )
+    return false
+  if (!navigationAllowed(view.webContents.getURL(), getConfig(), 'back', trustedPage)) return false
+  lastActivityAt = Date.now()
+  try {
+    return (
+      (await view.webContents.executeJavaScriptInIsolatedWorld(
+        1001,
+        [{ code: `(${operateVideo.toString()})(${JSON.stringify(command)})` }],
+        true
+      )) === true
+    )
+  } catch {
+    return false
+  }
+}
 
 // The recovery screen: which problem Home is showing instead of the page, the
 // address to retry, and whether the current navigation has already failed.
@@ -71,8 +118,27 @@ export function initEmbeddedBrowser(win: BrowserWindow): void {
   })
 
   if (!activityListenerRegistered) {
-    ipcMain.on('browserView:activity', () => {
-      lastActivityAt = Date.now()
+    ipcMain.on('browserView:activity', (event) => {
+      if (event.sender === view?.webContents || event.sender === hostWindow?.webContents)
+        lastActivityAt = Date.now()
+    })
+    ipcMain.on('browserView:videoState', (event, state: VideoState) => {
+      if (event.sender !== view?.webContents || event.senderFrame !== view.webContents.mainFrame)
+        return
+      if (problem || !supportedVideo()) return updateVideo({ ...NO_VIDEO })
+      if (
+        !state ||
+        ['available', 'paused', 'canRewind', 'fullscreen'].some(
+          (key) => typeof state[key as keyof VideoState] !== 'boolean'
+        )
+      )
+        return
+      updateVideo({
+        available: state.available,
+        paused: state.paused,
+        canRewind: state.canRewind,
+        fullscreen: state.fullscreen
+      })
     })
     activityListenerRegistered = true
   }
@@ -81,7 +147,8 @@ export function initEmbeddedBrowser(win: BrowserWindow): void {
 function layout(): void {
   if (!view || !hostWindow) return
   const [width = 0, height = 0] = hostWindow.getContentSize()
-  view.setBounds({ x: 0, y: NAV_BAR_HEIGHT, width, height: Math.max(0, height - NAV_BAR_HEIGHT) })
+  const top = NAV_BAR_HEIGHT + (videoState.available ? 88 : 0)
+  view.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
 }
 
 export function openUrl(
@@ -111,6 +178,7 @@ export function openUrl(
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        disableHtmlFullscreenWindowResize: true,
         // Its own session, so the deny-all rules in webSession.ts (and the ad
         // blocker) apply to web tiles without touching Home or admin.
         partition: WEB_PARTITION,
@@ -142,8 +210,14 @@ export function openUrl(
     })
 
     view.webContents.on('did-start-navigation', (details) => {
+      if (details.isMainFrame) updateVideo({ ...NO_VIDEO })
       if (details.isMainFrame && !details.isSameDocument) navigationFailed = false
     })
+    const enableVideo = (): void => {
+      view?.webContents.send('browserView:videoEnabled', supportedVideo())
+    }
+    view.webContents.on('dom-ready', enableVideo)
+    view.webContents.on('did-navigate-in-page', enableVideo)
 
     view.webContents.on(
       'did-fail-load',
@@ -278,6 +352,7 @@ function allowNavigation(url: string, kind: NavigationKind): boolean {
 }
 
 function showProblem(kind: PageProblem): void {
+  updateVideo({ ...NO_VIDEO })
   problem = kind
   // The page is a native view drawn over Home; hide it so Home's screen shows.
   view?.setVisible(false)
@@ -312,6 +387,7 @@ function scheduleOfflineRetry(): void {
 }
 
 export function closeEmbeddedBrowser(): void {
+  updateVideo({ ...NO_VIDEO })
   stopPageAudio?.()
   stopPageAudio = null
   const closingView = view

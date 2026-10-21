@@ -234,6 +234,10 @@ export interface IpcApi {
 
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
+  'browser:videoCommand': {
+    request: import('./browser/videoControls').VideoCommand
+    response: boolean
+  }
   /** Caregiver-only, bounded domain history; never full addresses. */
   'browser:blockedSites': { request: void; response: string[] }
   'browser:goBack': { request: void; response: void }
@@ -254,6 +258,7 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'browser:video': import('./browser/videoControls').VideoState
   'audio:changed': AudioUpdate
   'music:importProgress': MusicImportProgress
   'photos:changed': Record<string, never>
