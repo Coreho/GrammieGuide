@@ -2,6 +2,7 @@ import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
 import type { BuddyProvider } from './buddy/providers'
+import type { ChatGptState } from './buddy/chatGpt'
 import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
 import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
@@ -115,6 +116,15 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'chatgpt:state': { request: void; response: ChatGptState }
+  'chatgpt:connect': { request: { id?: string }; response: ChatGptState }
+  'chatgpt:cancel': { request: void; response: ChatGptState }
+  'chatgpt:select': { request: { id: string }; response: ChatGptState }
+  'chatgpt:models': { request: void; response: ChatGptState }
+  'chatgpt:test': { request: { model: string }; response: ChatGptState }
+  'chatgpt:welcome': { request: void; response: ChatGptState }
+  'chatgpt:signOut': { request: void; response: ChatGptState }
+  'chatgpt:usage': { request: void; response: void }
   'contacts:list': { request: void; response: ContactRequestSummary[] }
   'contacts:home': { request: void; response: HomeContactState }
   'contacts:request': { request: void; response: HomeContactState }

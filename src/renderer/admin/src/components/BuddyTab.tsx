@@ -3,6 +3,7 @@ import { holdAudio } from '../../../audio/audioBridge'
 import { useConfigStore } from '../state/useConfigStore'
 import { BuddyCommands } from './BuddyCommands'
 import { BuddyFacts } from './BuddyFacts'
+import { ChatGptConnection } from './ChatGptConnection'
 import {
   BUDDY_PROVIDERS,
   defaultModelFor,
@@ -24,10 +25,14 @@ const PREVIEW_LINE = "Hi there! It's so nice to see you today."
 
 const PROVIDER_LABELS: Record<BuddyProvider, string> = {
   anthropic: 'Anthropic directly (default)',
-  openrouter: 'OpenRouter (Claude, pinned to Anthropic)'
+  openrouter: 'OpenRouter (Claude, pinned to Anthropic)',
+  chatgpt: 'ChatGPT plan (connect and test below)'
 }
 
-const KEY_HINTS: Record<BuddyProvider, { heading: string; placeholder: string }> = {
+const KEY_HINTS: Record<
+  Exclude<BuddyProvider, 'chatgpt'>,
+  { heading: string; placeholder: string }
+> = {
   anthropic: { heading: 'Anthropic API key', placeholder: 'sk-ant-...' },
   openrouter: { heading: 'OpenRouter API key', placeholder: 'sk-or-v1-...' }
 }
@@ -56,12 +61,11 @@ export function BuddyTab() {
     []
   )
 
-  const provider: BuddyProvider =
-    config?.buddy.provider === 'openrouter' ? 'openrouter' : 'anthropic'
+  const provider: BuddyProvider = config?.buddy.provider ?? 'anthropic'
 
   useEffect(() => {
     // Re-read whenever the provider changes: the answer is about that provider's key.
-    window.admin.hasApiKey(provider).then(setHasKey)
+    if (provider !== 'chatgpt') window.admin.hasApiKey(provider).then(setHasKey)
     setKeyDraft('')
   }, [provider])
 
@@ -158,7 +162,7 @@ export function BuddyTab() {
         onChange={(e) => changeProvider(e.target.value as BuddyProvider)}
       >
         {BUDDY_PROVIDERS.map((id) => (
-          <option key={id} value={id}>
+          <option key={id} value={id} disabled={id === 'chatgpt' && provider !== 'chatgpt'}>
             {PROVIDER_LABELS[id]}
           </option>
         ))}
@@ -171,44 +175,57 @@ export function BuddyTab() {
           Anthropic. The trade is that if Anthropic is unavailable, Buddy says he is having trouble
           rather than switching to a different company's model.
         </p>
-      ) : (
+      ) : provider === 'anthropic' ? (
         <p>Anthropic's own service, billed on your Anthropic account.</p>
+      ) : (
+        <p>Using ChatGPT plan. Connect and verify a model below to change it.</p>
       )}
-      <h3>{KEY_HINTS[provider].heading}</h3>
-      <p>
-        Status:{' '}
-        {hasKey === null ? '…' : hasKey ? 'A key is set.' : 'No key set - Buddy cannot chat yet.'}
-      </p>
-      <input
-        type="password"
-        autoComplete="off"
-        placeholder={
-          hasKey ? 'Enter a new key to replace the current one' : KEY_HINTS[provider].placeholder
-        }
-        value={keyDraft}
-        onChange={(e) => setKeyDraft(e.target.value)}
-        style={{ width: 420 }}
-      />{' '}
-      <button onClick={() => saveKey(keyDraft)} disabled={!keyDraft.trim()}>
-        Save key
-      </button>{' '}
-      {hasKey && <button onClick={() => saveKey('')}>Remove key</button>}
-      {status && <p>{status}</p>}
-      <h3>Model</h3>
-      {/* aria-label, not a wrapping <label>: a select's accessible name taken from
+      {provider !== 'chatgpt' && (
+        <>
+          <h3>{KEY_HINTS[provider].heading}</h3>
+          <p>
+            Status:{' '}
+            {hasKey === null
+              ? '…'
+              : hasKey
+                ? 'A key is set.'
+                : 'No key set - Buddy cannot chat yet.'}
+          </p>
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder={
+              hasKey
+                ? 'Enter a new key to replace the current one'
+                : KEY_HINTS[provider].placeholder
+            }
+            value={keyDraft}
+            onChange={(e) => setKeyDraft(e.target.value)}
+            style={{ width: 420 }}
+          />{' '}
+          <button onClick={() => saveKey(keyDraft)} disabled={!keyDraft.trim()}>
+            Save key
+          </button>{' '}
+          {hasKey && <button onClick={() => saveKey('')}>Remove key</button>}
+          {status && <p>{status}</p>}
+          <h3>Model</h3>
+          {/* aria-label, not a wrapping <label>: a select's accessible name taken from
           a wrapping label swallows every <option>'s text, which is useless to a
           screen reader and impossible to select in a test. */}
-      <select
-        aria-label="Model"
-        value={buddy.model}
-        onChange={(e) => save({ buddy: { ...buddy, model: e.target.value } })}
-      >
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label}
-          </option>
-        ))}
-      </select>
+          <select
+            aria-label="Model"
+            value={buddy.model}
+            onChange={(e) => save({ buddy: { ...buddy, model: e.target.value } })}
+          >
+            {models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
+      <ChatGptConnection />
       <h3>On the Home screen</h3>
       <label>
         When she taps Buddy{' '}

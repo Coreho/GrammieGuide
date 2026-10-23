@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import { getConfig } from '../config/store'
 import { buddyChat } from '../services/ai/buddyChatService'
+import { chatGptBuddyReply } from '../services/chatgpt/buddyAdapter'
 import { getBuddyChatClient } from '../services/ai/buddyChatClient'
 import { logActivity } from '../services/activityLog/activityLog'
 import { createTtsService } from '../services/speech/ttsService'
@@ -73,7 +74,13 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       apiKey,
       provider,
       model,
-      client: chatEnabled && apiKey ? getBuddyChatClient(provider, apiKey) : null,
+      client:
+        provider !== 'chatgpt' && chatEnabled && apiKey
+          ? getBuddyChatClient(provider, apiKey)
+          : null,
+      ...(provider === 'chatgpt'
+        ? { generate: (messages) => chatGptBuddyReply(model, messages) }
+        : {}),
       log: logActivity,
       personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
       contactButton: () => {

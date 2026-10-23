@@ -23,12 +23,15 @@ export function registerAdminIpc(): void {
   ipcMain.handle('admin:isUnlocked', () => isAdminUnlocked())
   ipcMain.handle('admin:hasApiKey', (_e, req: { provider?: unknown }) => {
     requireAdminUnlocked()
+    if (req?.provider === 'chatgpt') return false
     const provider = req?.provider === 'openrouter' ? 'openrouter' : 'anthropic'
     const { anthropicApiKey, openrouterApiKey } = getConfig().buddy
     return Boolean(provider === 'openrouter' ? openrouterApiKey : anthropicApiKey)
   })
   ipcMain.handle('admin:setApiKey', (_e, req: { provider?: unknown; apiKey?: unknown }) => {
     requireAdminUnlocked()
+    if (req?.provider === 'chatgpt')
+      throw new Error('Use Continue with ChatGPT instead of an API key.')
     // An unknown provider falls back to Anthropic rather than writing to neither
     // key, so a malformed call can't leave the caregiver with no way in.
     const provider = req?.provider === 'openrouter' ? 'openrouter' : 'anthropic'
@@ -37,13 +40,10 @@ export function registerAdminIpc(): void {
     setConfig({
       buddy: {
         ...buddy,
-        [provider === 'openrouter' ? 'openrouterApiKey' : 'anthropicApiKey']:
-          apiKey || undefined
+        [provider === 'openrouter' ? 'openrouterApiKey' : 'anthropicApiKey']: apiKey || undefined
       }
     })
-    logActivity(
-      apiKey ? `buddy-api-key-set-${provider}` : `buddy-api-key-cleared-${provider}`
-    )
+    logActivity(apiKey ? `buddy-api-key-set-${provider}` : `buddy-api-key-cleared-${provider}`)
     return { ok: true }
   })
 

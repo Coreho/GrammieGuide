@@ -23,6 +23,7 @@ import { logActivity } from './services/activityLog/activityLog'
 import { startContactRequests, stopContactRequests } from './services/contacts/contactRuntime'
 import { getContactRequests } from './services/contacts/contactRuntime'
 import { createContactFixture } from './services/contacts/contactFixture'
+import { getChatGptFixture } from './services/chatgpt/runtime'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
 import { installAdminMicrophonePermissions } from './services/photos/adminMicrophone'
 import {
@@ -125,6 +126,12 @@ app.whenReady().then(() => {
   if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
     ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
       createAdminWindow,
+      chatGptFixture: async (action: 'complete' | 'fail' | 'recover') => {
+        const fixture = getChatGptFixture()
+        if (!fixture) throw new Error('ChatGPT fixture is not enabled')
+        if (action === 'complete') await fixture.completeAuthorization()
+        else fixture.fail(action === 'fail')
+      },
       contactFixture: contactFixture
         ? {
             count: contactFixture.count,

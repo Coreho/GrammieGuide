@@ -1,5 +1,6 @@
 import { registerConfigIpc } from './configIpc'
 import { registerAdminIpc } from './adminIpc'
+import { registerChatGptIpc } from './chatGptIpc'
 import { registerReliabilityIpc } from './reliabilityIpc'
 import { registerActivityIpc } from './activityIpc'
 import { registerWeatherIpc } from './weatherIpc'
@@ -25,6 +26,7 @@ export function registerAllIpc(): void {
   registerAudioIpc()
   registerConfigIpc()
   registerAdminIpc()
+  registerChatGptIpc()
   registerReliabilityIpc()
   registerActivityIpc()
   registerWeatherIpc()

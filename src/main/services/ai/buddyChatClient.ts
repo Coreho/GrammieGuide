@@ -23,6 +23,7 @@ let cachedKey: string | null = null
 let cachedClient: Anthropic | null = null
 
 export function getBuddyChatClient(provider: BuddyProvider, apiKey: string): Anthropic {
+  if (provider === 'chatgpt') throw new Error('ChatGPT uses its signed-in session, not an API key.')
   if (cachedClient && cachedKey === apiKey && cachedProvider === provider) return cachedClient
   cachedClient = new Anthropic({
     apiKey,

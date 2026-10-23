@@ -12,7 +12,7 @@
  * Messages format, so there is no second client and no second prompt.
  */
 
-export const BUDDY_PROVIDERS = ['anthropic', 'openrouter'] as const
+export const BUDDY_PROVIDERS = ['anthropic', 'openrouter', 'chatgpt'] as const
 export type BuddyProvider = (typeof BUDDY_PROVIDERS)[number]
 
 export const DEFAULT_BUDDY_PROVIDER: BuddyProvider = 'anthropic'
@@ -27,10 +27,14 @@ export type BuddyModelChoice = { id: string; label: string }
  * is why Haiku is labelled rather than quietly offered as equal.
  */
 const ANTHROPIC_MODELS: BuddyModelChoice[] = [
-  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 - gentlest with confused statements (recommended)' },
+  {
+    id: 'claude-sonnet-5-5',
+    label: 'Claude Sonnet 5.5 - gentlest with confused statements (recommended)'
+  },
   {
     id: 'claude-haiku-4-5',
-    label: 'Claude Haiku 4.5 - fastest, lowest cost, more likely to play along with confused statements'
+    label:
+      'Claude Haiku 4.5 - fastest, lowest cost, more likely to play along with confused statements'
   },
   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 - more thoughtful, slower' },
   { id: 'claude-opus-5', label: 'Claude Opus 5 - most capable, highest cost' }
@@ -51,18 +55,21 @@ const OPENROUTER_MODELS: BuddyModelChoice[] = [
   },
   {
     id: 'anthropic/claude-haiku-4.5',
-    label: 'Claude Haiku 4.5 via OpenRouter - cheapest, more likely to play along with confused statements'
+    label:
+      'Claude Haiku 4.5 via OpenRouter - cheapest, more likely to play along with confused statements'
   }
 ]
 
 export const BUDDY_MODELS: Record<BuddyProvider, BuddyModelChoice[]> = {
   anthropic: ANTHROPIC_MODELS,
-  openrouter: OPENROUTER_MODELS
+  openrouter: OPENROUTER_MODELS,
+  // Account-specific choices come from the signed-in model catalog.
+  chatgpt: []
 }
 
 /** The model a fresh setup uses, and the one switching to that provider lands on. */
 export function defaultModelFor(provider: BuddyProvider): string {
-  return BUDDY_MODELS[provider][0]!.id
+  return BUDDY_MODELS[provider][0]?.id ?? ''
 }
 
 export function modelsFor(provider: BuddyProvider): BuddyModelChoice[] {

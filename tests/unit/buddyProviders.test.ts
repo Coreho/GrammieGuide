@@ -26,9 +26,7 @@ describe('buddy providers', () => {
     // The documented OpenRouter base is .../api/v1 and the SDK adds /v1/messages,
     // so passing that verbatim would request /api/v1/v1/messages.
     expect(OPENROUTER_BASE_URL).toBe('https://openrouter.ai/api')
-    expect(`${OPENROUTER_BASE_URL}/v1/messages`).toBe(
-      'https://openrouter.ai/api/v1/messages'
-    )
+    expect(`${OPENROUTER_BASE_URL}/v1/messages`).toBe('https://openrouter.ai/api/v1/messages')
   })
 
   it('pins OpenRouter traffic to Anthropic and refuses fallbacks', () => {
@@ -48,6 +46,11 @@ describe('buddy providers', () => {
     // Both lists lead with Sonnet, for the reason in the task notes: Haiku plays
     // along with confused statements.
     for (const provider of BUDDY_PROVIDERS) {
+      if (provider === 'chatgpt') {
+        expect(modelsFor(provider)).toEqual([])
+        expect(defaultModelFor(provider)).toBe('')
+        continue
+      }
       expect(defaultModelFor(provider)).toBe(BUDDY_MODELS[provider][0]!.id)
       expect(defaultModelFor(provider)).toContain('sonnet')
     }

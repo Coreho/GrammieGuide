@@ -14,6 +14,7 @@ import {
   type BuddyActionResult
 } from '@shared/buddy/actions'
 import { BUDDY_ACTION_TOOLS } from './buddyActions'
+import type { PlanCompletion } from '../chatgpt/transport'
 import {
   currentFacts,
   personalContext,
@@ -97,6 +98,7 @@ export async function buddyChat(
     provider: BuddyProvider
     model: string
     client: MessagesClient | null
+    generate?: (messages: Anthropic.MessageParam[]) => Promise<PlanCompletion>
     log: (type: string, detail?: string) => void
     resolveAction?: (action: BuddyActionRequest) => Promise<BuddyActionResult>
     contactButton?: () => string | null
@@ -133,13 +135,13 @@ export async function buddyChat(
   // Her explicit request needs no model, network or key. General wording can
   // propose one of the same tools below; neither path executes model text.
   const directResult = direct && opts.resolveAction ? await opts.resolveAction(direct) : null
-  const hasChat = Boolean(opts.apiKey && opts.client)
+  const hasChat = Boolean(opts.generate || (opts.apiKey && opts.client))
   // "Show me how to make tea" names no saved tile: with chat available that is
   // conversation, not a failed request to open something.
   if (directResult && !(hasChat && !directResult.ok && directResult.unknownTile))
     return toChatResult(directResult)
 
-  if (!opts.apiKey || !opts.client) {
+  if (!hasChat) {
     return { ok: false, reason: 'no-key', reply: REPLIES.noKey }
   }
 
@@ -163,20 +165,35 @@ export async function buddyChat(
   }
 
   try {
-    const response = await opts.client.messages.create({
-      model: opts.model,
-      max_tokens: 4096,
-      system: BUDDY_SYSTEM_PROMPT,
-      messages,
-      ...(opts.resolveAction
-        ? {
-            tools: BUDDY_ACTION_TOOLS,
-            tool_choice: { type: 'auto' as const, disable_parallel_tool_use: true }
-          }
-        : {}),
-      ...(supportsEffort(opts.model) ? { output_config: { effort: 'low' as const } } : {}),
-      ...routingFor(opts.provider)
-    })
+    const response = opts.generate
+      ? null
+      : await opts.client!.messages.create({
+          model: opts.model,
+          max_tokens: 4096,
+          system: BUDDY_SYSTEM_PROMPT,
+          messages,
+          ...(opts.resolveAction
+            ? {
+                tools: BUDDY_ACTION_TOOLS,
+                tool_choice: { type: 'auto' as const, disable_parallel_tool_use: true }
+              }
+            : {}),
+          ...(supportsEffort(opts.model) ? { output_config: { effort: 'low' as const } } : {}),
+          ...routingFor(opts.provider)
+        })
+    const completion: PlanCompletion = opts.generate
+      ? await opts.generate(messages)
+      : {
+          refused: response!.stop_reason === 'refusal',
+          text: response!.content
+            .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+            .map((b) => b.text)
+            .join('')
+            .trim(),
+          tools: response!.content
+            .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
+            .map((b) => ({ name: b.name, input: b.input }))
+        }
     if (opts.contactButton && opts.contactButton() !== contactButton) {
       return {
         ok: false,
@@ -195,14 +212,12 @@ export async function buddyChat(
     ) {
       return { ok: true, reply: 'I am not sure about that. Your family can help.' }
     }
-    if (response.stop_reason === 'refusal') {
-      opts.log('buddy-chat-declined', response.stop_details?.category ?? undefined)
+    if (completion.refused) {
+      opts.log('buddy-chat-declined', response?.stop_details?.category ?? undefined)
       return { ok: false, reason: 'declined', reply: REPLIES.declined }
     }
 
-    const tools = response.content.filter(
-      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
-    )
+    const tools = completion.tools
     if (tools.length) {
       const tool = tools[0]!
       const action = tools.length === 1 ? actionFromTool(tool.name, tool.input) : null
@@ -212,13 +227,12 @@ export async function buddyChat(
       return toChatResult(await opts.resolveAction(action))
     }
 
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-      .trim()
+    const text = completion.text.trim()
     if (!text) {
-      opts.log('buddy-chat-error', `empty reply (stop_reason=${response.stop_reason})`)
+      opts.log(
+        'buddy-chat-error',
+        `empty reply (stop_reason=${response?.stop_reason ?? 'completed'})`
+      )
       return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }
     }
     return { ok: true, reply: text }

@@ -16,6 +16,15 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  chatGptState: () => invoke('chatgpt:state'),
+  chatGptConnect: (id?: string) => invoke('chatgpt:connect', { id }),
+  chatGptCancel: () => invoke('chatgpt:cancel'),
+  chatGptSelect: (id: string) => invoke('chatgpt:select', { id }),
+  chatGptModels: () => invoke('chatgpt:models'),
+  chatGptTest: (model: string) => invoke('chatgpt:test', { model }),
+  chatGptWelcome: () => invoke('chatgpt:welcome'),
+  chatGptSignOut: () => invoke('chatgpt:signOut'),
+  chatGptUsage: () => invoke('chatgpt:usage'),
   listContactRequests: () => invoke('contacts:list'),
   getContactSettings: () => invoke('contacts:getSettings'),
   saveContactSettings: (settings: IpcRequest<'contacts:saveSettings'>) =>

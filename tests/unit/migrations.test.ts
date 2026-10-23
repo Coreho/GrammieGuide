@@ -8,6 +8,28 @@ import {
 import { migrations } from '../../src/main/config/migrations'
 import { runMigrations } from '../../src/main/config/migrations/runner'
 
+describe('ChatGPT provider migration 019', () => {
+  it('versions the new provider without changing the saved provider, model or keys', () => {
+    const previous = {
+      ...defaultConfig(),
+      schemaVersion: 18,
+      buddy: {
+        ...defaultConfig().buddy,
+        provider: 'openrouter',
+        model: 'saved-model',
+        openrouterApiKey: 'keep-private'
+      }
+    }
+    const before = structuredClone(previous)
+    const result = runMigrations(previous)
+    expect(CURRENT_SCHEMA_VERSION).toBe(19)
+    expect(result.ok).toBe(true)
+    expect(result.config.buddy).toEqual(previous.buddy)
+    expect(previous).toEqual(before)
+    expect(runMigrations(result.config).config).toEqual(result.config)
+  })
+})
+
 describe('Buddy chat setting and migration 007', () => {
   it('enables chat by default and rejects non-boolean settings', () => {
     expect(defaultConfig().buddy).toHaveProperty('chatEnabled', true)

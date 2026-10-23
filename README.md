@@ -10,6 +10,8 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Status
 
+- **Optional ChatGPT plan provider (TASK-60)** - admin → Buddy can connect a ChatGPT account, discover its models and require a completed test reply before switching Buddy. Tokens stay encrypted in main; existing providers remain available. Automated checks pass; owner sign-in, a real completed reply and response-quality evaluation remain pending. See [setup and checks](docs/buddy-chatgpt.md).
+
 - **Ask family to call (TASK-22 / TASK-33)** - admin → Contacts sets a preferred person, optional fallback, photos, SMS numbers, request timing and write-only Twilio credentials. Home has a fixed **Ask {name} to call** button and truthful delivery, YES, fallback and failure states. Repeated taps reuse saved requests; Buddy points her to the button when she seems upset. Live SMS proof and real-kiosk verification remain outstanding. See [setup and checks](docs/contact-requests.md).
 
 - **Reader mode and personal facts** - News feed stories open as readable clay articles, with Show page/Show article and full-article Read aloud. Ordinary article pages can use the reader too. Admin → Buddy now saves caregiver-approved personal facts and dated plans; cancelled/expired plans are excluded, and changes take effect during an ongoing chat. See [details and checks](docs/video-reader-and-buddy-facts.md).
@@ -86,11 +88,11 @@ Buddy is the cat in sunglasses at the bottom right of Home.
 - **Ask Buddy to do something:** chat has large **Play my music**, **Show my pictures** and **Go Home** buttons. The same direct requests work when typed or spoken, even offline without an AI key. Music uses the first saved playlist with an available song; pictures use the approved photo library, even without a Photos tile. General wording can ask the chat provider to propose only these same three actions. Main validates the proposal, and any premature success text is discarded. Music is confirmed only after local playback starts; unavailable media gets a kind setup message. The model cannot open arbitrary pages, files or other actions.
 - **Command Buddy** (admin, Buddy tab): play any of his 24 animation clips, ask him to take a walk, send a short message with a gesture and optional read-aloud, and save/remove quick messages. Commands work in every motion mode on Home, including at night, and are ignored while she is chatting. Each gesture plays once, with a 20-second recovery timeout. Read-aloud uses the existing online voice with Windows fallback. Message content is never written to the activity log.
 
-
 Buddy fills his floor and stays on screen whatever the screen size. The Stage is a
 fixed 1440x900 design scaled to fit, so his canvas measures its own layout size
 rather than the scaled box - otherwise the scale would be applied twice and he would
 roam only part of his floor, float, and drift out of reach at the ends.
+
 ### Rebuilding his model
 
 The model (`src/renderer/launcher/src/buddy/assets/buddy.glb`) is generated. The inputs are Meshy downloads in `CatModel/meshy/` (gitignored, ~390 MB, not in the repo): the auto-rigged cat plus library animations bought with `meshy animate create`. `sh scripts/blender/buildBuddy.sh` (Blender 5.2, ~70s) fixes the rig for his shape and bakes every clip into the GLB. See `CLAUDE.md` ("Buddy's model") for what the fix does and how to add a clip.
