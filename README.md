@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-20_
+_Last updated: 2026-10-23_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -9,6 +9,8 @@ This is a **separate repo from `grandmas-launcher`**, which keeps running untouc
 Full rewrite plan (context, decisions, architecture, milestones): see the plan document from the planning session (`i-kinda-wanna-overhaul-moonlit-prism.md`).
 
 ## Status
+
+- **Family callback tracking foundation (TASK-33)** - main now has saved request states, restart recovery, duplicate prevention, expiry, fallback and distinct delivery/YES acknowledgement tracking, plus redacted admin history access. The Home contact button and credential setup remain TASK-22; live SMS verification remains TASK-17. See [integration and verification](docs/contact-requests.md).
 
 - **Reader mode and personal facts** - News feed stories open as readable clay articles, with Show page/Show article and full-article Read aloud. Ordinary article pages can use the reader too. Admin → Buddy now saves caregiver-approved personal facts and dated plans; cancelled/expired plans are excluded, and changes take effect during an ongoing chat. See [details and checks](docs/video-reader-and-buddy-facts.md).
 - **Large YouTube controls** - supported individual video pages offer Play/Pause, Back 10 seconds and video expansion below the familiar Home/Back navigation. Missing players hide the controls. Real-kiosk verification remains; see the [checklist](docs/video-reader-and-buddy-facts.md).
