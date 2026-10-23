@@ -6,6 +6,7 @@ import {
   type BuddyProvider
 } from '@shared/buddy/providers'
 import { BUDDY_SYSTEM_PROMPT } from './buddyPrompt'
+import { directContactGuidance, contactGuidanceContext } from '@shared/buddy/contactGuidance'
 import {
   actionFromTool,
   explicitBuddyAction,
@@ -98,6 +99,7 @@ export async function buddyChat(
     client: MessagesClient | null
     log: (type: string, detail?: string) => void
     resolveAction?: (action: BuddyActionRequest) => Promise<BuddyActionResult>
+    contactButton?: () => string | null
     personal?: {
       facts: () => PersonalFact[]
       history: PersonalHistory
@@ -111,6 +113,12 @@ export async function buddyChat(
   }
 
   const last = turns.at(-1)
+  const contactButton = opts.contactButton?.() ?? null
+  const contactReply =
+    last?.role === 'user' && typeof last.text === 'string'
+      ? directContactGuidance(last.text, contactButton)
+      : null
+  if (contactReply) return { ok: true, reply: contactReply }
   const direct =
     last?.role === 'user' && typeof last.text === 'string' ? explicitBuddyAction(last.text) : null
   const toChatResult = (result: BuddyActionResult): BuddyChatResult =>
@@ -149,6 +157,10 @@ export async function buddyChat(
     const latest = messages.at(-1)!
     latest.content = `${personalContext(facts, now, timeZone)}\n\nHer message:\n${latest.content as string}`
   }
+  if (opts.contactButton) {
+    const latest = messages.at(-1)!
+    latest.content = `${contactGuidanceContext(contactButton)}\n\n${latest.content as string}`
+  }
 
   try {
     const response = await opts.client.messages.create({
@@ -165,6 +177,13 @@ export async function buddyChat(
       ...(supportsEffort(opts.model) ? { output_config: { effort: 'low' as const } } : {}),
       ...routingFor(opts.provider)
     })
+    if (opts.contactButton && opts.contactButton() !== contactButton) {
+      return {
+        ok: false,
+        reason: 'unavailable',
+        reply: "I'm here with you. You can tell someone nearby if you need help."
+      }
+    }
 
     // A caregiver may cancel a visit while Buddy is thinking, or local midnight
     // may pass. Never release text/tools generated against that stale context.

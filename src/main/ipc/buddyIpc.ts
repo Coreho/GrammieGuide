@@ -76,6 +76,12 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       client: chatEnabled && apiKey ? getBuddyChatClient(provider, apiKey) : null,
       log: logActivity,
       personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
+      contactButton: () => {
+        const contacts = getConfig().contacts
+        return contacts.enabled && contacts.preferred
+          ? `Ask ${contacts.preferred.name} to call`
+          : null
+      },
       resolveAction
     })
     // Log that a conversation happened, never what was said - the activity
