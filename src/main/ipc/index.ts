@@ -13,6 +13,7 @@ import { registerAudioIpc } from './audioIpc'
 import { registerBackupIpc } from './backupIpc'
 import { registerNarrationIpc } from './narrationIpc'
 import { registerChecksIpc } from './checksIpc'
+import { registerContactIpc } from './contactIpc'
 
 /**
  * Composes every IPC domain into one registration call. Replaces the old
@@ -20,6 +21,7 @@ import { registerChecksIpc } from './checksIpc'
  * each domain gets its own module here instead.
  */
 export function registerAllIpc(): void {
+  registerContactIpc()
   registerAudioIpc()
   registerConfigIpc()
   registerAdminIpc()

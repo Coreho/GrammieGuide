@@ -16,6 +16,7 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  listContactRequests: () => invoke('contacts:list'),
   recordNarration: (request: IpcRequest<'photos:recordNarration'>) =>
     invoke('photos:recordNarration', request),
   attachNarration: (id: string) => invoke('photos:attachNarration', { id }),

@@ -22,6 +22,7 @@ import type {
   VoiceStart
 } from './checks/caregiverChecks'
 import type { BuiltinGameKey } from './games/gamesSchema'
+import type { ContactRequestSummary } from './contacts'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -113,6 +114,7 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'contacts:list': { request: void; response: ContactRequestSummary[] }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }
     response: Photo['narration'] | null

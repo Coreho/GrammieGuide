@@ -20,6 +20,7 @@ import {
   setVideoFixtureForTests
 } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
+import { startContactRequests, stopContactRequests } from './services/contacts/contactRuntime'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
 import { installAdminMicrophonePermissions } from './services/photos/adminMicrophone'
 import {
@@ -91,6 +92,7 @@ function startInactivityWatch(): void {
 
 app.whenReady().then(() => {
   loadConfig()
+  startContactRequests(app.getPath('userData'))
   registerAllIpc()
   installMediaProtocol()
   installAdminMicrophonePermissions()
@@ -125,6 +127,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  stopContactRequests()
   stopHeartbeat()
   stopKioskServices()
   stopAdBlocker()
