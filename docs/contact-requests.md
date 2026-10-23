@@ -1,25 +1,51 @@
-# Saved family callback requests (TASK-33)
+# Family callback requests (TASK-22 and TASK-33)
 
-This is the main-process foundation for the family callback flow. There is no
-Home contact button or credential setup yet (TASK-22), no status dashboard UI
-(TASK-25), and no caregiver SMS test panel (TASK-54). TASK-17's live delivery/YES
-proof remains outstanding. No live messages were sent while implementing this.
+Home offers **Ask {name} to call** in its reserved footer space when enabled.
+The button shows the preferred person's library photo, with a phone icon if the
+photo is missing. It opens a calm status screen with Back to Home and, while
+music is playing, Stop music. Closing this screen does not cancel or resend a
+request. Contact taps bypass confusion detection; an open status screen prevents
+idle dimming. Both Home layouts and all five font sizes retain the same footprint.
+
+In **admin → Contacts**, set a familiar name (up to 12 characters), international
+SMS number, optional library photo, and optional distinct fallback person. Choose
+the fallback wait (1–30 minutes) and request expiry (2–60 minutes, longer than
+the fallback wait). Enable the Home button and save. Contact setup is off by
+default; migration 018 preserves existing settings and secrets.
+
+Under **SMS credentials**, enter a Twilio Account SID, API key SID/secret, sender
+number and optional Messaging Service SID. Use a registered SMS sender that can
+receive replies. Saved provider values are write-only and never read back to a
+renderer. Contact numbers are returned only to the unlocked caregiver window;
+public config and Home never receive them. Dedicated channels enforce both the
+unlock and the caregiver main-frame identity. Saving setup or credentials sends
+no text and does not verify the account or sender. Contact settings and provider
+credentials cannot change until any active real/test request guard expires.
+
+TASK-17's real delivery/YES proof remains outstanding. No live messages were
+sent during this work. Run that proof with the registered sender before enabling
+this for daily use; also check the photo, text, touch targets and fallback on her
+actual kiosk. The request does not place a live call or guarantee someone will
+call. Keep her real telephone available. TASK-25 owns the dashboard UI and
+TASK-54 owns the separate caregiver test-request panel.
 
 `startContactRequests(userData, getTwilioConfig)` creates one service, recovers
-saved work and polls every ten seconds without delaying Home. The current
-bootstrap uses the default unconfigured getter, so no network SMS operation can
-succeed until TASK-22 supplies the credential source. That task should pass a
-main-only getter returning Account SID, API key SID/secret and sender, optionally
-a Messaging Service SID. Keep credentials in that task's dedicated secret
-storage; never add them to public config or the request journal.
+saved work and polls every ten seconds without delaying Home. Bootstrap supplies
+a main-only getter for saved credentials. Like Buddy's API key, these live in
+the main config file, are removed by `toPublicConfig`, and are never included in
+the request journal or settings backups. There is no claim of encrypted-at-rest
+credential storage. Home polls redacted status sequentially once per second.
 
 Main-process callers use `getContactRequests().request(options)`. Options contain
 the purpose (`real` or `test`), one preferred contact and an optional distinct
 fallback (stable IDs and E.164 numbers), expiry of 1 minute to 24 hours, and a
-fallback wait of at least one second and less than expiry. TASK-22 must validate
-the caregiver's settings, enforce the caller's authorization, and derive these
-options from saved configuration rather than accepting phone numbers from Home.
-There is deliberately no renderer send channel in this task.
+fallback wait of at least one second and less than expiry. `ContactController`
+derives these options only from validated saved settings. `contacts:request`
+accepts no request payload and is limited to the launcher's main frame.
+`contacts:home` returns only display metadata and redacted status. Names and
+photo IDs are captured with each send so historical requests retain their actual
+contact identity. Buddy points explicit distress statements to the configured
+Home button, even without an AI key; chat has no ability to send a request.
 
 ## Status and retry rules
 
@@ -60,9 +86,12 @@ The kiosk clock must be correct for expiry and timestamp checks.
 
 `userData/contact-requests.json` retains the latest 1,000 requests. New requests
 may evict only old requests whose tap guards have expired. The file contains
-contact-number snapshots, provider IDs, statuses and timestamps, but no SMS text
+contact-number/name/photo snapshots, provider IDs, statuses and timestamps, but no SMS text
 or credentials. It stays outside general settings backups. Invalid or oversized
 history is not reset to empty; that could produce duplicate family notifications.
+Contact setup is also excluded from settings backups. Restore preserves the
+device's entire existing contact setup rather than pairing an imported name
+with an unrelated saved number. Configure it separately on another computer.
 
 `contacts:list`, exposed as `window.admin.listContactRequests()`, requires the
 main-process admin unlock. It returns redacted summaries with request/contact
@@ -86,7 +115,12 @@ representing a lost submission, verifies recovery to unknown without a second
 attempt, and exercises the real preload/IPC caregiver gate and private summaries.
 The wrong-phone acknowledgement condition was inverted temporarily; the stale
 and wrong-number reply test failed as expected, then the source was restored.
+TASK-22 added settings/controller/IPC/message/Buddy unit checks and
+`tests/e2e/contact-family.spec.ts`, covering real caregiver setup with fake SMS,
+photo selection/removal, all font sizes/layouts, repeated taps, Home reload,
+delivery vs YES, fallback, a late preferred YES, failure, expiry and a wide name.
+A temporary phone-redaction mutation was caught by the privacy test and restored.
 
 Run `npm test`, `npm run build`, `npm run lint`, and then
-`npx playwright test tests/e2e/contact-requests.spec.ts`. These checks do not replace
+`npx playwright test tests/e2e/contact-family.spec.ts tests/e2e/contact-requests.spec.ts tests/e2e/home-preview.spec.ts`. These checks do not replace
 TASK-17's live channel proof or TASK-54's eventual caregiver test.
