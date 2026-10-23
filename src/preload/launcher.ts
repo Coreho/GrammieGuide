@@ -19,6 +19,8 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 }
 
 const launcherApi = {
+  getContact: () => invoke('contacts:home'),
+  requestCallback: () => invoke('contacts:request'),
   getAudio: () => invoke('audio:get'),
   buddyAction: (action: IpcRequest<'buddy:action'>) => invoke('buddy:action', action),
   resetAudioOwner: () => invoke('audio:resetOwner'),

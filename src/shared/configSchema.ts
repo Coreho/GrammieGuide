@@ -10,13 +10,19 @@ import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
 import { newsSourceSchema } from './news/sources'
 import { personalFactsSchema } from './buddy/personalFacts'
+import {
+  contactConfigSchema,
+  defaultContactSetup,
+  publicContacts,
+  type PublicContacts
+} from './contactSettings'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 17
+export const CURRENT_SCHEMA_VERSION = 18
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music', 'games'] as const
@@ -167,7 +173,8 @@ export const configSchema = z.object({
   }),
   games: gamesConfigSchema.default(defaultGamesConfig()),
   display: displayConfigSchema,
-  reliability: reliabilityConfigSchema
+  reliability: reliabilityConfigSchema,
+  contacts: contactConfigSchema.default(defaultContactSetup())
 })
 
 export type Config = z.infer<typeof configSchema>
@@ -179,7 +186,8 @@ export type Tile = z.infer<typeof tileSchema>
  * caregiver can *set* the API key/PIN but the app never reads it back to
  * any renderer afterward.
  */
-export type PublicConfig = Omit<Config, 'buddy' | 'reliability'> & {
+export type PublicConfig = Omit<Config, 'buddy' | 'reliability' | 'contacts'> & {
+  contacts: PublicContacts
   buddy: Omit<Config['buddy'], 'anthropicApiKey' | 'openrouterApiKey'>
   reliability: Omit<Config['reliability'], 'adminPinHash' | 'adminPinSalt'>
 }
@@ -187,7 +195,12 @@ export type PublicConfig = Omit<Config, 'buddy' | 'reliability'> & {
 export function toPublicConfig(cfg: Config): PublicConfig {
   const { anthropicApiKey: _key, openrouterApiKey: _orKey, ...publicBuddy } = cfg.buddy
   const { adminPinHash: _hash, adminPinSalt: _salt, ...publicReliability } = cfg.reliability
-  return { ...cfg, buddy: publicBuddy, reliability: publicReliability }
+  return {
+    ...cfg,
+    buddy: publicBuddy,
+    reliability: publicReliability,
+    contacts: publicContacts(cfg.contacts)
+  }
 }
 
 /**
@@ -198,8 +211,15 @@ export function toPublicConfig(cfg: Config): PublicConfig {
  * the PIN hash/salt under reliability). Secrets always come from `current`;
  * they only change via their own dedicated admin:* channels.
  */
-export function mergeAdminPatch(current: Config, patch: Partial<Config>): Partial<Config> {
-  const merged: Partial<Config> = { ...patch }
+export function mergeAdminPatch(
+  current: Config,
+  patch: Partial<Config> | Partial<PublicConfig>
+): Partial<Config> {
+  const { contacts: _contactPatch, ...rest } = patch
+  const merged: Partial<Config> = { ...rest }
+  // Contact setup has its own gated writer. In particular a settings restore
+  // must never relabel a preserved phone number with an imported person's name.
+  if ('contacts' in patch) merged.contacts = current.contacts
   if (patch.buddy) {
     merged.buddy = {
       ...patch.buddy,

@@ -21,6 +21,8 @@ import {
 } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
 import { startContactRequests, stopContactRequests } from './services/contacts/contactRuntime'
+import { getContactRequests } from './services/contacts/contactRuntime'
+import { createContactFixture } from './services/contacts/contactFixture'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
 import { installAdminMicrophonePermissions } from './services/photos/adminMicrophone'
 import {
@@ -92,7 +94,14 @@ function startInactivityWatch(): void {
 
 app.whenReady().then(() => {
   loadConfig()
-  startContactRequests(app.getPath('userData'))
+  const contactFixture =
+    process.env['GRAMMIEGUIDE_E2E'] === '1' ? createContactFixture() : undefined
+  startContactRequests(
+    app.getPath('userData'),
+    () => getConfig().contacts.credentials ?? null,
+    contactFixture?.channel,
+    contactFixture?.now
+  )
   registerAllIpc()
   installMediaProtocol()
   installAdminMicrophonePermissions()
@@ -116,6 +125,24 @@ app.whenReady().then(() => {
   if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
     ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
       createAdminWindow,
+      contactFixture: contactFixture
+        ? {
+            count: contactFixture.count,
+            update: async (action: {
+              delivery?: 'pending' | 'delivered' | 'failed'
+              advance?: number
+              reply?: string
+              failSubmission?: boolean
+            }) => {
+              if (action.delivery) contactFixture.delivery(action.delivery)
+              if (action.advance) contactFixture.advance(action.advance)
+              if (action.reply) contactFixture.reply(action.reply)
+              if (action.failSubmission !== undefined)
+                contactFixture.failSubmission(action.failSubmission)
+              await getContactRequests().poll()
+            }
+          }
+        : undefined,
       setVideoFixtureForTests,
       closeBrowserIfIdle,
       setDeviceOnline: (online: boolean) => overrideOnlineCheckForTests(() => online),

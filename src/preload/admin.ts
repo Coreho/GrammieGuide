@@ -17,6 +17,11 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 
 const adminApi = {
   listContactRequests: () => invoke('contacts:list'),
+  getContactSettings: () => invoke('contacts:getSettings'),
+  saveContactSettings: (settings: IpcRequest<'contacts:saveSettings'>) =>
+    invoke('contacts:saveSettings', settings),
+  setContactCredentials: (credentials: IpcRequest<'admin:setContactCredentials'>) =>
+    invoke('admin:setContactCredentials', credentials),
   recordNarration: (request: IpcRequest<'photos:recordNarration'>) =>
     invoke('photos:recordNarration', request),
   attachNarration: (id: string) => invoke('photos:attachNarration', { id }),

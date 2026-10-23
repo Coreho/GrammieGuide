@@ -63,7 +63,7 @@ describe('settings backups', () => {
   it('never exports API keys, PIN credentials or unsupported contact channel tokens', () => {
     const source = {
       ...setup(),
-      contacts: [{ channelToken: 'contact-secret' }],
+      contacts: { ...setup().contacts, channelToken: 'contact-secret' },
       buddy: { ...setup().buddy, channelToken: 'nested-secret' }
     }
     const text = buildConfigBackup(source)

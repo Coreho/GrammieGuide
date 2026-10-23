@@ -8,7 +8,12 @@ const timestamp = z.number().int().nonnegative().safe()
 const id = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/)
 const phone = z.string().regex(/^\+[1-9]\d{7,14}$/)
 const status = z.enum(['sending', 'delivered', 'answered', 'failed', 'expired', 'unknown'])
-const contact = z.object({ id, phone })
+const contact = z.object({
+  id,
+  phone,
+  name: z.string().trim().min(1).max(20).optional(),
+  photoId: z.string().uuid().optional()
+})
 const attempt = contact.extend({
   startedAt: timestamp,
   status,

@@ -20,13 +20,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Validate to allow only schema fields, then strip the known device secrets. */
 export function buildConfigBackup(config: Config): string {
+  const { contacts: _contacts, ...portable } = toPublicConfig(configSchema.parse(config))
   return JSON.stringify(
     {
       format: FORMAT,
       backupVersion: BACKUP_VERSION,
       notice:
-        'Photo and music files are not included. Import them separately on another device. Device secrets are not included.',
-      config: toPublicConfig(configSchema.parse(config))
+        'Photo and music files are not included. Contact setup and device secrets are not included. Import media and configure contacts separately on another device.',
+      config: portable
     },
     null,
     2
@@ -63,7 +64,9 @@ export function parseConfigBackup(text: string, current: Config): Config {
     throw new ConfigBackupError(INVALID)
   }
   if (config.schemaVersion > CURRENT_SCHEMA_VERSION) throw new ConfigBackupError(NEWER)
-  const migrated = runMigrations(config)
+  // Contact names and their private numbers are one identity. A public backup
+  // contains no numbers, so restore leaves the device's entire contact setup intact.
+  const migrated = runMigrations({ ...config, contacts: current.contacts })
   if (!migrated.ok) throw new ConfigBackupError(INVALID)
   // Ignore incoming credentials (including ones added to a hand-edited file).
   return configSchema.parse(mergeAdminPatch(current, toPublicConfig(migrated.config)))

@@ -3,6 +3,8 @@ import type { ContactPurpose, ContactRequestSummary, ContactStatus } from '@shar
 export interface Contact {
   id: string
   phone: string
+  name?: string
+  photoId?: string
 }
 export interface ContactAttempt extends Contact {
   startedAt: number
@@ -63,8 +65,11 @@ export function summarize(request: SavedRequest): ContactRequestSummary {
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
     expiresAt: request.expiresAt,
+    fallbackAfterMs: request.fallbackAfterMs,
     attempts: request.attempts.map((attempt) => ({
       contactId: attempt.id,
+      ...(attempt.name ? { name: attempt.name } : {}),
+      ...(attempt.photoId ? { photoId: attempt.photoId } : {}),
       startedAt: attempt.startedAt,
       status: attempt.status,
       ...(attempt.deliveredAt === undefined ? {} : { deliveredAt: attempt.deliveredAt }),

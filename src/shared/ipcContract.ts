@@ -22,7 +22,8 @@ import type {
   VoiceStart
 } from './checks/caregiverChecks'
 import type { BuiltinGameKey } from './games/gamesSchema'
-import type { ContactRequestSummary } from './contacts'
+import type { ContactRequestSummary, HomeContactState } from './contacts'
+import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -115,6 +116,11 @@ export type OldLauncherImportPreview =
 
 export interface IpcApi {
   'contacts:list': { request: void; response: ContactRequestSummary[] }
+  'contacts:home': { request: void; response: HomeContactState }
+  'contacts:request': { request: void; response: HomeContactState }
+  'contacts:getSettings': { request: void; response: AdminContactSetup }
+  'contacts:saveSettings': { request: ContactSetup; response: AdminContactSetup }
+  'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }
     response: Photo['narration'] | null
