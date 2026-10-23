@@ -3,10 +3,12 @@ import type { Photo } from '@shared/media/photoTypes'
 
 export function TilePhotoPicker({
   photoId,
-  onChange
+  onChange,
+  label = 'Tile photo'
 }: {
   photoId?: string
   onChange: (id: string | undefined) => void
+  label?: string
 }) {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [status, setStatus] = useState('Loading photos…')
@@ -24,7 +26,7 @@ export function TilePhotoPicker({
         () => {
           if (!live || sequence !== request) return
           setPhotos([])
-          setStatus('Could not load photos. Try opening the Tiles tab again.')
+          setStatus('Could not load photos. Try opening this panel again.')
         }
       )
     }
@@ -38,11 +40,11 @@ export function TilePhotoPicker({
 
   return (
     <fieldset>
-      <legend>Tile photo</legend>
+      <legend>{label}</legend>
       <p>Choose a family photo in place of the icon. The icon stays as a fallback.</p>
       {status && <p role="status">{status}</p>}
       {photoId && !status && !photos.some((photo) => photo.id === photoId) && (
-        <p>This photo is no longer in the library. The tile will use its icon.</p>
+        <p>This photo is no longer in the library. The icon will be shown instead.</p>
       )}
       <div
         role="group"

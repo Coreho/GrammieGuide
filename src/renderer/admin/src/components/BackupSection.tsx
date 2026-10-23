@@ -39,14 +39,14 @@ export function BackupSection() {
   return (
     <section aria-labelledby="backup-heading" style={{ marginTop: 24 }}>
       <h3 id="backup-heading">Settings backup and restore</h3>
-      <p>Save all settings and tiles to use on this or another device.</p>
+      <p>Save settings and tiles to use on this or another device.</p>
       <p>Photo and music files are not included. Import them separately on another device.</p>
       <p>
-        API keys and the caregiver PIN are not included. Restore keeps this device&apos;s secrets.
+        API keys, the caregiver PIN and contact setup are not included. Restore keeps this
+        device&apos;s secrets and contacts. Configure contacts separately on another device.
       </p>
       <p>
-        Restore replaces all current settings and tiles. Save a backup first if you want to keep
-        them.
+        Restore replaces the other settings and tiles. Save a backup first if you want to keep them.
       </p>
       <div style={{ display: 'flex', gap: 12 }}>
         <button disabled={busy} onClick={() => void run(false)}>

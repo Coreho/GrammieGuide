@@ -31,7 +31,8 @@ export function HomeView({
   onActivateTile,
   onBuddyTap,
   buddy,
-  nowPlaying
+  nowPlaying,
+  contact
 }: {
   time: string
   ampm: string
@@ -43,6 +44,7 @@ export function HomeView({
   onBuddyTap: () => void
   buddy: HomeBuddyProps
   nowPlaying?: ReactNode
+  contact?: ReactNode
 }) {
   return (
     <>
@@ -54,11 +56,9 @@ export function HomeView({
         style={{ flex: 'none', height: 150, display: 'flex', alignItems: 'flex-end', gap: 32 }}
       >
         {/* TASK-22 owns the control; reserving its footprint prevents a later Home reshuffle. */}
-        <div
-          data-home-contact-slot
-          aria-hidden="true"
-          style={{ width: 420, height: 112, flex: 'none', pointerEvents: 'none' }}
-        />
+        <div data-home-contact-slot style={{ width: 420, height: 112, flex: 'none' }}>
+          {contact}
+        </div>
         {/*
           The floor spans the Stage while the footer reserves exactly 150px.
           No text-size buttons here: the caregiver sets text size in admin's
