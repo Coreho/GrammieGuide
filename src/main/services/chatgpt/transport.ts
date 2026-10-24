@@ -36,13 +36,13 @@ export function planErrorMessage(error: unknown): string {
   if (code === 'subscription_sharing_user_not_eligible')
     return 'This ChatGPT account is not eligible for plan usage in this app.'
   if (code === 'subscription_sharing_unsupported_capability')
-    return 'ChatGPT rejected a request capability. Keep your current provider and update GrammieGuide.'
+    return 'ChatGPT rejected a request capability. Update GrammieGuide before trying again.'
   if (code === 'unauthorized') return 'ChatGPT needs you to sign in again.'
   if (code === 'forbidden')
     return 'ChatGPT did not permit this request. Check account eligibility and usage settings.'
   if (code === 'permission')
     return 'Signed in, but ChatGPT plan usage was not granted. Continue with ChatGPT to authorize plan usage.'
-  return 'ChatGPT could not complete the request. Your existing provider is still available; try again later.'
+  return 'ChatGPT could not complete the request. Try again later.'
 }
 export async function readBounded(response: Response, limit = 2_000_000): Promise<string> {
   if (!response.body) throw new PlanError('unavailable')
@@ -129,6 +129,7 @@ export async function completedResponse(response: Response): Promise<PlanComplet
   // ever releasing partial claims or actions to the renderer.
   const stream = await readBounded(response)
   let completed: unknown
+  const finishedItems = new Map<number, unknown>()
   for (const frame of stream.replace(/\r\n/g, '\n').split('\n\n')) {
     const data = frame
       .split('\n')
@@ -137,6 +138,16 @@ export async function completedResponse(response: Response): Promise<PlanComplet
       .join('\n')
     if (!data || data === '[DONE]') continue
     const event = JSON.parse(data)
+    if (event.type === 'response.output_item.done') {
+      if (
+        completed ||
+        !Number.isInteger(event.output_index) ||
+        event.output_index < 0 ||
+        finishedItems.has(event.output_index)
+      )
+        throw new PlanError('unavailable')
+      finishedItems.set(event.output_index, event.item)
+    }
     if (event.type === 'response.failed') throw new PlanError(errorCode(event.response?.error))
     if (event.type === 'error' || event.type === 'response.incomplete')
       throw new PlanError(errorCode(event))
@@ -146,6 +157,13 @@ export async function completedResponse(response: Response): Promise<PlanComplet
     }
   }
   const value = outputSchema.parse(completed)
+  // Some live plan streams omit output from the terminal response. Done items
+  // carry the canonical content, but remain provisional until response.completed.
+  if (!value.output.length && finishedItems.size) {
+    const ordered = [...finishedItems].sort(([a], [b]) => a - b)
+    if (ordered.some(([index], expected) => index !== expected)) throw new PlanError('unavailable')
+    value.output = outputSchema.shape.output.parse(ordered.map(([, item]) => item))
+  }
   const result: PlanCompletion = { text: '', tools: [], refused: false }
   for (const item of value.output) {
     if (item.type === 'message')

@@ -226,6 +226,23 @@ describe('identity and protected credentials', () => {
 })
 
 describe('plan response boundary', () => {
+  it('retains finished output items when the completed terminal event has an empty output list', async () => {
+    const item = {
+      type: 'message',
+      role: 'assistant',
+      status: 'completed',
+      content: [{ type: 'output_text', text: 'Hello from Buddy.' }]
+    }
+    const done = `data: ${JSON.stringify({ type: 'response.output_item.done', output_index: 0, item })}\n\n`
+    const terminal = event('response.completed', { status: 'completed', output: [] })
+    await expect(completedResponse(new Response(done + terminal))).resolves.toMatchObject({
+      text: 'Hello from Buddy.'
+    })
+    await expect(completedResponse(new Response(done))).rejects.toThrow()
+    await expect(
+      completedResponse(new Response(done + event('response.failed', {})))
+    ).rejects.toThrow()
+  })
   it('uses the visible account catalog in server order', () => {
     expect(catalog(models)).toEqual([{ id: 'account-model', label: 'Account Model' }])
   })
@@ -330,17 +347,15 @@ describe('renewable session and proof', () => {
   it('stops using a rotating session when encrypted persistence fails', async () => {
     const initial = structuredClone(active)
     initial.profiles[0]!.expires = Date.now() - 1
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        json({
-          access_token: 'rotated',
-          refresh_token: 'replacement',
-          token_type: 'Bearer',
-          expires_in: 3600,
-          scope: scopes
-        })
-      )
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      json({
+        access_token: 'rotated',
+        refresh_token: 'replacement',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        scope: scopes
+      })
+    )
     const session = new ChatGptSession({
       store: {
         load: () => initial,
