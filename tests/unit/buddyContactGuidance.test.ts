@@ -10,10 +10,7 @@ describe('Buddy callback guidance', () => {
     const action = vi.fn()
     const result = await buddyChat([{ role: 'user', text: 'I am scared' }], {
       chatEnabled: true,
-      apiKey: undefined,
-      provider: 'anthropic',
-      model: 'test',
-      client: null,
+
       log: vi.fn(),
       resolveAction: action,
       contactButton: () => 'Ask Sarah to call'

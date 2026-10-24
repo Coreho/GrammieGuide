@@ -57,20 +57,21 @@ test('caregiver connects, sees plan confirmation, tests a completed reply, and e
   await connection.getByRole('button', { name: 'Got it', exact: true }).click()
   await connection.getByRole('button', { name: 'Load ChatGPT models', exact: true }).click()
   await expect(
-    connection.getByRole('button', { name: 'Use ChatGPT for Buddy', exact: true })
+    connection.getByRole('button', { name: 'Use this model for Buddy', exact: true })
   ).toBeDisabled()
-  await expect(admin.getByRole('combobox', { name: 'Who answers Buddy' })).toHaveValue('anthropic')
+  expect((await admin.evaluate(() => window.admin.getConfig())).buddy.model).toBe('')
+  await expect(admin.getByRole('combobox', { name: 'Who answers Buddy' })).toHaveCount(0)
   await fixture('fail')
   await connection.getByRole('button', { name: 'Test ChatGPT reply', exact: true }).click()
   await expect(connection.getByRole('status')).toContainText('usage limit reached')
   await expect(
-    connection.getByRole('button', { name: 'Use ChatGPT for Buddy', exact: true })
+    connection.getByRole('button', { name: 'Use this model for Buddy', exact: true })
   ).toBeDisabled()
   await fixture('recover')
   await connection.getByRole('button', { name: 'Test ChatGPT reply', exact: true }).click()
   await expect(connection.getByRole('status')).toContainText('Completed reply verified')
-  await connection.getByRole('button', { name: 'Use ChatGPT for Buddy', exact: true }).click()
-  await expect(admin.getByRole('combobox', { name: 'Who answers Buddy' })).toHaveValue('chatgpt')
+  await connection.getByRole('button', { name: 'Use this model for Buddy', exact: true }).click()
+  expect((await admin.evaluate(() => window.admin.getConfig())).buddy.model).toBe('fixture-model')
   await expect(connection.getByText('Using ChatGPT plan', { exact: true })).toBeVisible()
   const home = (await app.windows()).find((page) => page !== admin)!
   const result = await home.evaluate(() =>
@@ -82,15 +83,18 @@ test('caregiver connects, sees plan confirmation, tests a completed reply, and e
   await connection.screenshot({ path: 'test-results/chatgpt-connected.png' })
 })
 
-test('sign-out clears the renewable session and switching back preserves the existing provider', async () => {
+test('sign-out clears the renewable session and no other provider or API-key controls remain', async () => {
   const connection = admin.getByRole('region', { name: 'ChatGPT connection' })
   await connection.getByRole('button', { name: 'Sign out of ChatGPT', exact: true }).click()
   await expect(connection.getByRole('status')).toContainText('authorization revoked')
   await expect(
-    connection.getByRole('button', { name: 'Use ChatGPT for Buddy', exact: true })
+    connection.getByRole('button', { name: 'Use this model for Buddy', exact: true })
   ).toHaveCount(0)
-  await admin.getByRole('combobox', { name: 'Who answers Buddy' }).selectOption('anthropic')
-  await expect(admin.getByPlaceholder('sk-ant-...')).toBeVisible()
+  await expect(admin.getByRole('button', { name: 'Save key' })).toHaveCount(0)
+  const home = (await app.windows()).find((page) => page !== admin)!
+  expect(
+    await home.evaluate(() => window.launcher.buddyChat([{ role: 'user', text: 'Hello' }]))
+  ).toMatchObject({ ok: false, reason: 'not-connected' })
   await connection.getByRole('button', { name: 'Continue with ChatGPT', exact: true }).click()
   await fixture('complete')
   await expect(connection.getByRole('status')).toContainText('Signed in')

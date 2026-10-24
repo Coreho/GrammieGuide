@@ -56,11 +56,8 @@ describe('migration 002 (Buddy voice + roaming)', () => {
     expect(result.ok).toBe(true)
     expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config.buddy).toEqual({
-      anthropicApiKey: 'sk-ant-keep-me',
-      // A config written before OpenRouter existed must come out on Anthropic,
-      // still holding its Anthropic key, with no OpenRouter key invented.
-      provider: 'anthropic',
-      model: 'claude-haiku-4-5',
+      provider: 'chatgpt',
+      model: '',
       chatEnabled: true,
       chattiness: 'low',
       cloudTtsEnabled: false,

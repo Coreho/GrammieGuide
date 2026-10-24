@@ -1,11 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk'
 import type { BuddyChatTurn, BuddyChatResult } from '@shared/ipcContract'
-import {
-  OPENROUTER_PROVIDER_PREFERENCES,
-  modelAcceptsEffort,
-  type BuddyProvider
-} from '@shared/buddy/providers'
-import { BUDDY_SYSTEM_PROMPT } from './buddyPrompt'
+import type { BuddyMessage, BuddyCompletion } from './buddyCompletion'
 import { directContactGuidance, contactGuidanceContext } from '@shared/buddy/contactGuidance'
 import {
   actionFromTool,
@@ -13,8 +7,6 @@ import {
   type BuddyActionRequest,
   type BuddyActionResult
 } from '@shared/buddy/actions'
-import { BUDDY_ACTION_TOOLS } from './buddyActions'
-import type { PlanCompletion } from '../chatgpt/transport'
 import {
   currentFacts,
   personalContext,
@@ -37,26 +29,11 @@ export const MAX_TURN_CHARS = 2000
 
 export const REPLIES = {
   disabled: "I'm happy to sit here with you.",
-  noKey: "I'd love to chat, but my talking isn't switched on yet. Your family can help set me up.",
+  notConnected:
+    "I'd love to chat, but my talking isn't switched on yet. Your family can help set me up.",
   unavailable: "I'm having a little trouble hearing you right now. Let's try again in a bit.",
   declined: "Let's talk about something else. How has your day been?"
 } as const
-
-type MessagesClient = Pick<Anthropic, 'messages'>
-
-/**
- * Extra body fields OpenRouter understands and Anthropic does not. They are
- * stripped from the type by the SDK, hence the assertion - the same trick the
- * SDK's own passthrough support needs.
- */
-type OpenRouterRouting = { provider?: unknown }
-
-/** OpenRouter's routing preference, or nothing when talking to Anthropic. */
-function routingFor(provider: BuddyProvider): OpenRouterRouting {
-  return provider === 'openrouter'
-    ? ({ provider: { ...OPENROUTER_PROVIDER_PREFERENCES } } satisfies OpenRouterRouting)
-    : {}
-}
 
 /**
  * Makes renderer-supplied history safe to send: drops blanks, caps length
@@ -64,7 +41,7 @@ function routingFor(provider: BuddyProvider): OpenRouterRouting {
  * with an assistant greeting, which the API doesn't accept as the first
  * message). Consecutive same-role turns are merged rather than rejected.
  */
-export function toApiMessages(turns: BuddyChatTurn[]): Anthropic.MessageParam[] {
+export function toApiMessages(turns: BuddyChatTurn[]): BuddyMessage[] {
   const cleaned = turns
     .filter((t) => (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string')
     .map((t) => ({ role: t.role, text: t.text.trim().slice(0, MAX_TURN_CHARS) }))
@@ -73,7 +50,7 @@ export function toApiMessages(turns: BuddyChatTurn[]): Anthropic.MessageParam[] 
 
   while (cleaned.length > 0 && cleaned[0]!.role !== 'user') cleaned.shift()
 
-  const messages: Anthropic.MessageParam[] = []
+  const messages: BuddyMessage[] = []
   for (const turn of cleaned) {
     const last = messages[messages.length - 1]
     if (last && last.role === turn.role) {
@@ -85,20 +62,11 @@ export function toApiMessages(turns: BuddyChatTurn[]): Anthropic.MessageParam[] 
   return messages
 }
 
-/** Haiku 4.5 rejects `effort`; newer models accept it and default higher than a chat needs. */
-function supportsEffort(model: string): boolean {
-  return modelAcceptsEffort(model)
-}
-
 export async function buddyChat(
   turns: BuddyChatTurn[],
   opts: {
     chatEnabled: boolean
-    apiKey: string | undefined
-    provider: BuddyProvider
-    model: string
-    client: MessagesClient | null
-    generate?: (messages: Anthropic.MessageParam[]) => Promise<PlanCompletion>
+    generate?: (messages: BuddyMessage[]) => Promise<BuddyCompletion>
     log: (type: string, detail?: string) => void
     resolveAction?: (action: BuddyActionRequest) => Promise<BuddyActionResult>
     contactButton?: () => string | null
@@ -135,14 +103,14 @@ export async function buddyChat(
   // Her explicit request needs no model, network or key. General wording can
   // propose one of the same tools below; neither path executes model text.
   const directResult = direct && opts.resolveAction ? await opts.resolveAction(direct) : null
-  const hasChat = Boolean(opts.generate || (opts.apiKey && opts.client))
+  const hasChat = Boolean(opts.generate)
   // "Show me how to make tea" names no saved tile: with chat available that is
   // conversation, not a failed request to open something.
   if (directResult && !(hasChat && !directResult.ok && directResult.unknownTile))
     return toChatResult(directResult)
 
   if (!hasChat) {
-    return { ok: false, reason: 'no-key', reply: REPLIES.noKey }
+    return { ok: false, reason: 'not-connected', reply: REPLIES.notConnected }
   }
 
   const now = opts.personal?.now?.() ?? new Date()
@@ -165,35 +133,7 @@ export async function buddyChat(
   }
 
   try {
-    const response = opts.generate
-      ? null
-      : await opts.client!.messages.create({
-          model: opts.model,
-          max_tokens: 4096,
-          system: BUDDY_SYSTEM_PROMPT,
-          messages,
-          ...(opts.resolveAction
-            ? {
-                tools: BUDDY_ACTION_TOOLS,
-                tool_choice: { type: 'auto' as const, disable_parallel_tool_use: true }
-              }
-            : {}),
-          ...(supportsEffort(opts.model) ? { output_config: { effort: 'low' as const } } : {}),
-          ...routingFor(opts.provider)
-        })
-    const completion: PlanCompletion = opts.generate
-      ? await opts.generate(messages)
-      : {
-          refused: response!.stop_reason === 'refusal',
-          text: response!.content
-            .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-            .map((b) => b.text)
-            .join('')
-            .trim(),
-          tools: response!.content
-            .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
-            .map((b) => ({ name: b.name, input: b.input }))
-        }
+    const completion = await opts.generate!(messages)
     if (opts.contactButton && opts.contactButton() !== contactButton) {
       return {
         ok: false,
@@ -213,7 +153,7 @@ export async function buddyChat(
       return { ok: true, reply: 'I am not sure about that. Your family can help.' }
     }
     if (completion.refused) {
-      opts.log('buddy-chat-declined', response?.stop_details?.category ?? undefined)
+      opts.log('buddy-chat-declined')
       return { ok: false, reason: 'declined', reply: REPLIES.declined }
     }
 
@@ -229,30 +169,13 @@ export async function buddyChat(
 
     const text = completion.text.trim()
     if (!text) {
-      opts.log(
-        'buddy-chat-error',
-        `empty reply (stop_reason=${response?.stop_reason ?? 'completed'})`
-      )
+      opts.log('buddy-chat-error', 'empty completed reply')
       return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }
     }
     return { ok: true, reply: text }
-  } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) {
-      opts.log('buddy-chat-error', 'API key rejected - re-enter it in the Buddy tab')
-    } else if (err instanceof Anthropic.NotFoundError) {
-      opts.log('buddy-chat-error', `model not found: ${opts.model}`)
-    } else if (err instanceof Anthropic.RateLimitError) {
-      opts.log('buddy-chat-error', 'rate limited')
-    } else if (err instanceof Anthropic.APIConnectionError) {
-      // Both providers share Anthropic's client, so name the one actually configured.
-      const service = opts.provider === 'openrouter' ? 'OpenRouter' : 'Anthropic'
-      opts.log('buddy-chat-error', `no connection to the ${service} API`)
-    } else if (err instanceof Anthropic.APIError) {
-      opts.log('buddy-chat-error', `API error ${err.status}`)
-    } else {
-      // Provider errors can echo tool inputs, including her requested tile name.
-      opts.log('buddy-chat-error', 'request failed')
-    }
+  } catch {
+    // Provider errors can echo private conversation or tool inputs.
+    opts.log('buddy-chat-error', 'request failed')
     return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }
   }
 }

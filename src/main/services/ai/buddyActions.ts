@@ -1,4 +1,3 @@
-import type Anthropic from '@anthropic-ai/sdk'
 import {
   ACTION_REPLIES,
   buddyActionRequestSchema,
@@ -11,7 +10,16 @@ import { isAllowedUrl } from '../browser/urlPolicy'
 import type { LibraryEntry } from '@shared/media/libraryTypes'
 import type { MediaLibrary } from '@shared/media/mediaPath'
 
-export const BUDDY_ACTION_TOOLS: Anthropic.Tool[] = [
+export const BUDDY_ACTION_TOOLS: {
+  name: string
+  description: string
+  input_schema: {
+    type: 'object'
+    properties: Record<string, unknown>
+    required?: string[]
+    additionalProperties: boolean
+  }
+}[] = [
   ...[
     ['play_my_music', 'Start her saved music.'],
     ['show_my_pictures', 'Open her approved pictures.'],

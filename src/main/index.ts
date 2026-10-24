@@ -126,11 +126,13 @@ app.whenReady().then(() => {
   if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
     ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
       createAdminWindow,
-      chatGptFixture: async (action: 'complete' | 'fail' | 'recover') => {
+      chatGptFixture: async (action: 'complete' | 'fail' | 'recover' | 'request') => {
         const fixture = getChatGptFixture()
         if (!fixture) throw new Error('ChatGPT fixture is not enabled')
+        if (action === 'request') return fixture.request()
         if (action === 'complete') await fixture.completeAuthorization()
         else fixture.fail(action === 'fail')
+        return undefined
       },
       contactFixture: contactFixture
         ? {

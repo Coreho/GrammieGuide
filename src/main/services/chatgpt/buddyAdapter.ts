@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk'
+import type { BuddyMessage } from '../ai/buddyCompletion'
 import { BUDDY_SYSTEM_PROMPT } from '../ai/buddyPrompt'
 import { BUDDY_ACTION_TOOLS } from '../ai/buddyActions'
 import { getChatGptSession } from './runtime'
@@ -6,7 +6,7 @@ import type { PlanCompletion } from './transport'
 
 export function chatGptBuddyReply(
   model: string,
-  messages: Anthropic.MessageParam[]
+  messages: BuddyMessage[]
 ): Promise<PlanCompletion> {
   // The same four narrow actions go through the existing main-process resolver.
   // No browser, shell, external URL, or general-purpose tool is exposed.

@@ -16,6 +16,7 @@ import { migration as migration016 } from './016-news-sources'
 import { migration as migration017 } from './017-buddy-personal-facts'
 import { migration as migration018 } from './018-family-contacts'
 import { migration as migration019 } from './019-chatgpt-provider'
+import { migration as migration020 } from './020-chatgpt-only'
 
 export interface Migration {
   version: number
@@ -48,5 +49,6 @@ export const migrations: Migration[] = [
   migration016,
   migration017,
   migration018,
-  migration019
+  migration019,
+  migration020
 ]

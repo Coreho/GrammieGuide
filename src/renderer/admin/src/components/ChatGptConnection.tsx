@@ -59,7 +59,7 @@ export function ChatGptConnection() {
       <h3>Use your ChatGPT plan</h3>
       <p>
         Connect your ChatGPT account to use eligible plan usage for Buddy. Plan and app limits
-        apply. ChatGPT has not yet been evaluated with Buddy&apos;s dementia-friendly prompt.
+        apply. Check that Buddy&apos;s replies are suitable for her before leaving chat switched on.
       </p>
       {state && (
         <>
@@ -159,11 +159,13 @@ export function ChatGptConnection() {
                     })
                 }}
               >
-                Use ChatGPT for Buddy
+                Use this model for Buddy
               </button>
             </>
           )}
-          {config?.buddy.provider === 'chatgpt' && <p>Using ChatGPT plan</p>}
+          {config?.buddy.model && state.verifiedModel === config.buddy.model && (
+            <p>Using ChatGPT plan</p>
+          )}
           <p>
             <button
               onClick={() =>

@@ -5,7 +5,7 @@ import type { BuddyChatTurn } from '@shared/ipcContract'
 import { getConfig } from '../config/store'
 import { buddyChat } from '../services/ai/buddyChatService'
 import { chatGptBuddyReply } from '../services/chatgpt/buddyAdapter'
-import { getBuddyChatClient } from '../services/ai/buddyChatClient'
+import { getChatGptSession } from '../services/chatgpt/runtime'
 import { logActivity } from '../services/activityLog/activityLog'
 import { createTtsService } from '../services/speech/ttsService'
 import { listenOnce, canListen } from '../services/speech/sttService'
@@ -65,22 +65,17 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
     if (_e.sender !== getLauncherWindow()?.webContents)
       return { ok: false, reason: 'unavailable', reply: ACTION_REPLIES.unavailable }
-    const { provider, anthropicApiKey, openrouterApiKey, model, chatEnabled } = getConfig().buddy
-    // Each provider keeps its own key, so switching back and forth never needs
-    // one to be re-entered.
-    const apiKey = provider === 'openrouter' ? openrouterApiKey : anthropicApiKey
+    const { model, chatEnabled } = getConfig().buddy
+    let connected = false
+    try {
+      connected =
+        chatEnabled && Boolean(model) && getChatGptSession().state().verifiedModel === model
+    } catch {
+      /* Locked or unreadable credential storage gets Buddy's calm setup reply. */
+    }
     const result = await buddyChat(Array.isArray(req?.turns) ? req.turns : [], {
       chatEnabled,
-      apiKey,
-      provider,
-      model,
-      client:
-        provider !== 'chatgpt' && chatEnabled && apiKey
-          ? getBuddyChatClient(provider, apiKey)
-          : null,
-      ...(provider === 'chatgpt'
-        ? { generate: (messages) => chatGptBuddyReply(model, messages) }
-        : {}),
+      ...(connected ? { generate: (messages) => chatGptBuddyReply(model, messages) } : {}),
       log: logActivity,
       personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
       contactButton: () => {

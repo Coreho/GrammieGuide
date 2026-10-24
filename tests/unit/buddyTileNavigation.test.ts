@@ -38,10 +38,7 @@ function setup(tiles = [tile()]): {
   const chat = (text: string): Promise<BuddyChatResult> =>
     buddyChat([{ role: 'user', text }], {
       chatEnabled: config.buddy.chatEnabled,
-      apiKey: undefined,
-      provider: 'anthropic',
-      model: 'unused',
-      client: null,
+
       log: vi.fn(),
       resolveAction
     })
@@ -183,21 +180,17 @@ describe('saved tile matching in main', () => {
     const create = vi.fn(async () => {
       config.tiles = []
       return {
-        content: [
-          { type: 'text', text: 'I opened Family News.' },
-          { type: 'tool_use', name: 'open_saved_tile', input: { name: 'Family News' } }
-        ],
-        stop_reason: 'tool_use'
+        text: 'I opened Family News.',
+        tools: [{ name: 'open_saved_tile', input: { name: 'Family News' } }],
+        refused: false
       }
     })
     const result = await buddyChat(
       [{ role: 'user', text: 'Could we look at Family News together?' }],
       {
         chatEnabled: true,
-        apiKey: 'key',
-        provider: 'anthropic',
-        model: 'unused',
-        client: { messages: { create } } as never,
+
+        generate: create,
         log,
         resolveAction
       }
@@ -208,15 +201,14 @@ describe('saved tile matching in main', () => {
   it('leaves a request that names no saved tile to chat when chat is available', async () => {
     const { resolveAction } = setup()
     const create = vi.fn(async () => ({
-      content: [{ type: 'text', text: 'First, warm the pot.' }],
-      stop_reason: 'end_turn'
+      text: 'First, warm the pot.',
+      tools: [],
+      refused: false
     }))
     const result = await buddyChat([{ role: 'user', text: 'show me how to make tea' }], {
       chatEnabled: true,
-      apiKey: 'key',
-      provider: 'anthropic',
-      model: 'unused',
-      client: { messages: { create } } as never,
+
+      generate: create,
       log: vi.fn(),
       resolveAction
     })
@@ -235,10 +227,8 @@ describe('saved tile matching in main', () => {
     const create = vi.fn()
     const result = await buddyChat([{ role: 'user', text: 'open Family News' }], {
       chatEnabled: true,
-      apiKey: 'key',
-      provider: 'anthropic',
-      model: 'unused',
-      client: { messages: { create } } as never,
+
+      generate: create,
       log: vi.fn(),
       resolveAction
     })

@@ -12,12 +12,12 @@ import { buildConfigBackup, parseConfigBackup } from '../../src/main/services/co
 describe('private contact settings', () => {
   it('migrates version 17 with contact requests off and preserves other settings', () => {
     const old = { ...defaultConfig(), schemaVersion: 17, contacts: undefined }
-    old.buddy.anthropicApiKey = 'buddy-secret'
+    old.buddy.ttsVoice = 'buddy-secret'
     const result = runMigrations(old)
     expect(result.ok).toBe(true)
     expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config.contacts.enabled).toBe(false)
-    expect(result.config.buddy.anthropicApiKey).toBe('buddy-secret')
+    expect(result.config.buddy.ttsVoice).toBe('buddy-secret')
   })
   it('strips phones and provider fields from public config and backups, and generic patches cannot change contacts', () => {
     const config = defaultConfig()

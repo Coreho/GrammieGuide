@@ -219,8 +219,8 @@ describe('config store recovery', () => {
         }
       ]
     })
-    // An admin:setApiKey-style buddy patch.
-    setConfig({ buddy: { ...getConfig().buddy, anthropicApiKey: 'sk-real' } })
+    // A saved ChatGPT model selection.
+    setConfig({ buddy: { ...getConfig().buddy, model: 'account-model' } })
     // An adminAuth setPin-style reliability patch: hash and salt together.
     setConfig({ reliability: { adminPinHash: 'hash', adminPinSalt: 'salt' } })
     // An old-launcher-import-style multi-section patch.
@@ -236,7 +236,7 @@ describe('config store recovery', () => {
     resetConfigCacheForTests()
     const reloaded = loadConfig()
     expect(reloaded.tiles).toHaveLength(1)
-    expect(reloaded.buddy.anthropicApiKey).toBe('sk-real')
+    expect(reloaded.buddy.model).toBe('account-model')
     expect(reloaded.reliability.adminPinHash).toBe('hash')
     expect(reloaded.reliability.wifiAdapterName).toBeUndefined()
     expect(reloaded.weather.units).toBe('metric')

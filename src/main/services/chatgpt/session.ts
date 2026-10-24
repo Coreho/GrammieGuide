@@ -124,7 +124,7 @@ export class ChatGptSession {
     ++this.loginGeneration
     this.pending?.cancel()
     this.pending = undefined
-    this.message = 'Sign-in cancelled. Your existing connection and Buddy provider are unchanged.'
+    this.message = 'Sign-in cancelled. Your existing ChatGPT connection is unchanged.'
   }
   async connect(clientId?: string): Promise<ChatGptState> {
     if (this.signingOut) throw new PlanError('unavailable')
@@ -139,7 +139,7 @@ export class ChatGptSession {
     }
     this.pending = attempt
     this.message =
-      'Complete sign-in in your browser. Buddy keeps its current provider until you test and select ChatGPT.'
+      'Complete sign-in in your browser, then test a reply before choosing a model for Buddy.'
     void this.finishSignIn(attempt, generation, selected)
     try {
       await this.options.open(attempt.url)

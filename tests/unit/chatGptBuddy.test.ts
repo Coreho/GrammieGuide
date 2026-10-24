@@ -6,10 +6,7 @@ import type { PlanCompletion } from '../../src/main/services/chatgpt/transport'
 describe('ChatGPT Buddy integration', () => {
   const base = {
     chatEnabled: true,
-    apiKey: undefined,
-    client: null,
-    provider: 'chatgpt' as const,
-    model: 'account-model',
+
     log: vi.fn()
   }
   it('uses sanitized full text history without an API key', async () => {

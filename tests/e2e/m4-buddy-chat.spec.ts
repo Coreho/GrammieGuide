@@ -4,18 +4,10 @@ import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-/**
- * M4 real-chat smoke test against the built app. Never needs a working
- * Anthropic key: it checks the no-key path, that the key stays write-only
- * and survives other Buddy settings being saved, and that a bad key still
- * yields a calm in-character line rather than error text.
- */
-
 let app: ElectronApplication
 let launcherPage: Page
 
 const NO_KEY_REPLY = /my talking isn't switched on yet/i
-const UNAVAILABLE_REPLY = /having a little trouble hearing you/i
 
 test.beforeAll(async () => {
   const userDataDir = mkdtempSync(join(tmpdir(), 'grammieguide-e2e-'))
@@ -40,48 +32,28 @@ async function sayToBuddy(text: string): Promise<void> {
   await launcherPage.getByRole('button', { name: 'Send' }).click()
 }
 
-test('with no API key, Buddy replies with the friendly not-set-up line', async () => {
+test('without a verified ChatGPT connection, Buddy replies with the friendly not-set-up line', async () => {
   await sayToBuddy('Hello Buddy')
   await expect(launcherPage.getByText(NO_KEY_REPLY)).toBeVisible({ timeout: 10_000 })
   await launcherPage.getByRole('button', { name: 'Close chat' }).click()
 })
 
-test('admin: API key is write-only and survives saving other Buddy settings', async () => {
-  const newWindowPromise = app.waitForEvent('window')
+test('Buddy settings expose only ChatGPT setup and no API-key or provider switcher', async () => {
+  const opened = app.waitForEvent('window')
   await app.evaluate(() => {
     ;(
       globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }
     ).__e2e__.createAdminWindow()
   })
-  const admin = await newWindowPromise
-  await admin.waitForLoadState('domcontentloaded')
-
+  const admin = await opened
   await admin.getByPlaceholder('4-8 digit PIN').fill('1357')
   await admin.getByPlaceholder('Confirm PIN').fill('1357')
-  await admin.getByRole('button', { name: 'Set PIN' }).click()
-
-  await admin.getByRole('button', { name: 'Buddy' }).click()
-  await expect(admin.getByText('No key set')).toBeVisible({ timeout: 10_000 })
-
-  await admin.getByPlaceholder('sk-ant-...').fill('sk-ant-e2e-invalid-key')
-  await admin.getByRole('button', { name: 'Save key' }).click()
-  await expect(admin.getByText('A key is set.')).toBeVisible({ timeout: 5_000 })
-
-  // Saving an unrelated Buddy setting must not wipe the key (mergeAdminPatch).
-  await admin.getByLabel('Model', { exact: true }).selectOption('claude-sonnet-5')
-  await admin.getByRole('button', { name: 'Weather' }).click()
-  await admin.getByRole('button', { name: 'Buddy' }).click()
-  await expect(admin.getByText('A key is set.')).toBeVisible({ timeout: 5_000 })
-
-  // The launcher's config never contains the key.
-  const launcherConfig = await launcherPage.evaluate(() =>
-    (window as unknown as { launcher: { getConfig: () => Promise<unknown> } }).launcher.getConfig()
-  )
-  expect(JSON.stringify(launcherConfig)).not.toContain('sk-ant-e2e-invalid-key')
-})
-
-test('a rejected key still gives her a calm reply, not an error', async () => {
-  await sayToBuddy('How are you today?')
-  await expect(launcherPage.getByText(UNAVAILABLE_REPLY)).toBeVisible({ timeout: 45_000 })
-  await expect(launcherPage.getByText(/401|error|invalid/i)).toHaveCount(0)
+  await admin.getByRole('button', { name: 'Set PIN', exact: true }).click()
+  await admin.getByRole('button', { name: 'Buddy', exact: true }).click()
+  await expect(
+    admin.getByRole('button', { name: 'Continue with ChatGPT', exact: true })
+  ).toBeVisible()
+  await expect(admin.getByRole('button', { name: 'Save key', exact: true })).toHaveCount(0)
+  await expect(admin.getByRole('combobox', { name: 'Who answers Buddy' })).toHaveCount(0)
+  await expect(admin.getByText(/Anthropic|OpenRouter|API key/i)).toHaveCount(0)
 })

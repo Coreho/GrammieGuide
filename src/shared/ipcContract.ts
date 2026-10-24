@@ -1,7 +1,6 @@
 import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
-import type { BuddyProvider } from './buddy/providers'
 import type { ChatGptState } from './buddy/chatGpt'
 import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
@@ -84,7 +83,7 @@ export type BuddyChatResult =
   | { ok: true; reply: string; action?: BuddyActionPlan }
   | {
       ok: false
-      reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'
+      reason: 'disabled' | 'not-connected' | 'unavailable' | 'declined'
       reply: string
       choices?: BuddyTileChoice[]
     }
@@ -223,13 +222,6 @@ export interface IpcApi {
   'admin:unlock': { request: { pin: string }; response: { ok: boolean; reason?: string } }
   'admin:lock': { request: void; response: void }
   'admin:isUnlocked': { request: void; response: boolean }
-  /** Provider-scoped: Anthropic and OpenRouter each keep their own key. */
-  'admin:hasApiKey': { request: { provider: BuddyProvider }; response: boolean }
-  /** Empty string clears that provider's key. Write-only: never read back to any renderer. */
-  'admin:setApiKey': {
-    request: { provider: BuddyProvider; apiKey: string }
-    response: { ok: boolean }
-  }
   'admin:previewOldLauncherImport': { request: void; response: OldLauncherImportPreview }
   'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 

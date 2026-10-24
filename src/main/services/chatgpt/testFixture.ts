@@ -6,9 +6,11 @@ export function createChatGptFixture(store: CredentialStore): {
   session: ChatGptSession
   completeAuthorization: () => Promise<void>
   fail: (enabled: boolean) => void
+  request: () => unknown
 } {
   let authorization: string | undefined
   let failure = false
+  let lastRequest: unknown
   const session = new ChatGptSession({
     store,
     open: async (url) => {
@@ -19,7 +21,7 @@ export function createChatGptFixture(store: CredentialStore): {
       sub: 'fixture-account',
       email: 'fixture@example.invalid'
     }),
-    fetch: async (url) => {
+    fetch: async (url, init) => {
       if (String(url).endsWith('/token'))
         return Response.json({
           access_token: 'fixture-access',
@@ -35,25 +37,23 @@ export function createChatGptFixture(store: CredentialStore): {
         })
       if (String(url).endsWith('/revoke')) return new Response('', { status: 200 })
       if (!String(url).endsWith('/responses')) throw new Error('Unexpected fixture endpoint')
-      const event = failure
-        ? {
-            type: 'response.failed',
-            response: { error: { code: 'subscription_sharing_usage_limit_exceeded' } }
-          }
-        : {
-            type: 'response.completed',
-            response: {
-              status: 'completed',
-              output: [
-                { type: 'message', content: [{ type: 'output_text', text: 'Hello from Buddy.' }] }
-              ]
-            }
-          }
-      return new Response(`data: ${JSON.stringify(event)}\n\n`)
+      lastRequest = JSON.parse(String(init?.body))
+      if (failure)
+        return new Response(
+          `data: ${JSON.stringify({ type: 'response.failed', response: { error: { code: 'subscription_sharing_usage_limit_exceeded' } } })}\n\n`
+        )
+      const item = {
+        type: 'message',
+        content: [{ type: 'output_text', text: 'Hello from Buddy.' }]
+      }
+      return new Response(
+        `data: ${JSON.stringify({ type: 'response.output_item.done', output_index: 0, item })}\n\ndata: ${JSON.stringify({ type: 'response.completed', response: { status: 'completed', output: [] } })}\n\n`
+      )
     }
   })
   return {
     session,
+    request: () => lastRequest,
     fail: (enabled) => {
       failure = enabled
     },
