@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-23 18:37'
-updated_date: '2026-10-23 18:59'
+updated_date: '2026-10-24 19:53'
 labels: []
 dependencies: []
 references:
@@ -42,4 +42,6 @@ The caregiver wants Buddy to use an existing ChatGPT Plus subscription. Current 
 
 <!-- SECTION:NOTES:BEGIN -->
 Implemented official loopback OAuth with PKCE/state/nonce, JWKS identity validation, separate DPAPI-encrypted atomic credential storage, saved account registrations, serialized rotating refresh, revocation and guarded completed Responses inference. Added caregiver connection/model/proof/usage/sign-out UI and optional Buddy adapter; existing providers, prompt, facts invalidation and narrow action resolver are preserved. Schema 019 versions the provider without changing existing settings. Verification: full unit suite 1235/1235 passed, then two added protocol/persistence regression cases passed in a 48-test targeted run; lint and build passed. Thirteen built-app regression checks passed; final schema/connection/backup build rerun passed three checks. Nonce-condition mutation failed as expected and was restored. Screenshot inspected; scoped Impeccable detect returned no findings. Real owner authorization, completed live model inference and dementia response-quality evaluation remain pending; TASK-60 stays In Progress and AC4 remains unchecked until the real-account proof is recorded. Instructions: docs/buddy-chatgpt.md. No production provider was switched and no credentials were requested in chat.
+
+Live check on 2026-10-24: owner's browser authorization completed and account-specific model discovery succeeded (GPT-6.1-Sol first in catalog). The real completed-reply proof did not succeed: the app returned its generic unavailable message and no verified model. Do not treat sign-in/catalog access as inference proof; AC4 remains unchecked and task stays In Progress. Existing provider/model/chat setting retained. Separately, owner's requested 40 Btcm MP3 files were imported using the running app's standard music import path; verified 41 tracks in the library including its existing song, and all 41 visible in the Music tab. Source files unchanged. Main-process file-picker substitution was restored after the authorized batch import.
 <!-- SECTION:NOTES:END -->
