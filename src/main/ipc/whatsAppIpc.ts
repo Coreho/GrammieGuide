@@ -3,12 +3,11 @@ import type { ContactPerson } from '@shared/contactSettings'
 import type { WhatsAppCallState } from '@shared/whatsAppCalls'
 import { getConfig } from '../config/store'
 import { getAdminWindow, getLauncherWindow } from '../windows/windowManager'
-import { isAdminUnlocked } from '../services/auth/adminAuth'
+import { isAdminUnlocked, onAdminLocked } from '../services/auth/adminAuth'
 import { WhatsAppController } from '../services/whatsapp/whatsAppController'
-import {
-  unverifiedWhatsAppAdapter,
-  type WhatsAppAdapter
-} from '../services/whatsapp/whatsAppAdapter'
+import type { WhatsAppAdapter } from '../services/whatsapp/whatsAppAdapter'
+import { EmbeddedWhatsAppSession } from '../services/whatsapp/whatsAppSession'
+import { createWhatsAppSessionAdapter } from '../services/whatsapp/whatsAppSessionAdapter'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 
 function requireControlWindow(event: IpcMainInvokeEvent): void {
@@ -34,16 +33,52 @@ function push(state: WhatsAppCallState): void {
 }
 
 /** No renderer can supply a URL, phone, provider token, or transport implementation. */
-export function registerWhatsAppIpc(adapter: WhatsAppAdapter = unverifiedWhatsAppAdapter()): void {
+export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
+  const setup = new EmbeddedWhatsAppSession()
+  const stopSetupUpdates = setup.subscribe(() => {
+    const admin = getAdminWindow()?.webContents
+    if (!isAdminUnlocked() || !admin || admin.isDestroyed()) return
+    try {
+      admin.send('whatsapp:setupChanged', setup.state())
+    } catch {
+      /* A reloaded panel reads state. */
+    }
+  })
   const controller = new WhatsAppController(
-    adapter,
+    adapter ?? createWhatsAppSessionAdapter(setup),
     () => {
       const { preferred, fallback } = getConfig().contacts
       return [preferred, fallback].filter((person): person is ContactPerson => person !== null)
     },
     push
   )
-  app.once('before-quit', () => controller.dispose())
+  const stopWatchingLock = onAdminLocked(() => setup.close())
+  app.once('before-quit', () => {
+    controller.dispose()
+    setup.dispose()
+    stopWatchingLock()
+    stopSetupUpdates()
+  })
+  const requireCaregiver = (event: IpcMainInvokeEvent): void => {
+    requireAdminUnlocked()
+    if (
+      event.sender !== getAdminWindow()?.webContents ||
+      event.senderFrame !== event.sender.mainFrame
+    )
+      throw new Error('Caregiver window required')
+  }
+  ipcMain.handle('whatsapp:setupState', (event) => {
+    requireCaregiver(event)
+    return setup.state()
+  })
+  ipcMain.handle('whatsapp:openSetup', (event) => {
+    requireCaregiver(event)
+    return setup.open(getAdminWindow() ?? undefined)
+  })
+  ipcMain.handle('whatsapp:closeSetup', (event) => {
+    requireCaregiver(event)
+    return setup.close()
+  })
   ipcMain.handle('whatsapp:state', (event) => {
     requireControlWindow(event)
     return controller.refresh()

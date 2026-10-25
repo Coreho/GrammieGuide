@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { WhatsAppCallState, WhatsAppCommand } from '@shared/whatsAppCalls'
+import type { WhatsAppCallState, WhatsAppCommand, WhatsAppSetupState } from '@shared/whatsAppCalls'
 
 /** One control surface for observed state; it has no authority to choose destinations or call status. */
 export function WhatsAppControls({
@@ -88,6 +88,7 @@ export function WhatsAppControls({
 
 export function WhatsAppControlsPanel() {
   const [state, setState] = useState<WhatsAppCallState | null>(null)
+  const [setup, setSetup] = useState<WhatsAppSetupState | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -97,12 +98,26 @@ export function WhatsAppControlsPanel() {
       if (live) setState(next)
     }
     const off = window.admin.onWhatsAppChanged(update)
+    const offSetup = window.admin.onWhatsAppSetupChanged((next) => {
+      if (live) setSetup(next)
+    })
+    window.admin.getWhatsAppSetup().then(
+      (next) => {
+        if (live) setSetup(next)
+      },
+      () => {
+        if (live) setMessage('WhatsApp setup could not be checked. Try Refresh status.')
+      }
+    )
     window.admin.getWhatsAppState().then(update, () => {
       if (live) setMessage('Call status could not be checked. Try Refresh status.')
     })
     return () => {
       live = false
       off()
+      offSetup()
+      // Leaving Contacts or locking admin must not leave an account setup page behind.
+      void window.admin.closeWhatsAppSetup().catch(() => {})
     }
   }, [])
 
@@ -110,9 +125,22 @@ export function WhatsAppControlsPanel() {
     setBusy(true)
     try {
       setState(await window.admin.getWhatsAppState())
+      setSetup(await window.admin.getWhatsAppSetup())
       setMessage('')
     } catch {
       setMessage('Call status could not be checked. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function changeSetup(open: boolean): Promise<void> {
+    setBusy(true)
+    setMessage('')
+    try {
+      setSetup(await (open ? window.admin.openWhatsAppSetup() : window.admin.closeWhatsAppSetup()))
+    } catch {
+      setMessage('WhatsApp setup could not be opened or closed. Try again.')
     } finally {
       setBusy(false)
     }
@@ -141,10 +169,40 @@ export function WhatsAppControlsPanel() {
     <fieldset>
       <legend>WhatsApp call controls</legend>
       <p>
-        Calls must stay inside GrammieGuide. The control interface is installed, but its WhatsApp
-        connection still needs verification. Calls are disabled until then. Linking the Windows
-        WhatsApp app does not link the in-app session.
+        Link your account here so calls can stay in GrammieGuide. This is separate from your Windows
+        WhatsApp login. Call controls stay disabled while the connection is being verified.
       </p>
+      <p role="status" aria-live="polite">
+        {setup?.phase === 'linked'
+          ? 'Signed in to WhatsApp in GrammieGuide.'
+          : setup?.phase === 'link-required'
+            ? 'Scan the code in the WhatsApp setup window with your phone.'
+            : setup?.phase === 'loading'
+              ? 'Loading WhatsApp setup…'
+              : setup?.phase === 'unavailable'
+                ? 'WhatsApp setup is unavailable. Check the connection and try again.'
+                : 'Open WhatsApp setup to check or link this account.'}
+      </p>
+      <button
+        type="button"
+        disabled={busy || setup?.open}
+        onClick={() => {
+          void changeSetup(true)
+        }}
+      >
+        Open WhatsApp setup
+      </button>
+      {setup?.open && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void changeSetup(false)
+          }}
+        >
+          Close WhatsApp setup
+        </button>
+      )}
       {state && (
         <WhatsAppControls
           state={state}

@@ -6,11 +6,34 @@ const mocks = vi.hoisted(() => ({
   isUnlocked: vi.fn(() => true),
   admin: { webContents: { mainFrame: {}, isDestroyed: () => false, send: vi.fn() } },
   home: { webContents: { mainFrame: {}, isDestroyed: () => false, send: vi.fn() } },
-  quit: vi.fn()
+  quit: vi.fn(),
+  watchLock: vi.fn(),
+  setup: {
+    state: vi.fn(() => ({ open: false, phase: 'closed' })),
+    open: vi.fn(() => ({ open: true, phase: 'loading' })),
+    close: vi.fn(() => ({ open: false, phase: 'closed' })),
+    subscribe: vi.fn(() => () => {}),
+    dispose: vi.fn()
+  }
 }))
 vi.mock('electron', () => ({ ipcMain: { handle: mocks.handle }, app: { once: mocks.quit } }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlocked }))
-vi.mock('../../src/main/services/auth/adminAuth', () => ({ isAdminUnlocked: mocks.isUnlocked }))
+vi.mock('../../src/main/services/auth/adminAuth', () => ({
+  isAdminUnlocked: mocks.isUnlocked,
+  onAdminLocked: (listener: () => void) => {
+    mocks.watchLock(listener)
+    return () => {}
+  }
+}))
+vi.mock('../../src/main/services/whatsapp/whatsAppSession', () => ({
+  EmbeddedWhatsAppSession: class {
+    state = mocks.setup.state
+    open = mocks.setup.open
+    close = mocks.setup.close
+    subscribe = mocks.setup.subscribe
+    dispose = mocks.setup.dispose
+  }
+}))
 vi.mock('../../src/main/windows/windowManager', () => ({
   getAdminWindow: () => mocks.admin,
   getLauncherWindow: () => mocks.home
@@ -33,7 +56,14 @@ describe('WhatsApp IPC boundary', () => {
     mocks.isUnlocked.mockReturnValue(true)
     registerWhatsAppIpc()
   })
-  const handler = <C extends 'whatsapp:state' | 'whatsapp:command'>(
+  const handler = <
+    C extends
+      | 'whatsapp:state'
+      | 'whatsapp:command'
+      | 'whatsapp:setupState'
+      | 'whatsapp:openSetup'
+      | 'whatsapp:closeSetup'
+  >(
     channel: C
   ): ((...args: unknown[]) => Promise<IpcResponse<C>>) =>
     mocks.handle.mock.calls.find(([name]) => name === channel)![1]
@@ -88,5 +118,33 @@ describe('WhatsApp IPC boundary', () => {
     await handler('whatsapp:state')(event())
     expect(mocks.home.webContents.send).toHaveBeenCalledWith('whatsapp:changed', expect.any(Object))
     expect(mocks.admin.webContents.send).not.toHaveBeenCalled()
+  })
+  it.each(['whatsapp:setupState', 'whatsapp:openSetup', 'whatsapp:closeSetup'] as const)(
+    'allows only the unlocked caregiver main frame to use %s',
+    async (channel) => {
+      await expect(Promise.resolve().then(() => handler(channel)(event()))).rejects.toThrow(
+        'Caregiver window required'
+      )
+      await expect(
+        Promise.resolve().then(() =>
+          handler(channel)({ ...event(mocks.admin.webContents), senderFrame: {} })
+        )
+      ).rejects.toThrow('Caregiver window required')
+      mocks.unlocked.mockImplementationOnce(() => {
+        throw new Error('admin unlock required')
+      })
+      await expect(
+        Promise.resolve().then(() => handler(channel)(event(mocks.admin.webContents)))
+      ).rejects.toThrow('admin unlock required')
+    }
+  )
+  it('opens setup only in the caregiver context and closes it immediately on lock', async () => {
+    expect(await handler('whatsapp:openSetup')(event(mocks.admin.webContents))).toEqual({
+      open: true,
+      phase: 'loading'
+    })
+    expect(mocks.setup.open).toHaveBeenCalledWith(mocks.admin)
+    mocks.watchLock.mock.calls[0]![0]()
+    expect(mocks.setup.close).toHaveBeenCalledTimes(1)
   })
 })

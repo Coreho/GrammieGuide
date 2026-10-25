@@ -16,6 +16,10 @@ export const whatsAppCommandSchema = z.discriminatedUnion('type', [
 export type WhatsAppCommand = z.infer<typeof whatsAppCommandSchema>
 export type WhatsAppAction = 'voice' | 'video' | 'answer' | 'decline' | 'end'
 export type WhatsAppConnection = 'unavailable' | 'not-linked' | 'ready' | 'disconnected'
+export interface WhatsAppSetupState {
+  open: boolean
+  phase: 'closed' | 'loading' | 'link-required' | 'linked' | 'unavailable'
+}
 export type WhatsAppPhase =
   'starting' | 'outgoing' | 'incoming' | 'connecting' | 'connected' | 'unknown'
 export interface WhatsAppContact {

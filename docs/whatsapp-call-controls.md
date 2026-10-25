@@ -3,9 +3,10 @@
 Implemented on `feat/whatsapp-controls` for TASK-62, based on the
 [REA investigation](whatsapp-integration-investigation.md).
 
-This is the control interface and caregiver panel. It is **not a working WhatsApp
-calling transport**. The production adapter reports unavailable and cannot dial,
-answer, or end a real call. No Windows-app launch, private DLL loading, credential
+This includes the control interface, caregiver panel and an embedded account-linking
+surface. It is **not yet a working WhatsApp calling transport**. The production adapter
+can report that linking is required but cannot dial, answer, or end a real call.
+No Windows-app launch, private DLL loading, credential
 copying, or guessed remote-page click automation is enabled.
 
 ## Application API
@@ -40,6 +41,31 @@ The API accepts a saved `preferred` or `fallback` contact ID. Main obtains the p
 number from saved contact settings; a renderer cannot send a phone, URI or provider
 call ID. Responses contain display identities and opaque local call IDs only.
 SMS settings and delivery/YES status remain independent.
+
+## Embedded account linking
+
+In Contacts, **Open WhatsApp setup** creates a GrammieGuide window with WhatsApp Web
+inside a sandboxed `WebContentsView`. The separate `persist:whatsapp` partition saves
+its own login under the app's user-data directory; it does not copy or reuse Windows
+WhatsApp credentials. It is created only when an unlocked caregiver opens setup.
+
+WhatsApp initially displayed an unsupported-browser page in this embedded view
+(`walink.png`, supplied by the owner). The session now removes the Electron and
+GrammieGuide product tags from its browser identity before creating remote contents,
+while preserving the actual bundled Chromium version. The owner subsequently confirmed
+that the QR appeared and linking completed with chats visible inside GrammieGuide.
+
+Only the exact `https://web.whatsapp.com` origin can navigate this view. Popups,
+downloads, screen capture, microphone and camera capture are denied during setup.
+Closing setup, leaving Contacts, locking admin, reloading the caregiver document or
+closing its window tears down the remote contents. The account storage remains saved.
+
+The admin preload exposes `getWhatsAppSetup`, `openWhatsAppSetup`,
+`closeWhatsAppSetup` and `onWhatsAppSetupChanged`. All three invoke channels require
+the unlocked caregiver main frame; Home and remote pages cannot open setup.
+Setup observations return only an open flag and a link phase, without QR payloads,
+chat text, contact details, cookies or account identifiers. Visible sign-in markers
+are diagnostic observations and never enable call capabilities by themselves.
 
 ## Adapter obligations
 

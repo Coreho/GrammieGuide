@@ -1,7 +1,8 @@
 # WhatsApp calling investigation — 2026-10-25
 
-Status: investigation and sign-in probe prepared. The [call-control interface](whatsapp-call-controls.md)
-is implemented in TASK-62; the real calling transport is not integrated or verified.
+Status: the [call-control interface and embedded account-linking surface](whatsapp-call-controls.md)
+are implemented. The owner has linked WhatsApp and confirmed chats in the in-app
+view. The calling transport is not yet implemented or verified.
 Tracked by TASK-61. The owner requires calls to stay inside GrammieGuide.
 
 ## Verified artifact observations
@@ -92,7 +93,7 @@ Required integration work after the proof:
 The existing SMS callback feature is a distinct operation. A live-call implementation
 must not silently convert delivery/YES states into connected-call states.
 
-## Prepared proof and current blocker
+## Earlier probe and live setup progress
 
 Analysis files are outside the source repository at
 `C:/Users/koreo/GrammieGuide-analysis/whatsapp-2.2640.100.0/`:
@@ -105,16 +106,17 @@ capture and popups and never places a call. Its persistent session is under
 Its optional status output contains booleans only. Login selectors are heuristic
 diagnostics, not a production readiness signal.
 
-The environment's automatic approval rejected the attempted launch with
-`blocked by policy`; no test window was opened and no runtime result is claimed.
-The script was then saved separately and syntax-checked. To run it manually from
-the repository root in PowerShell:
+The environment's automatic approval rejected the initial standalone probe launch
+with `blocked by policy`. That historical probe was saved and syntax-checked; it
+was not run. The subsequent in-app setup is now implemented separately, and the
+owner has confirmed successful linking and visible chats there. The old probe
+is retained as investigation material, not the current setup entry point:
 
 ```powershell
 & .\node_modules\electron\dist\electron.exe 'C:\Users\koreo\GrammieGuide-analysis\whatsapp-2.2640.100.0\web-probe.cjs'
 ```
 
-Open questions: all runtime call behavior above, account-specific Web Calling
-availability, whether simple custom controls can remain reliable, and the real
-kiosk's camera/microphone configuration. The production calling feature remains
-unfinished pending that evidence.
+Open questions: account-specific Web Calling availability, the runtime call controls
+and state API, login persistence after restart, whether simple custom controls can
+remain reliable, and the real kiosk's camera/microphone configuration. The
+production calling feature remains unfinished pending that evidence.

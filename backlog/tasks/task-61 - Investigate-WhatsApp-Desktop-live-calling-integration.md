@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25 11:13'
-updated_date: '2026-10-25 12:00'
+updated_date: '2026-10-25 12:57'
 labels: []
 dependencies: []
 references:
@@ -31,7 +31,7 @@ Investigate the installed WhatsApp app with REA before selecting a reliable live
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Inspect shipped WhatsApp artifacts and retain REA evidence. 2. Respect owner requirement that calls stay inside GrammieGuide; investigate an isolated embedded WhatsApp Web session. 3. Run the saved sign-in compatibility probe, then verify real call controls and termination before production integration. 4. Implement and test typed IPC, caregiver setup, contacts, audio and kiosk recovery only after the runtime interface is established.
+1. Implement a caregiver-gated embedded WhatsApp setup surface with a separate persistent session, origin/navigation restrictions, denied capture/downloads/popups and complete view teardown. 2. Add link-status observation and typed setup IPC/UI, then unit-test lifecycle and authority boundaries. 3. Build and open the actual setup window; establish the in-app account session with owner QR linking if needed. 4. Inspect the linked live calling surface, implement only controls supported by runtime evidence, and verify call outcomes, audio and kiosk recovery before enabling capabilities.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -40,4 +40,10 @@ Investigate the installed WhatsApp app with REA before selecting a reliable live
 Installed version 2.2640.100.0 identified. REA classified Root and VoIP assemblies as .NET 8 CIL; member inspection exceeded its representation budget. Additional execution-free metadata reading found newcall URI construction and internal EndCall/state callbacks, without proving a public control API. Official July 2026 WhatsApp announcement confirms Web Calling with staged rollout. Owner requires calls to stay inside GrammieGuide and reports WhatsApp is already linked; the running Windows app is observed, but a new embedded session is not verified. Saved detailed report and isolated sign-in probe outside source. Automatic approval rejected launching the probe with reason blocked by policy; no window, call or message was sent. Probe node --check and git diff --check passed. Production integration and all runtime call checks remain unfinished.
 
 TASK-62 implements the typed control API and caregiver panel on feat/whatsapp-controls. The default adapter remains unavailable; live embedded WhatsApp integration and call verification remain open here.
+
+Owner explicitly authorized starting the embedded connection after TASK-62. Continue on feat/whatsapp-controls. First deliver a real in-app linking surface; the standalone probe was never launched and no in-app account is yet verified.
+
+Implemented the real caregiver-gated WhatsApp setup window and isolated persist:whatsapp session. Owner supplied walink.png showing WhatsApp rejecting Electron browser identity; removed only GrammieGuide/Electron UA product tags while retaining the actual Chromium version (runtime observed Chrome 152.0.7977.130). Owner confirmed the QR appeared and completed linking with chats visible inside GrammieGuide. Unit tests cover session isolation, deny-all setup permissions, navigation/popup/download guards, teardown, stale probes, and caregiver/lock gates. The new built-app setup test passes using a local intercepted fixture; ElectronApplication.firstWindow stalled, while obtaining the document through BrowserContext resolved the harness wait. Runtime call controls remain disabled pending inspection of the linked session. Persistence after restart is awaiting owner confirmation.
+
+Latest verification: all 29 focused unit/static-render tests pass; the built-app WhatsApp setup e2e passes against a network-intercepted fixture; production build and typechecks, repository lint and formatting checks pass. Login persistence and actual call availability remain pending the live session check. The owner-provided walink.png is left untracked and is not included in commits.
 <!-- SECTION:NOTES:END -->
