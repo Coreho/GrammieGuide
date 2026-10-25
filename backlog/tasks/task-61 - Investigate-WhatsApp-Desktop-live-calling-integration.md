@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25 11:13'
-updated_date: '2026-10-25 23:22'
+updated_date: '2026-10-25 23:23'
 labels: []
 dependencies: []
 references:
@@ -62,4 +62,6 @@ Owner confirmed the corrected outgoing call worked and sounded great. A subseque
 Incoming calls and audio are now owner-confirmed. Initial read-only inspection found one visible GrammieGuide window, no embedded document-PiP window or popup target, and the separate Windows WhatsApp.Root app running with its own visible window. Duplicate-window ownership during an actual incoming call remains to be established.
 
 Inspected owner-provided CallerWindow.png. The separate call UI matches the native Windows WhatsApp client; its verified WhatsApp.Root process was running independently of GrammieGuide. Closed only that exact package process. Follow-up process checks show it remains closed, while GrammieGuide remains ready with voice available. Added caregiver guidance to keep the desktop client fully closed to avoid duplicate incoming windows. The copy/docs-only update passes build/typechecks, targeted lint, formatting and diff checks. Awaiting the owner's incoming-call recheck after closing the native client.
+
+Owner completed the incoming-call recheck after the native Windows WhatsApp client was closed: confirmed no extra screen. Both incoming calling and the single GrammieGuide presentation now have owner proof. The duplicate was the independently running desktop client, not an embedded popup. Guidance is saved on feat/whatsapp-controls; broad kiosk reliability checks remain open.
 <!-- SECTION:NOTES:END -->

@@ -30,8 +30,8 @@ GrammieGuide. If both clients are running on the linked account, the desktop app
 can display its own incoming-call window alongside GrammieGuide's Answer screen.
 The owner's `CallerWindow.png` showed this duplicate desktop-client window.
 GrammieGuide uses its own saved Web session and does not need the desktop client
-running. Closing the desktop client left GrammieGuide ready for calls. A new live
-incoming-call check is being used to confirm that only its launcher screen appears.
+running. Closing the desktop client left GrammieGuide ready for calls. The owner
+then confirmed an incoming call displayed only GrammieGuide, with no extra screen.
 
 For caregiver testing, **Prepare voice calls** starts the connection without a
 Home tile. **End call / close connection** stops it. Account setup cannot replace

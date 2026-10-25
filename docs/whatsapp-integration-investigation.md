@@ -221,4 +221,5 @@ Windows WhatsApp.Root client running with its own WinUI window, one visible
 GrammieGuide window, no extra embedded page target, and no document-PiP window.
 The screenshot matches the desktop client's call UI. The verified desktop package
 process was closed; GrammieGuide's independent session remained ready with voice
-available. Follow-up incoming verification will check the duplicate is gone.
+available. The owner repeated the incoming-call test and confirmed there was no
+extra screen with the desktop client closed.
