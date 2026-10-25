@@ -1,12 +1,30 @@
 import { z } from 'zod'
 import type { EmbeddedWhatsAppSession } from './whatsAppSession'
 import type { ProviderCallState, WhatsAppAdapter } from './whatsAppAdapter'
+import { logActivity } from '../activityLog/activityLog'
 
 const observation = z
   .object({
     supported: z.boolean(),
     idle: z.boolean(),
     rejected: z.boolean().optional(),
+    failure: z
+      .enum([
+        'modules',
+        'gates',
+        'observation',
+        'start',
+        'answer',
+        'decline',
+        'end',
+        'provider-rejected',
+        'microphone-denied',
+        'microphone-unavailable',
+        'recipient-lookup',
+        'recipient-not-found',
+        'recipient-unresolved'
+      ])
+      .optional(),
     call: z
       .object({
         id: z.string().min(1).max(256),
@@ -55,9 +73,16 @@ export function createWhatsAppSessionAdapter(setup: EmbeddedWhatsAppSession): Wh
       hadCall = false
     }
     busy = true
+    const report = (reason: string): void => {
+      if (request.type === 'read') return
+      // Only fixed, locally selected codes reach logs. Never log provider errors.
+      logActivity('whatsapp-control-failed', `${request.type}:${reason}`)
+      console.warn('WhatsApp control failed:', request.type, reason)
+    }
     // Cancelling JS cannot cancel provider work already submitted. Destroy its
     // renderer so a late promise cannot keep a microphone/call alive invisibly.
     const cancel = (): void => {
+      if (signal.aborted) report('cancelled-or-timeout')
       if (setup.generationId === generation) setup.close()
       queueMicrotask(notify)
     }
@@ -69,17 +94,21 @@ export function createWhatsAppSessionAdapter(setup: EmbeddedWhatsAppSession): Wh
       // resubmitting Start; otherwise tear down even a late provider operation.
       if (request.type === 'start') {
         const until = Date.now() + 2000
-        while (state.supported && !state.rejected && state.idle && Date.now() < until) {
+        // The worker can acknowledge Start before the model/state callback lands.
+        // An uninspectable transitional snapshot is not proof that Start failed.
+        while (!state.call && !state.rejected && Date.now() < until) {
           await new Promise((resolve) => setTimeout(resolve, 150))
           signal.throwIfAborted()
           state = observation.parse(await setup.run({ type: 'read' }, signal))
         }
-        if (state.idle) {
+        if (!state.call) {
+          report(state.failure ?? 'no-active-model')
           cancel()
           return unavailable()
         }
       }
       if (!state.supported || state.rejected) {
+        report(state.failure ?? 'unsupported-observation')
         if (request.type !== 'read' || hadCall) cancel()
         return unavailable()
       }
@@ -92,6 +121,7 @@ export function createWhatsAppSessionAdapter(setup: EmbeddedWhatsAppSession): Wh
         call: state.call
       }
     } catch {
+      report('bridge-or-validation')
       cancel()
       return unavailable()
     } finally {

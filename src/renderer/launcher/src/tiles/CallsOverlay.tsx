@@ -56,10 +56,9 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
     try {
       const result = await window.launcher.controlWhatsApp(value)
       setState(result.state)
-      if (!result.ok)
-        setProblem('The call could not be confirmed. Press End call before trying again.')
+      if (!result.ok) setProblem('call-unconfirmed')
     } catch {
-      setProblem('The call could not be confirmed. Press End call.')
+      setProblem('call-unconfirmed')
     } finally {
       setBusy(false)
     }
@@ -169,7 +168,15 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
             {call ? 'End call and go Home' : 'Back to Home'}
           </button>
         </div>
-        {problem && <p role="alert">{problem}</p>}
+        {problem && (
+          <p role="alert">
+            {problem === 'call-unconfirmed'
+              ? call
+                ? 'The call could not be confirmed. Press End call before trying again.'
+                : 'The call could not be started. Go Back to Home, then open Family calls to try again.'
+              : problem}
+          </p>
+        )}
       </section>
     </div>
   )

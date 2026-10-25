@@ -34,6 +34,34 @@ function fixture(): {
 }
 
 describe('embedded voice transport', () => {
+  it('waits for the worker call model after Start instead of destroying a transitional snapshot', async () => {
+    vi.useFakeTimers()
+    try {
+      const { session, adapter } = fixture()
+      session.run
+        .mockResolvedValueOnce({ supported: false, idle: false, call: null })
+        .mockResolvedValue({
+          supported: true,
+          idle: false,
+          call: {
+            id: 'actual-model',
+            phone: '+15551111111',
+            mode: 'voice',
+            phase: 'outgoing'
+          }
+        })
+      const pending = adapter.execute(
+        { type: 'start', phone: '+15551111111', mode: 'voice' },
+        new AbortController().signal
+      )
+      await vi.advanceTimersByTimeAsync(150)
+      expect(await pending).toMatchObject({ connection: 'ready', call: { phase: 'outgoing' } })
+      expect(session.close).not.toHaveBeenCalled()
+      expect(session.run.mock.calls.map((args) => args[0].type)).toEqual(['start', 'read'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
   it('allows a fresh idle backend to load after a previous call', async () => {
     const { session, adapter } = fixture()
     session.run.mockResolvedValue({

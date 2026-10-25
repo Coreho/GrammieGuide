@@ -3,8 +3,9 @@
 Status: the [voice bridge, Home controls and embedded account linking](whatsapp-call-controls.md)
 are implemented on `feat/whatsapp-controls`. The owner confirmed linked chats and
 login persistence after restarting. Private Web module shapes and calling gates
-were observed on the real linked page; actual calls and two-way sound remain
-unverified. TASK-63 tracks the implementation; TASK-61 retains real-device proof.
+were observed on the real linked page. The owner subsequently confirmed a successful
+outgoing call with good audio after the fixes below; incoming calls and sustained
+kiosk reliability remain unverified. TASK-63 tracks implementation; TASK-61 retains real-device proof.
 The owner requires calls to stay inside GrammieGuide. Video is disabled.
 
 ## Verified artifact observations
@@ -170,3 +171,45 @@ It cannot prove the live media transport works: real outgoing/incoming voice,
 busy/unanswered/offline, popup behavior and Windows device access remain TASK-61
 release checks. This implementation is a development integration, not a verified
 production calling replacement.
+
+## First real-call failure investigation
+
+The owner initiated calls to a different WhatsApp account and reported the generic
+unconfirmed/unavailable message. The initial implementation also left an incorrect
+instruction to press End after its local peer had been destroyed. Diagnostics now
+emit fixed failure codes only, and the instruction follows the current call state.
+
+A read-only live check found the account linked, calling gates enabled, socket
+connected, VoIP initialized, and audio input/output devices present. A debugger
+trace on the public module's outgoing-call stop functions captured the fixed reason
+`lid_resolution_failed` from an owner-initiated attempt. Only whitelisted reason
+codes were returned; no phone numbers, messages or provider credentials were read
+out. A duplicate development server initially interrupted tracing; it was stopped
+before collecting this result.
+
+Static source shows that `WAWebQueryExistsJob.queryPhoneExists(E164)` performs the
+interactive contact lookup and stores PN/LID mappings. The bridge now performs that
+lookup on explicit Start and uses the resulting LID for the high-level call entry.
+It refuses missing recipients or unresolved identities before signaling. The local
+fixture now requires this lookup, uses a fake audio device with real permission
+handlers, and exercises rejected-start recovery. Live success after this correction
+still requires owner confirmation; the earlier attempts did not establish a call.
+
+A subsequent attempt progressed past lookup but returned an uninspectable initial
+call snapshot. The bridge had treated that first snapshot as a failed submission.
+It now polls for the worker's actual call model within its existing bounded wait,
+without resubmitting Start. A local regression deliberately delays model creation;
+the unit test verifies one Start followed by Read. A live activation trace also
+showed local state Calling (1) with an active model that did not yet expose numeric
+state at activation. No peer IDs or call content were returned by this trace.
+
+Latest checks: build/typechecks, lint and 99 focused tests pass. The call e2e passes
+with real permission handling and a fake audio device. The separate existing
+account-setup e2e timed out at 60 seconds twice in this run; it is not reported
+green and its timeout was not increased.
+
+After the lookup and state-wait corrections, the owner reported that the outgoing
+call worked and sounded great. A subsequent read-only status check showed ready,
+no active call, no pending operation and voice available again. This confirms the
+owner's outgoing-call/audio check and return to idle; it does not establish live
+incoming answer/decline, failure recovery under all conditions or kiosk readiness.

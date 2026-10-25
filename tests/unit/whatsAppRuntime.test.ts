@@ -48,7 +48,8 @@ function fixture(): {
     },
     WAWebVoipLocalCallStateStore: { getLocalCallState: () => state },
     WAWebVoipStartCall: { startWAWebVoipCall: start },
-    WAWebLidMigrationUtils: { toPn: (peer: unknown) => peer },
+    WAWebLidMigrationUtils: { toPn: (peer: unknown) => peer, toLid: (peer: unknown) => peer },
+    WAWebQueryExistsJob: { queryPhoneExists: vi.fn(async () => ({ wid: 'resolved-peer@lid' })) },
     WAWebWidFactory: { createWid: (jid: string) => jid },
     WAWebVoipSignalingEnums: { EndCallReason: { Self: 2 } }
   }
@@ -66,6 +67,32 @@ function fixture(): {
 }
 
 describe('observed WhatsApp web control contracts', () => {
+  it('does not call a number that WhatsApp cannot resolve', async () => {
+    const f = fixture()
+    const query = vi.fn(async () => null)
+    f.modules.WAWebQueryExistsJob = { queryPhoneExists: query }
+    expect(
+      await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'voice' })
+    ).toMatchObject({ rejected: true, failure: 'recipient-not-found', call: null })
+    expect(query).toHaveBeenCalledExactlyOnceWith('+15551111111')
+    expect(f.start).not.toHaveBeenCalled()
+  })
+  it('does not guess a calling identity when lookup has no LID mapping', async () => {
+    const f = fixture()
+    f.modules.WAWebLidMigrationUtils = { toLid: () => null }
+    expect(
+      await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'voice' })
+    ).toMatchObject({ rejected: true, failure: 'recipient-unresolved' })
+    expect(f.start).not.toHaveBeenCalled()
+  })
+  it('reports the failing stage without returning provider errors or private identifiers', async () => {
+    const f = fixture()
+    f.start.mockRejectedValue(new Error('private-peer: +15551111111 provider details'))
+    const result = await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'voice' })
+    expect(result).toMatchObject({ supported: false, failure: 'start', call: null })
+    expect(JSON.stringify(result)).not.toContain('15551111111')
+    expect(JSON.stringify(result)).not.toContain('private-peer')
+  })
   it('reports positively observed idle and invokes the high-level voice entry only on a command', async () => {
     const f = fixture()
     expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
@@ -75,7 +102,7 @@ describe('observed WhatsApp web control contracts', () => {
     })
     expect(f.start).not.toHaveBeenCalled()
     await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'voice' })
-    expect(f.start).toHaveBeenCalledWith('15551111111@c.us', false, 0, 0, null, {
+    expect(f.start).toHaveBeenCalledWith('resolved-peer@lid', false, 0, 0, null, {
       entryTrust: 'user_gesture'
     })
   })

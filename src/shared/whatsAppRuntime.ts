@@ -6,6 +6,21 @@ export interface WhatsAppRuntimeState {
   supported: boolean
   idle: boolean
   rejected?: boolean
+  /** Fixed diagnostic codes only; never provider messages, peer IDs or numbers. */
+  failure?:
+    | 'modules'
+    | 'gates'
+    | 'observation'
+    | 'start'
+    | 'answer'
+    | 'decline'
+    | 'end'
+    | 'provider-rejected'
+    | 'microphone-denied'
+    | 'microphone-unavailable'
+    | 'recipient-lookup'
+    | 'recipient-not-found'
+    | 'recipient-unresolved'
   call: {
     id: string
     phone: string | null
@@ -37,19 +52,21 @@ export async function whatsAppRuntime(
     if (typeof method !== 'function') throw new Error('Unsupported control')
     return Reflect.apply(method, target, args)
   }
+  let stage: NonNullable<WhatsAppRuntimeState['failure']> = 'modules'
   try {
     const gates = load('WAWebVoipGatingUtils')
     const stack = object(invoke(load('WAWebVoipStackInterface'), 'getCachedVoipStackInterface'))
     const raw = load('WAWebCallCollection')
     const calls = object(raw.default ?? raw)
     const states = object(load('WAWebVoipWaCallEnums').CallState)
+    stage = 'gates'
     if (
       stack.type !== 'web' ||
       invoke(gates, 'isCallingEnabled') !== true ||
       invoke(gates, 'isWebCallingUiEnabled') !== true ||
       invoke(gates, 'isUnsupportedBrowserForWebCalling') !== false
     )
-      return unavailable()
+      return { ...unavailable(), failure: stage }
     for (const name of ['acceptCall', 'rejectCall', 'endCall'])
       if (typeof stack[name] !== 'function') return unavailable()
     const start = load('WAWebVoipStartCall')
@@ -120,33 +137,57 @@ export async function whatsAppRuntime(
         }
       }
     }
+    stage = 'observation'
     const before = observe()
     if (request.type === 'read' || !before.supported) return before
     if (request.type === 'start') {
       // Video remains disabled until an in-app video rendering path is verified.
       if (request.mode !== 'voice' || !/^\+[1-9]\d{7,14}$/.test(request.phone) || !before.idle)
         throw new Error('Cannot start')
-      const peer = invoke(load('WAWebWidFactory'), 'createWid', `${request.phone.slice(1)}@c.us`)
+      // Device sync does not resolve every saved PN. The interactive number
+      // lookup stores WhatsApp's PN/LID mapping without creating/sending a chat.
+      stage = 'recipient-lookup'
+      const resolved = await invoke(load('WAWebQueryExistsJob'), 'queryPhoneExists', request.phone)
+      if (!resolved) return { ...before, rejected: true, failure: 'recipient-not-found' }
+      const peer = invoke(load('WAWebLidMigrationUtils'), 'toLid', object(resolved).wid)
+      if (!peer) return { ...before, rejected: true, failure: 'recipient-unresolved' }
+      stage = 'start'
       const accepted = await invoke(start, 'startWAWebVoipCall', peer, false, 0, 0, null, {
         entryTrust: 'user_gesture'
       })
-      return { ...observe(), ...(accepted === true ? {} : { rejected: true }) }
+      stage = 'observation'
+      return {
+        ...observe(),
+        ...(accepted === true ? {} : { rejected: true, failure: 'provider-rejected' as const })
+      }
     }
     if (!before.call || before.call.id !== request.callId) throw new Error('Stale call')
     if (request.type === 'answer') {
+      stage = 'answer'
       if (before.call.phase !== 'incoming' || before.call.mode !== 'voice')
         throw new Error('Cannot answer')
       await invoke(stack, 'acceptCall', true, false, null)
     } else if (request.type === 'decline') {
+      stage = 'decline'
       if (before.call.phase !== 'incoming') throw new Error('Cannot decline')
       await invoke(stack, 'rejectCall')
     } else {
+      stage = 'end'
       const reason = object(load('WAWebVoipSignalingEnums').EndCallReason).Self
       if (typeof reason !== 'number') throw new Error('Unsupported reason')
       await invoke(stack, 'endCall', reason, true)
     }
     return observe()
-  } catch {
-    return unavailable()
+  } catch (error) {
+    const name = error && typeof error === 'object' && 'name' in error ? error.name : null
+    return {
+      ...unavailable(),
+      failure:
+        name === 'NotAllowedError'
+          ? 'microphone-denied'
+          : name === 'NotFoundError'
+            ? 'microphone-unavailable'
+            : stage
+    }
   }
 }

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25 11:13'
-updated_date: '2026-10-25 20:21'
+updated_date: '2026-10-25 23:10'
 labels: []
 dependencies: []
 references:
@@ -32,6 +32,8 @@ Investigate the installed WhatsApp app with REA before selecting a reliable live
 
 <!-- SECTION:PLAN:BEGIN -->
 1. Implement a caregiver-gated embedded WhatsApp setup surface with a separate persistent session, origin/navigation restrictions, denied capture/downloads/popups and complete view teardown. 2. Add link-status observation and typed setup IPC/UI, then unit-test lifecycle and authority boundaries. 3. Build and open the actual setup window; establish the in-app account session with owner QR linking if needed. 4. Inspect the linked live calling surface, implement only controls supported by runtime evidence, and verify call outcomes, audio and kiosk recovery before enabling capabilities.
+
+Diagnose the owner's first real-call error. Preserve the error and account relationship, inspect sanitized runtime stages without placing calls, fix the identified cause with a regression test, and recheck the user-initiated live attempt.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -48,4 +50,10 @@ Implemented the real caregiver-gated WhatsApp setup window and isolated persist:
 Latest verification: all 29 focused unit/static-render tests pass; the built-app WhatsApp setup e2e passes against a network-intercepted fixture; production build and typechecks, repository lint and formatting checks pass. Login persistence and actual call availability remain pending the live session check. The owner-provided walink.png is left untracked and is not included in commits.
 
 Owner confirmed login persists after restart without another QR scan. Passive linked-page REA captures and separate read-only runtime probes found Web Calling enabled, a cached Web stack, the direct call collection and idle state. Public source evidence and SHA-256 mappings are recorded in docs/whatsapp-integration-investigation.md. TASK-63 implements the original voice bridge, hidden owned session, permission lease, audio priority and Home controls. No real calls or messages were sent. Real outgoing/incoming voice, two-way sound, provider popup behavior and Windows devices remain unverified; do not treat the fixture as production call proof.
+
+The owner reported the first real-call failure when dialing a different WhatsApp account. Live checks found the socket connected, VoIP initialized and audio devices present. A whitelisted debugger trace of the owner's attempt captured lid_resolution_failed. Static source shows interactive queryPhoneExists stores the needed PN/LID mapping; added that lookup before Start and refuse missing/unresolved recipients. Added fixed-code diagnostics without provider messages, and corrected recovery instructions to follow current state after teardown. Build/typechecks, lint and 98 focused tests pass. Live success after the correction still needs confirmation.
+
+After the recipient-lookup correction, the owner's next attempt reached a later uninspectable call-state snapshot. Found an independent bridge flaw: it immediately destroyed Start when the worker had not yet published a readable call model. The adapter now polls for the model within its bounded wait, without resubmitting Start. A regression fixture deliberately delays model creation; unit tests verify exactly one Start followed by Read. Latest build/typechecks, lint and 99 focused tests pass; the full call e2e passes. The separate existing account-setup e2e timed out at 60s twice; it is not reported green and limits were not raised. The corrected built app is running directly to avoid duplicate dev-server restarts. Live success is still pending owner confirmation.
+
+Owner confirmed the corrected outgoing call worked and sounded great. A subsequent read-only app status check showed ready, no call/pending operation, and voice available again. Updated README and integration documents to distinguish this outgoing-call/audio proof from still-unverified live incoming controls and sustained kiosk reliability. TASK-61 remains In Progress for those checks.
 <!-- SECTION:NOTES:END -->

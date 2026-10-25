@@ -3,9 +3,10 @@
 Implemented on `feat/whatsapp-controls` for TASK-62 and TASK-63, using the
 [REA findings](whatsapp-integration-investigation.md). Account linking and login
 persistence are confirmed by the owner. The original voice bridge and Home UI are
-implemented and exercised with a local provider fixture. **A real outgoing or
-incoming call and two-way sound have not been verified.** This is a development
-integration; it is not yet ready to replace the real kiosk's calling arrangements.
+implemented and exercised with a local provider fixture. **The owner confirmed a
+successful outgoing call with good audio after the lookup and state-wait fixes.**
+Real incoming calls and sustained kiosk reliability remain unverified. This is a
+development integration; it is not yet ready to replace the real kiosk's calling arrangements.
 Video remains disabled. WhatsApp's private Web modules can change without notice.
 
 ## Caregiver setup and use
@@ -72,6 +73,11 @@ markers report a link phase only and never establish calling readiness.
 `whatsAppRuntime.ts` is original integration code serialized into the exact
 WhatsApp origin. It uses the observed high-level voice-start method and cached Web
 stack for answer/decline/end. It never loads native WhatsApp DLLs or launches a URI.
+Before Start it uses WhatsApp's interactive `queryPhoneExists` lookup and resolves
+the returned identity to a LID. A phone-only Wid plus device-list sync did not
+resolve the owner's saved recipient: real user-initiated attempts stopped with
+`lid_resolution_failed`. Missing lookup results/mappings now fail before signaling;
+the bridge does not create a chat, send a message, or retry Start automatically.
 Every read checks calling gates, the Web stack, required methods, local call state
 and active model. Only the provider's `CallActive` state produces **Talking with**;
 `ConnectedLonely` remains connecting. A successful start without an observed model
@@ -98,9 +104,12 @@ session lifecycle, and call priority in audio policy. Built-app tests intercept 
 WhatsApp requests in a fresh temporary profile: linking/isolation, outgoing and
 connected states, lonely/connecting state, incoming answer, unknown-caller refusal,
 native end and hung-end teardown. They do not contact WhatsApp or anyone's phone.
+The call fixture also requires recipient lookup before Start and uses Chromium's
+fake audio device through the actual session permission handlers. Rejected starts
+verify that the screen stops recommending End after local teardown removed it.
 
-Before real kiosk use (TASK-61): manually verify outgoing/incoming voice and two-way
-sound with an agreed family contact, busy/unanswered/offline behavior, actual
+Before real kiosk use (TASK-61): verify incoming voice, repeat outgoing/two-way
+sound checks on the kiosk, busy/unanswered/offline behavior, actual
 microphone permissions on Windows, reconnect/restart after calls, provider popup
 behavior, crashes and the real touchscreen at each text size. Video needs a
 separate in-app rendering design and verification. The old full-unit run also had

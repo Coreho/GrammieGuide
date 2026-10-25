@@ -130,8 +130,17 @@ const CALL_FIXTURE = `<!doctype html><title>Fixture calls</title><div id="pane-s
     WAWebVoipStackInterface:{ getCachedVoipStackInterface:()=>stack },
     WAWebCallCollection:calls, WAWebVoipWaCallEnums:{CallState:states},
     WAWebVoipLocalCallStateStore:{getLocalCallState:()=>state},
-    WAWebVoipStartCall:{startWAWebVoipCall:async () => { set(1); return true; }},
-    WAWebLidMigrationUtils:{toPn:peer=>peer}, WAWebWidFactory:{createWid:jid=>jid},
+    WAWebVoipStartCall:{startWAWebVoipCall:async () => {
+      if (window.fixtureRejectStart) return false;
+      if (!window.fixtureLookupReady) throw new Error('Recipient must be resolved before calling');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+      stream.getTracks().forEach(track => track.stop());
+      state = 12;
+      setTimeout(() => set(1), 100);
+      return true;
+    }},
+    WAWebLidMigrationUtils:{toPn:peer=>peer,toLid:peer=>peer},
+    WAWebQueryExistsJob:{queryPhoneExists:async () => { window.fixtureLookupReady = true; return {wid:'fixture-peer@lid'}; }},
     WAWebVoipSignalingEnums:{EndCallReason:{Self:2}}
   };
   window.require = name => modules[name];
@@ -142,7 +151,7 @@ const CALL_FIXTURE = `<!doctype html><title>Fixture calls</title><div id="pane-s
 test('Family calls stays in GrammieGuide, observes connected state, handles incoming and tears down a hung call', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'grammie-whatsapp-'))
   const app = await electron.launch({
-    args: ['.', `--user-data-dir=${folder}`],
+    args: ['.', `--user-data-dir=${folder}`, '--use-fake-device-for-media-stream'],
     cwd: process.cwd(),
     env: { ...process.env, GRAMMIEGUIDE_E2E: '1' }
   })
@@ -193,6 +202,9 @@ test('Family calls stays in GrammieGuide, observes connected state, handles inco
     await expect(home.getByRole('button', { name: 'Call Sarah', exact: true })).toBeEnabled()
     await home.getByRole('button', { name: 'Call Sarah', exact: true }).click()
     await expect(home.getByRole('heading', { name: 'Calling Sarah…' })).toBeVisible()
+    await expect
+      .poll(() => home.evaluate(() => window.launcher.getWhatsAppState()))
+      .toMatchObject({ pending: null, call: { phase: 'outgoing' } })
     const provider = async (script: string): Promise<void> => {
       await app.evaluate(async ({ webContents }, code) => {
         const page = webContents
@@ -255,6 +267,12 @@ test('Family calls stays in GrammieGuide, observes connected state, handles inco
     await expect(home.getByRole('button', { name: 'Answer', exact: true })).toHaveCount(0)
     await home.getByRole('button', { name: 'No, thank you', exact: true }).click()
     await expect(home.getByRole('button', { name: 'Call Sarah', exact: true })).toBeEnabled()
+    await provider('window.fixtureRejectStart = true')
+    await home.getByRole('button', { name: 'Call Sarah', exact: true }).click()
+    await expect(home.getByRole('alert')).toHaveText(
+      'The call could not be started. Go Back to Home, then open Family calls to try again.'
+    )
+    await expect(home.getByRole('button', { name: 'End call', exact: true })).toHaveCount(0)
   } finally {
     await app.close()
     await removeProfile(folder)
