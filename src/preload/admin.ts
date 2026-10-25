@@ -15,6 +15,13 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  getWhatsAppState: () => invoke('whatsapp:state'),
+  controlWhatsApp: (command: IpcRequest<'whatsapp:command'>) => invoke('whatsapp:command', command),
+  onWhatsAppChanged: (cb: (state: IpcEvents['whatsapp:changed']) => void): (() => void) => {
+    const listener = (_event: unknown, state: IpcEvents['whatsapp:changed']): void => cb(state)
+    ipcRenderer.on('whatsapp:changed', listener)
+    return () => ipcRenderer.removeListener('whatsapp:changed', listener)
+  },
   chatGptState: () => invoke('chatgpt:state'),
   chatGptConnect: (id?: string) => invoke('chatgpt:connect', { id }),
   chatGptCancel: () => invoke('chatgpt:cancel'),
