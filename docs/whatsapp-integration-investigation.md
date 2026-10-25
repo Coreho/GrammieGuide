@@ -4,8 +4,9 @@ Status: the [voice bridge, Home controls and embedded account linking](whatsapp-
 are implemented on `feat/whatsapp-controls`. The owner confirmed linked chats and
 login persistence after restarting. Private Web module shapes and calling gates
 were observed on the real linked page. The owner subsequently confirmed a successful
-outgoing call with good audio after the fixes below; incoming calls and sustained
-kiosk reliability remain unverified. TASK-63 tracks implementation; TASK-61 retains real-device proof.
+outgoing call with good audio after the fixes below, followed by working incoming
+calls with good audio. Sustained kiosk reliability remains unverified. TASK-63
+tracks implementation; TASK-61 retains real-device proof.
 The owner requires calls to stay inside GrammieGuide. Video is disabled.
 
 ## Verified artifact observations
@@ -213,3 +214,11 @@ call worked and sounded great. A subsequent read-only status check showed ready,
 no active call, no pending operation and voice available again. This confirms the
 owner's outgoing-call/audio check and return to idle; it does not establish live
 incoming answer/decline, failure recovery under all conditions or kiosk readiness.
+
+The owner subsequently confirmed incoming calls work, and supplied `CallerWindow.png`
+showing a second incoming-call window. Read-only inspection found the separate
+Windows WhatsApp.Root client running with its own WinUI window, one visible
+GrammieGuide window, no extra embedded page target, and no document-PiP window.
+The screenshot matches the desktop client's call UI. The verified desktop package
+process was closed; GrammieGuide's independent session remained ready with voice
+available. Follow-up incoming verification will check the duplicate is gone.

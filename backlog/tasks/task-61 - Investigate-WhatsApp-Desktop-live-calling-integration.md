@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25 11:13'
-updated_date: '2026-10-25 23:10'
+updated_date: '2026-10-25 23:22'
 labels: []
 dependencies: []
 references:
@@ -34,6 +34,8 @@ Investigate the installed WhatsApp app with REA before selecting a reliable live
 1. Implement a caregiver-gated embedded WhatsApp setup surface with a separate persistent session, origin/navigation restrictions, denied capture/downloads/popups and complete view teardown. 2. Add link-status observation and typed setup IPC/UI, then unit-test lifecycle and authority boundaries. 3. Build and open the actual setup window; establish the in-app account session with owner QR linking if needed. 4. Inspect the linked live calling surface, implement only controls supported by runtime evidence, and verify call outcomes, audio and kiosk recovery before enabling capabilities.
 
 Diagnose the owner's first real-call error. Preserve the error and account relationship, inspect sanitized runtime stages without placing calls, fix the identified cause with a regression test, and recheck the user-initiated live attempt.
+
+Owner now confirms incoming calls work, but reports a separate WhatsApp window during calls. Identify the owning process/window before changing behavior, resolve the duplicate presentation while preserving embedded calling and account linking, and verify with an owner-initiated incoming call.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -56,4 +58,8 @@ The owner reported the first real-call failure when dialing a different WhatsApp
 After the recipient-lookup correction, the owner's next attempt reached a later uninspectable call-state snapshot. Found an independent bridge flaw: it immediately destroyed Start when the worker had not yet published a readable call model. The adapter now polls for the model within its bounded wait, without resubmitting Start. A regression fixture deliberately delays model creation; unit tests verify exactly one Start followed by Read. Latest build/typechecks, lint and 99 focused tests pass; the full call e2e passes. The separate existing account-setup e2e timed out at 60s twice; it is not reported green and limits were not raised. The corrected built app is running directly to avoid duplicate dev-server restarts. Live success is still pending owner confirmation.
 
 Owner confirmed the corrected outgoing call worked and sounded great. A subsequent read-only app status check showed ready, no call/pending operation, and voice available again. Updated README and integration documents to distinguish this outgoing-call/audio proof from still-unverified live incoming controls and sustained kiosk reliability. TASK-61 remains In Progress for those checks.
+
+Incoming calls and audio are now owner-confirmed. Initial read-only inspection found one visible GrammieGuide window, no embedded document-PiP window or popup target, and the separate Windows WhatsApp.Root app running with its own visible window. Duplicate-window ownership during an actual incoming call remains to be established.
+
+Inspected owner-provided CallerWindow.png. The separate call UI matches the native Windows WhatsApp client; its verified WhatsApp.Root process was running independently of GrammieGuide. Closed only that exact package process. Follow-up process checks show it remains closed, while GrammieGuide remains ready with voice available. Added caregiver guidance to keep the desktop client fully closed to avoid duplicate incoming windows. The copy/docs-only update passes build/typechecks, targeted lint, formatting and diff checks. Awaiting the owner's incoming-call recheck after closing the native client.
 <!-- SECTION:NOTES:END -->

@@ -5,8 +5,9 @@ Implemented on `feat/whatsapp-controls` for TASK-62 and TASK-63, using the
 persistence are confirmed by the owner. The original voice bridge and Home UI are
 implemented and exercised with a local provider fixture. **The owner confirmed a
 successful outgoing call with good audio after the lookup and state-wait fixes.**
-Real incoming calls and sustained kiosk reliability remain unverified. This is a
-development integration; it is not yet ready to replace the real kiosk's calling arrangements.
+The owner also confirmed incoming calls with good audio. Sustained kiosk reliability
+remains unverified. This is a development integration; it is not yet ready to replace
+the real kiosk's calling arrangements.
 Video remains disabled. WhatsApp's private Web modules can change without notice.
 
 ## Caregiver setup and use
@@ -23,6 +24,14 @@ Video remains disabled. WhatsApp's private Web modules can change without notice
 5. Open **Family calls** on Home and press **Call {name}**. Incoming saved-contact
    voice calls offer **Answer** and **No, thank you**. Unknown/group/video callers
    cannot be answered through this interface. Active calls always offer **End call**.
+
+Keep the separate **Windows WhatsApp desktop app fully closed** while using
+GrammieGuide. If both clients are running on the linked account, the desktop app
+can display its own incoming-call window alongside GrammieGuide's Answer screen.
+The owner's `CallerWindow.png` showed this duplicate desktop-client window.
+GrammieGuide uses its own saved Web session and does not need the desktop client
+running. Closing the desktop client left GrammieGuide ready for calls. A new live
+incoming-call check is being used to confirm that only its launcher screen appears.
 
 For caregiver testing, **Prepare voice calls** starts the connection without a
 Home tile. **End call / close connection** stops it. Account setup cannot replace
@@ -108,7 +117,7 @@ The call fixture also requires recipient lookup before Start and uses Chromium's
 fake audio device through the actual session permission handlers. Rejected starts
 verify that the screen stops recommending End after local teardown removed it.
 
-Before real kiosk use (TASK-61): verify incoming voice, repeat outgoing/two-way
+Before real kiosk use (TASK-61): repeat incoming/outgoing and two-way
 sound checks on the kiosk, busy/unanswered/offline behavior, actual
 microphone permissions on Windows, reconnect/restart after calls, provider popup
 behavior, crashes and the real touchscreen at each text size. Video needs a

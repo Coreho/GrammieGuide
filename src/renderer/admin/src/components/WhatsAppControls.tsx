@@ -174,8 +174,9 @@ export function WhatsAppControlsPanel() {
       <p>
         Link your account here so calls can stay in GrammieGuide. This is separate from your Windows
         WhatsApp login. Voice controls use the embedded connection. Video is unavailable. Add a
-        Family calls built-in tile in Tiles to make calls available on Home. A real voice call still
-        needs checking on this computer.
+        Family calls built-in tile in Tiles to make calls available on Home. Keep the Windows
+        WhatsApp app fully closed to avoid a second incoming-call window. Test calls on the kiosk
+        before relying on them.
       </p>
       <p role="status" aria-live="polite">
         {setup?.phase === 'linked'
