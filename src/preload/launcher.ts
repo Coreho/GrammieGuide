@@ -19,6 +19,8 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 }
 
 const launcherApi = {
+  prepareWhatsApp: () => invoke('whatsapp:prepare'),
+  closeWhatsAppCalls: () => invoke('whatsapp:closeCalls'),
   getWhatsAppState: () => invoke('whatsapp:state'),
   controlWhatsApp: (command: IpcRequest<'whatsapp:command'>) => invoke('whatsapp:command', command),
   onWhatsAppChanged: (cb: (state: IpcEvents['whatsapp:changed']) => void) =>

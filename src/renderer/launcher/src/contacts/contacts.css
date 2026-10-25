@@ -106,3 +106,20 @@
   gap: 20px;
   flex-wrap: wrap;
 }
+.call-dialog {
+  width: min(980px, 95vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.call-start {
+  background: linear-gradient(180deg, #e6f2df, #c9dfbd);
+  color: #253b20;
+}
+.call-end {
+  background: linear-gradient(180deg, #f8e5df, #ebc3b8);
+  color: #62251e;
+}
+.call-dialog button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

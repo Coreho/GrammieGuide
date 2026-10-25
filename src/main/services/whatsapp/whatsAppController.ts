@@ -34,6 +34,7 @@ export class WhatsAppController {
   private providerId: string | null = null
   private providerPhone: string | null = null
   private disposed = false
+  private epoch = 0
   private activeAbort: AbortController | null = null
   private readonly unsubscribe: () => void
 
@@ -72,11 +73,13 @@ export class WhatsAppController {
         if (
           state.call.contact &&
           this.contacts().some((person) => person.phone === this.providerPhone) &&
-          this.capabilities.answer
+          this.capabilities.answer &&
+          state.call.mode === 'voice'
         )
           state.availableActions.push('answer')
         if (this.capabilities.decline) state.availableActions.push('decline')
-      } else if (this.capabilities.end) state.availableActions.push('end')
+      } else if (this.capabilities.end && state.call.phase !== 'ending')
+        state.availableActions.push('end')
     }
     return state
   }
@@ -100,7 +103,11 @@ export class WhatsAppController {
     this.current.connection = snapshot.connection
     // A disconnected transport cannot establish that an active call ended.
     if (snapshot.connection !== 'ready') {
-      if (this.current.call) this.current.call.phase = 'unknown'
+      if (snapshot.localSessionClosed) {
+        this.current.call = null
+        this.providerId = null
+        this.providerPhone = null
+      } else if (this.current.call) this.current.call.phase = 'unknown'
       return true
     }
     if (snapshot.call) {
@@ -129,6 +136,14 @@ export class WhatsAppController {
     if (this.current.call) this.current.call.phase = 'unknown'
   }
 
+  /** Main's local teardown interrupts hung JS without waiting for its timeout. */
+  cancelPending(): void {
+    ++this.epoch
+    this.activeAbort?.abort()
+    this.uncertain()
+    this.publish()
+  }
+
   private async bounded(work: (signal: AbortSignal) => Promise<unknown>): Promise<unknown> {
     const abort = new AbortController()
     this.activeAbort = abort
@@ -152,9 +167,10 @@ export class WhatsAppController {
   refresh(): Promise<WhatsAppCallState> {
     return this.serial(async () => {
       if (this.disposed || this.adapter.location !== 'embedded') return this.state()
+      const epoch = this.epoch
       try {
         const value = await this.bounded((signal) => this.adapter.read(signal))
-        if (!this.disposed) this.observe(value)
+        if (!this.disposed && epoch === this.epoch) this.observe(value)
       } catch {
         this.uncertain()
       }
@@ -208,12 +224,18 @@ export class WhatsAppController {
       this.current.pending = command.type
       this.publish()
       let problem: WhatsAppCommandResult['problem']
+      const epoch = this.epoch
       try {
         const observation = await this.bounded((signal) => {
           authorize()
           return this.adapter.execute(outgoing, signal)
         })
-        if (this.disposed || !this.observe(observation) || this.current.connection !== 'ready')
+        if (
+          this.disposed ||
+          epoch !== this.epoch ||
+          !this.observe(observation) ||
+          this.current.connection !== 'ready'
+        )
           throw new Error('No newer usable observation')
       } catch {
         this.uncertain()

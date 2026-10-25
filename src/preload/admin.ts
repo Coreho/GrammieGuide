@@ -15,6 +15,8 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  prepareWhatsApp: () => invoke('whatsapp:prepare'),
+  closeWhatsAppCalls: () => invoke('whatsapp:closeCalls'),
   getWhatsAppSetup: () => invoke('whatsapp:setupState'),
   openWhatsAppSetup: () => invoke('whatsapp:openSetup'),
   closeWhatsAppSetup: () => invoke('whatsapp:closeSetup'),

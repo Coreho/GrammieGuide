@@ -31,6 +31,9 @@ export function WhatsAppControls({
       case 'connected':
         status = `Talking with ${name}`
         break
+      case 'ending':
+        status = 'Ending the call…'
+        break
       case 'unknown':
         status = 'The call may still be active. Its status cannot be confirmed.'
         break
@@ -170,7 +173,9 @@ export function WhatsAppControlsPanel() {
       <legend>WhatsApp call controls</legend>
       <p>
         Link your account here so calls can stay in GrammieGuide. This is separate from your Windows
-        WhatsApp login. Call controls stay disabled while the connection is being verified.
+        WhatsApp login. Voice controls use the embedded connection. Video is unavailable. Add a
+        Family calls built-in tile in Tiles to make calls available on Home. A real voice call still
+        needs checking on this computer.
       </p>
       <p role="status" aria-live="polite">
         {setup?.phase === 'linked'
@@ -212,6 +217,29 @@ export function WhatsAppControlsPanel() {
           }}
         />
       )}
+      <button
+        type="button"
+        disabled={busy || !!state?.call}
+        onClick={() => {
+          setBusy(true)
+          void window.admin
+            .prepareWhatsApp()
+            .then(setState, () => setMessage('Voice calls could not be prepared.'))
+            .finally(() => setBusy(false))
+        }}
+      >
+        Prepare voice calls
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void window.admin
+            .closeWhatsAppCalls()
+            .then(setState, () => setMessage('The call connection could not be closed.'))
+        }}
+      >
+        End call / close connection
+      </button>
       {message && <p role="alert">{message}</p>}
       <button
         type="button"

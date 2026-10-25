@@ -1,9 +1,11 @@
 # WhatsApp calling investigation — 2026-10-25
 
-Status: the [call-control interface and embedded account-linking surface](whatsapp-call-controls.md)
-are implemented. The owner has linked WhatsApp and confirmed chats in the in-app
-view. The calling transport is not yet implemented or verified.
-Tracked by TASK-61. The owner requires calls to stay inside GrammieGuide.
+Status: the [voice bridge, Home controls and embedded account linking](whatsapp-call-controls.md)
+are implemented on `feat/whatsapp-controls`. The owner confirmed linked chats and
+login persistence after restarting. Private Web module shapes and calling gates
+were observed on the real linked page; actual calls and two-way sound remain
+unverified. TASK-63 tracks the implementation; TASK-61 retains real-device proof.
+The owner requires calls to stay inside GrammieGuide. Video is disabled.
 
 ## Verified artifact observations
 
@@ -116,7 +118,55 @@ is retained as investigation material, not the current setup entry point:
 & .\node_modules\electron\dist\electron.exe 'C:\Users\koreo\GrammieGuide-analysis\whatsapp-2.2640.100.0\web-probe.cjs'
 ```
 
-Open questions: account-specific Web Calling availability, the runtime call controls
-and state API, login persistence after restart, whether simple custom controls can
-remain reliable, and the real kiosk's camera/microphone configuration. The
-production calling feature remains unfinished pending that evidence.
+The original proposal above preceded the linked-page investigation below. Real
+calling reliability, two-way sound and the kiosk's microphone remain unverified.
+
+## Linked Web investigation and original bridge
+
+REA inspected the actual linked page passively with text, accessibility, console,
+storage and WebSocket capture disabled. Evidence:
+
+- Structural capture: `ev_c47aa8b258d60f213ba39760b961a04c93027d973651071622d333eeafc92460`.
+- Public asset inventory: `ev_e45e0cb6c54ebf0fee823590e380e1389a95a9080d78176a5f825495b389d30a`.
+- Public static JS sources: `ev_2e329c2572b55114441a5be85e42367b99eb65cbd9fe24abfe3c5ee2ef82fe40`.
+  The producer returned a resource-constraint transport error; its completed
+  evidence remained available and was exported rather than capturing again.
+
+Evidence bundle: `C:/Users/koreo/GrammieGuide-analysis/whatsapp-web-calling-20261025-evidence.json`.
+The adjacent `whatsapp-web-public-js/manifest.json` maps 35 extracted public JS
+files to their URLs and SHA-256 digests, checked against the captured artifacts.
+`all-modules.json` and `call-modules.json` retain offsets in hash-named originals.
+Provider source is analysis material outside the repository and is not shipped.
+
+Separate ordinary Playwright/CDP read-only probes established module availability
+and public enum values; REA did not evaluate JavaScript. They returned no messages,
+contact list, cookies, storage or credentials, and placed no calls. Observed:
+
+- Real Chromium `152.0.7977.130`; calling/UI gates true, unsupported-browser false.
+- Cached stack exists with `type: 'web'`; start/accept/reject/end method shapes exist.
+- Direct `WAWebCallCollection` with no active/pending call; local state `None` (0).
+- `CallActive` is 6; `ConnectedLonely` is 11, and is not evidence of an answered call.
+
+Static source analysis identifies these private contracts:
+
+| Operation | Observed contract |
+| --- | --- |
+| Start voice | `WAWebVoipStartCall.startWAWebVoipCall(Wid, false, 0, 0, null, {entryTrust: 'user_gesture'})` |
+| Answer voice | Cached Web stack `acceptCall(true, false, null)` |
+| Decline | Cached Web stack `rejectCall()` |
+| End | Cached Web stack `endCall(EndCallReason.Self, true)`; Self observed as 2 |
+| State | Local state store plus `activeCall.getState()`, pending outgoing and current model |
+| Peer mapping | `WAWebLidMigrationUtils.toPn(peerJid)` if locally resolvable; otherwise unknown |
+
+The original integration validates these shapes on each operation and fails closed
+on changes. A true start result or undefined stack result is submission, not proof
+of connection. Runtime state is validated/redacted in main. Only explicit trusted
+Start/Answer grants the owned main frame audio capture; no camera/screens/popups.
+End has bounded native signaling followed by local renderer destruction. No private
+native DLLs, URI handoffs, guessed clicks or copied provider code are used.
+
+The local built-app fixture exercises the bridge and UI without WhatsApp traffic.
+It cannot prove the live media transport works: real outgoing/incoming voice,
+busy/unanswered/offline, popup behavior and Windows device access remain TASK-61
+release checks. This implementation is a development integration, not a verified
+production calling replacement.

@@ -121,6 +121,8 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'whatsapp:prepare': { request: void; response: WhatsAppCallState }
+  'whatsapp:closeCalls': { request: void; response: WhatsAppCallState }
   'whatsapp:setupState': { request: void; response: WhatsAppSetupState }
   'whatsapp:openSetup': { request: void; response: WhatsAppSetupState }
   'whatsapp:closeSetup': { request: void; response: WhatsAppSetupState }

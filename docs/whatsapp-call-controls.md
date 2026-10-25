@@ -1,112 +1,107 @@
-# WhatsApp call-control interface
+# WhatsApp call controls
 
-Implemented on `feat/whatsapp-controls` for TASK-62, based on the
-[REA investigation](whatsapp-integration-investigation.md).
+Implemented on `feat/whatsapp-controls` for TASK-62 and TASK-63, using the
+[REA findings](whatsapp-integration-investigation.md). Account linking and login
+persistence are confirmed by the owner. The original voice bridge and Home UI are
+implemented and exercised with a local provider fixture. **A real outgoing or
+incoming call and two-way sound have not been verified.** This is a development
+integration; it is not yet ready to replace the real kiosk's calling arrangements.
+Video remains disabled. WhatsApp's private Web modules can change without notice.
 
-This includes the control interface, caregiver panel and an embedded account-linking
-surface. It is **not yet a working WhatsApp calling transport**. The production adapter
-can report that linking is required but cannot dial, answer, or end a real call.
-No Windows-app launch, private DLL loading, credential
-copying, or guessed remote-page click automation is enabled.
+## Caregiver setup and use
+
+1. Press **Ctrl+Shift+A**, unlock the caregiver panel and open **Contacts**.
+2. Use **Open WhatsApp setup** to link or inspect the account, then close setup.
+   Login uses the isolated `persist:whatsapp` session, separate from Windows WhatsApp.
+   The owner confirmed chats return after restarting without another QR scan.
+3. Save preferred/fallback family contacts with their WhatsApp phone numbers.
+   These are also the saved contacts used by the existing callback feature;
+   enabling live calls does not require Twilio credentials or enable SMS requests.
+4. In **Tiles**, add a **Built-in → Family calls** tile in an available Home slot.
+   Its presence starts the hidden embedded connection. No calls start automatically.
+5. Open **Family calls** on Home and press **Call {name}**. Incoming saved-contact
+   voice calls offer **Answer** and **No, thank you**. Unknown/group/video callers
+   cannot be answered through this interface. Active calls always offer **End call**.
+
+For caregiver testing, **Prepare voice calls** starts the connection without a
+Home tile. **End call / close connection** stops it. Account setup cannot replace
+an active call. Closing or locking the admin panel closes account setup but does
+not terminate a Home call. Home reload/close, app quit, call renderer failure,
+removing the calling tile and explicit teardown release the embedded peer.
+
+Calls use a sandboxed hidden `WebContentsView` owned by GrammieGuide. Grandma
+sees the trusted large controls; the account's chat interface and provider call
+windows are not shown. All popup windows, external navigation, downloads, camera
+and screen capture are denied. Microphone permission is leased only after an
+explicit Start/Answer, only for audio in the exact owned WhatsApp main frame.
+Music pauses, Buddy speech/listening stops and other web-page audio is muted while
+a call is pending or active. The call holds the screen awake through audio policy.
 
 ## Application API
 
 Both typed preloads expose:
 
 ```typescript
-const state = await window.launcher.getWhatsAppState()
+await window.launcher.prepareWhatsApp()
 const stopWatching = window.launcher.onWhatsAppChanged(state => {
-  // Render only the reported state and availableActions.
+  // Render reported state and availableActions, never infer answered from a click.
 })
 const result = await window.launcher.controlWhatsApp({
   type: 'start', contactId: 'preferred', mode: 'voice'
 })
 // Answer, decline and end require state.call.id, an opaque local ID.
 // result.ok acknowledges the operation; it does not mean the person answered.
+await window.launcher.closeWhatsAppCalls() // native hang-up plus bounded local teardown
 stopWatching()
 ```
 
-The admin equivalent uses `window.admin`. The Contacts tab includes the control
-panel, reads saved family names, and shows voice/video buttons disabled while
-the transport is unavailable. Incoming answer/decline and active-call end controls
-are driven by observed state and capabilities. No Home calling tile is enabled
-while the underlying transport is unverified.
+The admin equivalent uses `window.admin`. Main-frame launcher or unlocked caregiver
+only; queued commands recheck authorization. Remote pages cannot invoke the API.
+Renderers supply saved contact IDs, never numbers, URLs, provider call IDs or code.
+Only display identities and local opaque call IDs leave main. No chat content,
+credentials or call content is logged. SMS delivery/YES states remain separate.
 
-IPC channels are `whatsapp:state`, `whatsapp:command`, and `whatsapp:changed`.
-Only the launcher main frame or unlocked caregiver main frame can invoke them.
-Queued caregiver commands recheck authorization before executing. Locked admin
-windows do not receive push updates. Remote pages cannot invoke these controls.
+Setup API: `getWhatsAppSetup`, `openWhatsAppSetup`, `closeWhatsAppSetup`,
+`onWhatsAppSetupChanged`; caregiver only. The browser identity removes Electron
+and GrammieGuide product tags while retaining the actual bundled Chromium version.
+This resolved the unsupported-browser page in the owner's `walink.png`. Setup
+markers report a link phase only and never establish calling readiness.
 
-The API accepts a saved `preferred` or `fallback` contact ID. Main obtains the phone
-number from saved contact settings; a renderer cannot send a phone, URI or provider
-call ID. Responses contain display identities and opaque local call IDs only.
-SMS settings and delivery/YES status remain independent.
+## Runtime and failure contract
 
-## Embedded account linking
+`whatsAppRuntime.ts` is original integration code serialized into the exact
+WhatsApp origin. It uses the observed high-level voice-start method and cached Web
+stack for answer/decline/end. It never loads native WhatsApp DLLs or launches a URI.
+Every read checks calling gates, the Web stack, required methods, local call state
+and active model. Only the provider's `CallActive` state produces **Talking with**;
+`ConnectedLonely` remains connecting. A successful start without an observed model
+is unconfirmed, never an answered call. No command is automatically retried.
 
-In Contacts, **Open WhatsApp setup** creates a GrammieGuide window with WhatsApp Web
-inside a sandboxed `WebContentsView`. The separate `persist:whatsapp` partition saves
-its own login under the app's user-data directory; it does not copy or reuse Windows
-WhatsApp credentials. It is created only when an unlocked caregiver opens setup.
+`WhatsAppAdapter` validates and revisions every observation. `call: null` while
+ready means positively idle; unavailable/disconnected cannot establish hang-up.
+Only main-process proof that the local renderer was destroyed can clear an
+uncertain call without provider idle. Incoming caller numbers are resolved locally
+from the current peer only; unresolved LIDs and non-saved contacts cannot answer.
+Video answer is denied. Controller operations are serialized and bounded to 10s.
 
-WhatsApp initially displayed an unsupported-browser page in this embedded view
-(`walink.png`, supplied by the owner). The session now removes the Electron and
-GrammieGuide product tags from its browser identity before creating remote contents,
-while preserving the actual bundled Chromium version. The owner subsequently confirmed
-that the QR appeared and linking completed with chats visible inside GrammieGuide.
+End attempts the native decline/hang-up and, after at most 1.5s, closes the local
+renderer. This path remains available during unknown state or a hung command.
+Timeout/cancellation destroys the remote renderer so late provider promises cannot
+leave a hidden microphone/call. Local teardown proves this computer disconnected;
+it does not claim the other device received a particular signaling event.
 
-Only the exact `https://web.whatsapp.com` origin can navigate this view. Popups,
-downloads, screen capture, microphone and camera capture are denied during setup.
-Closing setup, leaving Contacts, locking admin, reloading the caregiver document or
-closing its window tears down the remote contents. The account storage remains saved.
+## Verification and remaining release checks
 
-The admin preload exposes `getWhatsAppSetup`, `openWhatsAppSetup`,
-`closeWhatsAppSetup` and `onWhatsAppSetupChanged`. All three invoke channels require
-the unlocked caregiver main frame; Home and remote pages cannot open setup.
-Setup observations return only an open flag and a link phase, without QR payloads,
-chat text, contact details, cookies or account identifiers. Visible sign-in markers
-are diagnostic observations and never enable call capabilities by themselves.
+Unit tests cover runtime contracts, controller privacy/authority, duplicate and
+stale commands, cancellation, malformed observations, device permission policy,
+session lifecycle, and call priority in audio policy. Built-app tests intercept all
+WhatsApp requests in a fresh temporary profile: linking/isolation, outgoing and
+connected states, lonely/connecting state, incoming answer, unknown-caller refusal,
+native end and hung-end teardown. They do not contact WhatsApp or anyone's phone.
 
-## Adapter obligations
-
-`WhatsAppAdapter` is an injectable main-process boundary with `read`, `execute`
-and `subscribe`. `location` must be `embedded`; a native-app handoff is rejected.
-There is no renderer API for installing an adapter or injecting observations.
-
-Provider observations are validated and revisioned. Every fresh observation must
-increment the revision, including command replies. `call: null` means **positively
-observed idle**, not a missing selector or failed inspection. A disconnected
-transport cannot clear an active call or claim it ended. Only an observed
-`connected` phase can produce a connected label.
-
-`execute` must resolve with a newer observed snapshot. A successful URI launch or
-button click alone cannot satisfy it. Timeouts abort the request, leave an
-uncertain active call visible, and disable further starts until a fresh observation
-establishes the actual state. No command is retried automatically. Incoming callers
-outside saved contacts cannot be answered through this interface; decline remains
-available if supported. Removing a caller from saved contacts revokes answer access.
-
-A future real adapter must own its embedded view/session lifecycle, media permission
-policy, account linking, audio coordination, and teardown. Before enabling capabilities,
-prove actual outgoing and incoming call controls, hang-up, page/window crashes,
-Home recovery, device access and restart behavior. Disposal cancels observation and
-pending transport work; it does not itself assert that a remote call ended.
-
-## Verification
-
-Controller and IPC tests use an injected adapter to verify saved destinations,
-privacy, authority gates, duplicate starts, stale IDs/observations, incoming calls,
-timeouts, disconnects and subscription cleanup. Static React rendering checks
-disabled controls and honest labels. These are not live WhatsApp call tests.
-
-The initial DOM-interaction test attempt could not start its jsdom worker; an
-independent jsdom import also stalled. The checked-in UI tests follow the existing
-repository's static-render convention and do not depend on that environment.
-Real browser interaction and call verification remain TASK-61 work.
-
-Validation on 2026-10-25: production build/typechecks and repository lint passed;
-all 20 focused WhatsApp tests passed. The broader unit run passed 1,237 tests and
-failed eight media-library tests on timeouts (with a cleanup error after a timeout).
-Running the two affected media test files alone also failed on filesystem/hook
-timeouts: 50 passed and nine failed. Those media modules were not edited here;
-the full suite is not green, and the timeouts were not hidden by raising limits.
+Before real kiosk use (TASK-61): manually verify outgoing/incoming voice and two-way
+sound with an agreed family contact, busy/unanswered/offline behavior, actual
+microphone permissions on Windows, reconnect/restart after calls, provider popup
+behavior, crashes and the real touchscreen at each text size. Video needs a
+separate in-app rendering design and verification. The old full-unit run also had
+unrelated filesystem/hook timeouts in media-library tests; limits were not raised.

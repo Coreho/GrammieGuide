@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25 11:13'
-updated_date: '2026-10-25 12:57'
+updated_date: '2026-10-25 20:21'
 labels: []
 dependencies: []
 references:
@@ -46,4 +46,6 @@ Owner explicitly authorized starting the embedded connection after TASK-62. Cont
 Implemented the real caregiver-gated WhatsApp setup window and isolated persist:whatsapp session. Owner supplied walink.png showing WhatsApp rejecting Electron browser identity; removed only GrammieGuide/Electron UA product tags while retaining the actual Chromium version (runtime observed Chrome 152.0.7977.130). Owner confirmed the QR appeared and completed linking with chats visible inside GrammieGuide. Unit tests cover session isolation, deny-all setup permissions, navigation/popup/download guards, teardown, stale probes, and caregiver/lock gates. The new built-app setup test passes using a local intercepted fixture; ElectronApplication.firstWindow stalled, while obtaining the document through BrowserContext resolved the harness wait. Runtime call controls remain disabled pending inspection of the linked session. Persistence after restart is awaiting owner confirmation.
 
 Latest verification: all 29 focused unit/static-render tests pass; the built-app WhatsApp setup e2e passes against a network-intercepted fixture; production build and typechecks, repository lint and formatting checks pass. Login persistence and actual call availability remain pending the live session check. The owner-provided walink.png is left untracked and is not included in commits.
+
+Owner confirmed login persists after restart without another QR scan. Passive linked-page REA captures and separate read-only runtime probes found Web Calling enabled, a cached Web stack, the direct call collection and idle state. Public source evidence and SHA-256 mappings are recorded in docs/whatsapp-integration-investigation.md. TASK-63 implements the original voice bridge, hidden owned session, permission lease, audio priority and Home controls. No real calls or messages were sent. Real outgoing/incoming voice, two-way sound, provider popup behavior and Windows devices remain unverified; do not treat the fixture as production call proof.
 <!-- SECTION:NOTES:END -->

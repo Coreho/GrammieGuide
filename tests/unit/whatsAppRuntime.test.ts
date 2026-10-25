@@ -1,0 +1,111 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { whatsAppRuntime } from '../../src/shared/whatsAppRuntime'
+
+afterEach(() => vi.unstubAllGlobals())
+function fixture(): {
+  modules: Record<string, unknown>
+  start: ReturnType<typeof vi.fn>
+  end: ReturnType<typeof vi.fn>
+  calls: { activeCall: unknown }
+  setState: (value: number) => void
+} {
+  let state = 0
+  const calls = { activeCall: null as unknown, getModelsArray: () => [] }
+  const start = vi.fn(async () => true)
+  const end = vi.fn(async () => {
+    state = 0
+    calls.activeCall = null
+  })
+  const modules: Record<string, unknown> = {
+    WAWebVoipGatingUtils: {
+      isCallingEnabled: () => true,
+      isWebCallingUiEnabled: () => true,
+      isUnsupportedBrowserForWebCalling: () => false
+    },
+    WAWebVoipStackInterface: {
+      getCachedVoipStackInterface: () => ({
+        type: 'web',
+        acceptCall: vi.fn(),
+        rejectCall: vi.fn(),
+        endCall: end
+      })
+    },
+    WAWebCallCollection: calls,
+    WAWebVoipWaCallEnums: {
+      CallState: {
+        None: 0,
+        Calling: 1,
+        ReceivedCall: 3,
+        AcceptSent: 4,
+        CallActive: 6,
+        CallActiveElseWhere: 7,
+        ReceivedCallWithoutOffer: 8,
+        Rejoining: 9,
+        ConnectedLonely: 11,
+        PreCalling: 12,
+        CallStateEnding: 13
+      }
+    },
+    WAWebVoipLocalCallStateStore: { getLocalCallState: () => state },
+    WAWebVoipStartCall: { startWAWebVoipCall: start },
+    WAWebLidMigrationUtils: { toPn: (peer: unknown) => peer },
+    WAWebWidFactory: { createWid: (jid: string) => jid },
+    WAWebVoipSignalingEnums: { EndCallReason: { Self: 2 } }
+  }
+  vi.stubGlobal('location', { origin: 'https://web.whatsapp.com' })
+  vi.stubGlobal('require', (name: string) => modules[name])
+  return {
+    modules,
+    start,
+    end,
+    calls,
+    setState: (value) => {
+      state = value
+    }
+  }
+}
+
+describe('observed WhatsApp web control contracts', () => {
+  it('reports positively observed idle and invokes the high-level voice entry only on a command', async () => {
+    const f = fixture()
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      supported: true,
+      idle: true,
+      call: null
+    })
+    expect(f.start).not.toHaveBeenCalled()
+    await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'voice' })
+    expect(f.start).toHaveBeenCalledWith('15551111111@c.us', false, 0, 0, null, {
+      entryTrust: 'user_gesture'
+    })
+  })
+  it('maps an actual model and never treats a missing model in an active state as idle', async () => {
+    const f = fixture()
+    f.setState(6)
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({ supported: false, idle: false })
+    f.calls.activeCall = {
+      id: 'provider-call',
+      peerJid: '15551111111@c.us',
+      getState: () => 6,
+      isVideo: false
+    }
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      idle: false,
+      call: { phase: 'connected', phone: '+15551111111' }
+    })
+    await whatsAppRuntime({ type: 'end', callId: 'stale' })
+    expect(f.end).not.toHaveBeenCalled()
+    expect(await whatsAppRuntime({ type: 'end', callId: 'provider-call' })).toMatchObject({
+      idle: true,
+      call: null
+    })
+    expect(f.end).toHaveBeenCalledWith(2, true)
+  })
+  it('fails closed for a different origin, missing methods and video', async () => {
+    const f = fixture()
+    await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'video' })
+    expect(f.start).not.toHaveBeenCalled()
+    vi.stubGlobal('location', { origin: 'https://evil.test' })
+    expect((await whatsAppRuntime({ type: 'read' })).supported).toBe(false)
+  })
+})

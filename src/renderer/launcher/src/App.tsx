@@ -37,6 +37,7 @@ import { useAudioHold, useIdleDim } from './components/useIdleDim'
 import { useContactFlow } from './contacts/useContactFlow'
 import { ContactButton } from './contacts/ContactButton'
 import { ContactOverlay } from './contacts/ContactOverlay'
+import { tilesInHome } from '@shared/homeLayout'
 
 declare global {
   interface Window {
@@ -60,6 +61,45 @@ export default function App() {
   const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
   /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
   const [openBuiltin, setOpenBuiltin] = useState<TileType | null>(null)
+  const presentedCall = useRef<string | null>(null)
+  const callsEnabled =
+    !!config &&
+    tilesInHome(config.display.homeLayout, config.tiles).some(
+      (tile) => tile.type === 'builtin' && tile.builtinKey === 'calls'
+    )
+  useEffect(() => {
+    if (callsEnabled) void window.launcher.prepareWhatsApp().catch(() => {})
+    // Removing the calling tile must release any hidden microphone/backend.
+    else if (configRef.current) void window.launcher.closeWhatsAppCalls().catch(() => {})
+  }, [callsEnabled])
+  useEffect(
+    () =>
+      window.launcher.onWhatsAppChanged((state) => {
+        // Present each local call once. Late status events during hang-up must
+        // not reopen a dialog she has just closed with End call and go Home.
+        if (!state.call || presentedCall.current === state.call.id) return
+        presentedCall.current = state.call.id
+        setShowBuddyChat(false)
+        setShowConfusion(false)
+        setBuddyMenuAnchor(null)
+        void window.launcher.goHome().catch(() => {})
+        setView('home')
+        setOpenBuiltin((current) =>
+          current?.builtinKey === 'calls'
+            ? current
+            : {
+                id: 'active-family-call',
+                type: 'builtin',
+                builtinKey: 'calls',
+                label: 'Family calls',
+                colorIndex: 0,
+                size: 'normal',
+                slot: null
+              }
+        )
+      }),
+    []
+  )
   useEffect(
     () =>
       window.launcher.onNewsShelf(({ tileId }) => {

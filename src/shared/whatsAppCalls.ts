@@ -21,7 +21,7 @@ export interface WhatsAppSetupState {
   phase: 'closed' | 'loading' | 'link-required' | 'linked' | 'unavailable'
 }
 export type WhatsAppPhase =
-  'starting' | 'outgoing' | 'incoming' | 'connecting' | 'connected' | 'unknown'
+  'starting' | 'outgoing' | 'incoming' | 'connecting' | 'connected' | 'ending' | 'unknown'
 export interface WhatsAppContact {
   id: 'preferred' | 'fallback'
   name: string

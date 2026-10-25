@@ -6,6 +6,7 @@ type Contents = EventEmitter & {
   loadURL: Mock
   close: Mock
   executeJavaScriptInIsolatedWorld: Mock
+  executeJavaScript: Mock
   setWindowOpenHandler: Mock
   isDestroyed: () => boolean
   getURL: () => string
@@ -45,6 +46,7 @@ vi.mock('electron', async () => {
     const value = Object.assign(new EventEmitter(), {
       loadURL: vi.fn(async () => undefined),
       executeJavaScriptInIsolatedWorld: vi.fn(async () => 'link-required'),
+      executeJavaScript: vi.fn(async () => ({ supported: true, idle: true, call: null })),
       setWindowOpenHandler: vi.fn(),
       getURL: () => 'https://web.whatsapp.com/',
       isDestroyed: () => destroyed,
@@ -111,6 +113,44 @@ afterEach(() => {
 })
 
 describe('embedded WhatsApp account setup', () => {
+  it('leases only audio to its owned call main frame and keeps admin setup-close separate', async () => {
+    const f = make()
+    f.setup.open(undefined, true)
+    expect(f.setup.callsOpen).toBe(true)
+    expect(f.setup.state().open).toBe(false)
+    const check = mocks.ses.setPermissionCheckHandler.mock.calls[0]![0]
+    const request = mocks.ses.setPermissionRequestHandler.mock.calls[0]![0]
+    const contents = f.view().webContents
+    const origin = 'https://web.whatsapp.com/'
+    const details = { isMainFrame: true, mediaType: 'audio' }
+    expect(check(contents, 'media', origin, details)).toBe(false)
+    f.setup.allowMicrophone(true)
+    expect(check(contents, 'media', origin, details)).toBe(true)
+    expect(check(contents, 'media', origin, { ...details, mediaType: 'video' })).toBe(false)
+    expect(check(contents, 'media', origin, { ...details, isMainFrame: false })).toBe(false)
+    expect(check(contents, 'media', 'https://evil.test/', details)).toBe(false)
+    expect(check({}, 'media', origin, details)).toBe(false)
+    const callback = vi.fn()
+    request(contents, 'media', callback, {
+      isMainFrame: true,
+      requestingUrl: origin,
+      mediaTypes: ['audio']
+    })
+    expect(callback).toHaveBeenLastCalledWith(true)
+    request(contents, 'media', callback, {
+      isMainFrame: true,
+      requestingUrl: origin,
+      mediaTypes: ['audio', 'video']
+    })
+    expect(callback).toHaveBeenLastCalledWith(false)
+    await f.setup.run({ type: 'read' }, new AbortController().signal)
+    expect(contents.executeJavaScript).toHaveBeenLastCalledWith(expect.any(String), false)
+    f.setup.closeSetup()
+    expect(f.setup.callsOpen).toBe(true)
+    f.setup.close()
+    expect(f.setup.locallyClosed).toBe(true)
+    expect(check(contents, 'media', origin, details)).toBe(false)
+  })
   it('loads only on an explicit open, in a persistent isolated session with capture denied', async () => {
     const f = make()
     expect(mocks.partition).not.toHaveBeenCalled()
@@ -196,7 +236,7 @@ describe('embedded WhatsApp account setup', () => {
     await vi.waitFor(() =>
       expect(f.view().webContents.executeJavaScriptInIsolatedWorld).toHaveBeenCalled()
     )
-    parent.emit('closed')
+    parent.webContents.emit('render-process-gone')
     finish('linked')
     await Promise.resolve()
     expect(f.setup.state().open).toBe(false)

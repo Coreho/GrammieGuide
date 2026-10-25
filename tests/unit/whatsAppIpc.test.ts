@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
     state: vi.fn(() => ({ open: false, phase: 'closed' })),
     open: vi.fn(() => ({ open: true, phase: 'loading' })),
     close: vi.fn(() => ({ open: false, phase: 'closed' })),
+    closeSetup: vi.fn(() => ({ open: false, phase: 'closed' })),
+    prepare: vi.fn(),
     subscribe: vi.fn(() => () => {}),
     dispose: vi.fn()
   }
@@ -30,9 +32,14 @@ vi.mock('../../src/main/services/whatsapp/whatsAppSession', () => ({
     state = mocks.setup.state
     open = mocks.setup.open
     close = mocks.setup.close
+    closeSetup = mocks.setup.closeSetup
+    prepare = mocks.setup.prepare
     subscribe = mocks.setup.subscribe
     dispose = mocks.setup.dispose
   }
+}))
+vi.mock('../../src/main/services/audio/audioRuntime', () => ({
+  getAudioCoordinator: () => ({ dispatch: vi.fn() })
 }))
 vi.mock('../../src/main/windows/windowManager', () => ({
   getAdminWindow: () => mocks.admin,
@@ -145,6 +152,6 @@ describe('WhatsApp IPC boundary', () => {
     })
     expect(mocks.setup.open).toHaveBeenCalledWith(mocks.admin)
     mocks.watchLock.mock.calls[0]![0]()
-    expect(mocks.setup.close).toHaveBeenCalledTimes(1)
+    expect(mocks.setup.closeSetup).toHaveBeenCalledTimes(1)
   })
 })

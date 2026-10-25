@@ -5,6 +5,8 @@ export const providerCallStateSchema = z
     /** Monotonic across every observation from this adapter instance, including command replies. */
     revision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
     connection: z.enum(['unavailable', 'not-linked', 'ready', 'disconnected']),
+    /** Set by main only after destroying the local call renderer. */
+    localSessionClosed: z.boolean().optional(),
     capabilities: z
       .object({
         voice: z.boolean(),
@@ -18,9 +20,12 @@ export const providerCallStateSchema = z
     call: z
       .object({
         id: z.string().min(1).max(256),
-        phone: z.string().regex(/^\+[1-9]\d{7,14}$/),
+        phone: z
+          .string()
+          .regex(/^\+[1-9]\d{7,14}$/)
+          .nullable(),
         mode: z.enum(['voice', 'video']),
-        phase: z.enum(['outgoing', 'incoming', 'connecting', 'connected'])
+        phase: z.enum(['outgoing', 'incoming', 'connecting', 'connected', 'ending'])
       })
       .strict()
       .nullable()

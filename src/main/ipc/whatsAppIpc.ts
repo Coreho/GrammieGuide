@@ -9,6 +9,7 @@ import type { WhatsAppAdapter } from '../services/whatsapp/whatsAppAdapter'
 import { EmbeddedWhatsAppSession } from '../services/whatsapp/whatsAppSession'
 import { createWhatsAppSessionAdapter } from '../services/whatsapp/whatsAppSessionAdapter'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
+import { getAudioCoordinator } from '../services/audio/audioRuntime'
 
 function requireControlWindow(event: IpcMainInvokeEvent): void {
   if (event.senderFrame !== event.sender.mainFrame) throw new Error('GrammieGuide window required')
@@ -50,9 +51,16 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
       const { preferred, fallback } = getConfig().contacts
       return [preferred, fallback].filter((person): person is ContactPerson => person !== null)
     },
-    push
+    (state) => {
+      getAudioCoordinator().dispatch(
+        state.call || state.pending
+          ? { type: 'start', source: 'call', id: 'whatsapp-call' }
+          : { type: 'end', id: 'whatsapp-call' }
+      )
+      push(state)
+    }
   )
-  const stopWatchingLock = onAdminLocked(() => setup.close())
+  const stopWatchingLock = onAdminLocked(() => setup.closeSetup())
   app.once('before-quit', () => {
     controller.dispose()
     setup.dispose()
@@ -73,11 +81,50 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
   })
   ipcMain.handle('whatsapp:openSetup', (event) => {
     requireCaregiver(event)
+    if (controller.state().call || controller.state().pending) throw new Error('End the call first')
+    setup.close()
     return setup.open(getAdminWindow() ?? undefined)
   })
   ipcMain.handle('whatsapp:closeSetup', (event) => {
     requireCaregiver(event)
-    return setup.close()
+    return setup.closeSetup()
+  })
+  ipcMain.handle('whatsapp:prepare', (event) => {
+    requireControlWindow(event)
+    const home = getLauncherWindow()
+    if (!home) throw new Error('Home is unavailable')
+    setup.prepare(home)
+    return controller.refresh()
+  })
+  ipcMain.handle('whatsapp:closeCalls', async (event) => {
+    requireControlWindow(event)
+    const state = controller.state()
+    // Try the observed native control, then destroy the local peer even if its
+    // queue/JS is hung. This never claims the remote person received a hangup.
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      if (
+        state.call &&
+        !state.pending &&
+        state.availableActions.some((a) => a === 'end' || a === 'decline')
+      )
+        await Promise.race([
+          controller.command(
+            { type: state.call.phase === 'incoming' ? 'decline' : 'end', callId: state.call.id },
+            () => requireControlWindow(event)
+          ),
+          new Promise((resolve) => {
+            timer = setTimeout(resolve, 1500)
+          })
+        ])
+    } catch {
+      // Native failure must not suppress the local teardown or its proof.
+    } finally {
+      if (timer) clearTimeout(timer)
+      setup.close()
+      controller.cancelPending()
+    }
+    return controller.refresh()
   })
   ipcMain.handle('whatsapp:state', (event) => {
     requireControlWindow(event)

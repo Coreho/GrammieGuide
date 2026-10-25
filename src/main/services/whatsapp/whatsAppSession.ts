@@ -1,5 +1,6 @@
-import { BrowserWindow, WebContentsView, session, type Session } from 'electron'
+import { BrowserWindow, WebContentsView, session, type Session, type WebContents } from 'electron'
 import type { WhatsAppSetupState } from '@shared/whatsAppCalls'
+import { whatsAppRuntime, type WhatsAppRuntimeRequest } from '@shared/whatsAppRuntime'
 
 export const WHATSAPP_PARTITION = 'persist:whatsapp'
 const WHATSAPP_URL = 'https://web.whatsapp.com/'
@@ -45,6 +46,49 @@ export class EmbeddedWhatsAppSession {
   private poll: ReturnType<typeof setInterval> | null = null
   private cleanupParent: (() => void) | null = null
   private disposed = false
+  private callMode = false
+  private microphone = false
+  private lastClosed: WebContents | null = null
+
+  get callsOpen(): boolean {
+    return this.callMode && !!this.view && !this.view.webContents.isDestroyed()
+  }
+  get generationId(): number {
+    return this.generation
+  }
+  get locallyClosed(): boolean {
+    return !this.view && (!this.lastClosed || this.lastClosed.isDestroyed())
+  }
+  allowMicrophone(allow: boolean): void {
+    this.microphone = allow && this.callsOpen
+  }
+  prepare(parent: BrowserWindow): void {
+    if (this.callsOpen || this.disposed) return
+    this.close()
+    this.open(parent, true)
+  }
+  closeSetup(): WhatsAppSetupState {
+    return this.callMode ? this.state() : this.close()
+  }
+  async run(request: WhatsAppRuntimeRequest, signal: AbortSignal): Promise<unknown> {
+    signal.throwIfAborted()
+    const view = this.view
+    if (!this.callsOpen || !view) throw new Error('Call session unavailable')
+    // prepare() returns while Chromium is still navigating. Loading is neither
+    // a working transport nor a failed call; keep it alive for the next probe.
+    if (!allowedNavigation(view.webContents.getURL()))
+      return { supported: false, idle: false, call: null }
+    const generation = this.generation
+    // User gesture is supplied only for a typed command originating at a trusted
+    // GrammieGuide button. Neither remote content nor a renderer supplies code.
+    const result: unknown = await view.webContents.executeJavaScript(
+      `(${whatsAppRuntime.toString()})(${JSON.stringify(request)})`,
+      request.type !== 'read'
+    )
+    signal.throwIfAborted()
+    if (generation !== this.generation) throw new Error('Call session replaced')
+    return result
+  }
 
   state(): WhatsAppSetupState {
     return { ...this.current }
@@ -54,7 +98,7 @@ export class EmbeddedWhatsAppSession {
     return () => this.listeners.delete(listener)
   }
   private update(phase: WhatsAppSetupState['phase']): void {
-    const open = this.host !== null
+    const open = this.host !== null && !this.callMode
     if (this.current.open === open && this.current.phase === phase) return
     this.current = { open, phase }
     for (const listener of this.listeners) {
@@ -73,10 +117,33 @@ export class EmbeddedWhatsAppSession {
     // a Chrome version or sending her to update an unrelated installed browser.
     // This must happen before constructing the remote WebContents.
     ses.setUserAgent(ses.getUserAgent().replace(/\s(?:Electron|grammieguide)\/\S+/gi, ''))
-    // Setup cannot capture sound/video or share a screen. Ordinary web tiles and
-    // the launcher's default session retain their own independent policies.
-    ses.setPermissionCheckHandler(() => false)
-    ses.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
+    const owns = (contents: WebContents | null): boolean =>
+      this.microphone &&
+      this.callsOpen &&
+      contents === this.view?.webContents &&
+      !!contents &&
+      allowedNavigation(contents.getURL())
+    // A lease exists only after Start/Answer, for this exact main frame. Setup,
+    // video, screens, subframes and other sessions never gain capture access.
+    ses.setPermissionCheckHandler(
+      (contents, permission, origin, details) =>
+        owns(contents) &&
+        permission === 'media' &&
+        allowedNavigation(origin) &&
+        details.isMainFrame === true &&
+        details.mediaType === 'audio'
+    )
+    ses.setPermissionRequestHandler((contents, permission, callback, details) => {
+      const media = ('mediaTypes' in details ? details.mediaTypes : []) ?? []
+      callback(
+        owns(contents) &&
+          permission === 'media' &&
+          details.isMainFrame === true &&
+          allowedNavigation(details.requestingUrl) &&
+          media.length === 1 &&
+          media[0] === 'audio'
+      )
+    })
     ses.setDevicePermissionHandler(() => false)
     ses.setDisplayMediaRequestHandler(() => {})
     ses.on('will-download', (event) => event.preventDefault())
@@ -84,13 +151,15 @@ export class EmbeddedWhatsAppSession {
     return ses
   }
 
-  open(parent: BrowserWindow | undefined): WhatsAppSetupState {
+  open(parent: BrowserWindow | undefined, forCalls = false): WhatsAppSetupState {
     if (this.disposed) return this.state()
+    if (this.callsOpen && !forCalls) throw new Error('Close calling before account setup')
     if (this.host && !this.host.isDestroyed()) {
       if (process.env.GRAMMIEGUIDE_E2E !== '1') this.host.focus()
       return this.state()
     }
     const generation = ++this.generation
+    this.callMode = forCalls
     const quiet = process.env.GRAMMIEGUIDE_E2E === '1'
     // Establish the partition before allocating a window so a session failure
     // cannot leave an invisible, unowned setup window behind.
@@ -115,11 +184,18 @@ export class EmbeddedWhatsAppSession {
         nodeIntegration: false,
         webviewTag: false,
         disableDialogs: true,
-        navigateOnDragDrop: false
+        navigateOnDragDrop: false,
+        backgroundThrottling: false
       }
     })
     this.host = host
     this.view = view
+    const remoteContents = view.webContents
+    remoteContents.once('destroyed', () => {
+      // close() may return before Chromium finishes destruction. Publish again
+      // when the main process can positively establish the local peer is gone.
+      if (this.lastClosed === remoteContents) for (const listener of this.listeners) listener()
+    })
     host.contentView.addChildView(view)
     const layout = (): void => {
       if (host.isDestroyed()) return
@@ -153,10 +229,12 @@ export class EmbeddedWhatsAppSession {
       }
       parent.once('closed', close)
       parent.webContents.once('destroyed', close)
+      parent.webContents.on('render-process-gone', close)
       parent.webContents.on('did-start-navigation', navigation)
       this.cleanupParent = () => {
         parent.removeListener('closed', close)
         parent.webContents.removeListener('destroyed', close)
+        parent.webContents.removeListener('render-process-gone', close)
         parent.webContents.removeListener('did-start-navigation', navigation)
       }
     }
@@ -174,7 +252,10 @@ export class EmbeddedWhatsAppSession {
       void this.probe(generation)
     }, 1500)
     this.poll.unref()
-    if (quiet) {
+    if (forCalls) {
+      // Audio stays inside GrammieGuide; Grandma sees only the trusted controls.
+      // Never show the account's chats or an independent provider call window.
+    } else if (quiet) {
       host.setIgnoreMouseEvents(true)
       host.showInactive()
     } else host.show()
@@ -235,7 +316,10 @@ export class EmbeddedWhatsAppSession {
     const view = this.view
     this.host = null
     this.view = null
+    this.microphone = false
+    this.callMode = false
     if (view) {
+      this.lastClosed = view.webContents
       if (host && !host.isDestroyed()) host.contentView.removeChildView(view)
       if (!view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false })
     }
