@@ -22,7 +22,8 @@ const observation = z
         'microphone-unavailable',
         'recipient-lookup',
         'recipient-not-found',
-        'recipient-unresolved'
+        'recipient-unresolved',
+        'offline'
       ])
       .optional(),
     call: z
@@ -109,6 +110,17 @@ export function createWhatsAppSessionAdapter(setup: EmbeddedWhatsAppSession): Wh
       }
       if (!state.supported || state.rejected) {
         report(state.failure ?? 'unsupported-observation')
+        if (state.failure === 'offline' && request.type === 'read') {
+          setup.allowMicrophone(false)
+          // Offline is reported only after positively observed local idle. If a
+          // call just ended, destroy its peer so main can clear the old call even
+          // while signaling is down; the listener manager may create a fresh one.
+          if (hadCall) {
+            hadCall = false
+            cancel()
+          }
+          return { ...unavailable(), connection: 'disconnected' }
+        }
         if (request.type !== 'read' || hadCall) cancel()
         return unavailable()
       }

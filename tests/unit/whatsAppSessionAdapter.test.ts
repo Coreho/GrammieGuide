@@ -34,6 +34,36 @@ function fixture(): {
 }
 
 describe('embedded voice transport', () => {
+  it('clears a locally ended call with destruction proof when signaling is offline', async () => {
+    const { session, adapter } = fixture()
+    session.run.mockResolvedValue({
+      supported: true,
+      idle: false,
+      call: {
+        id: 'ended-later',
+        phone: '+15551111111',
+        mode: 'voice',
+        phase: 'connected'
+      }
+    })
+    await adapter.read(new AbortController().signal)
+    session.run.mockResolvedValue({ supported: false, idle: false, call: null, failure: 'offline' })
+    expect(await adapter.read(new AbortController().signal)).toMatchObject({
+      connection: 'disconnected',
+      call: null,
+      localSessionClosed: true
+    })
+    expect(session.close).toHaveBeenCalledOnce()
+  })
+  it('reports idle offline state without destroying the listener and revokes capture permission', async () => {
+    const { session, adapter } = fixture()
+    session.run.mockResolvedValue({ supported: false, idle: false, call: null, failure: 'offline' })
+    expect(await adapter.read(new AbortController().signal)).toMatchObject({
+      connection: 'disconnected'
+    })
+    expect(session.allowMicrophone).toHaveBeenLastCalledWith(false)
+    expect(session.close).not.toHaveBeenCalled()
+  })
   it('waits for the worker call model after Start instead of destroying a transitional snapshot', async () => {
     vi.useFakeTimers()
     try {

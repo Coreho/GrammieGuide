@@ -10,6 +10,7 @@ import { EmbeddedWhatsAppSession } from '../services/whatsapp/whatsAppSession'
 import { createWhatsAppSessionAdapter } from '../services/whatsapp/whatsAppSessionAdapter'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { getAudioCoordinator } from '../services/audio/audioRuntime'
+import { WhatsAppConnection } from '../services/whatsapp/whatsAppConnection'
 
 function requireControlWindow(event: IpcMainInvokeEvent): void {
   if (event.senderFrame !== event.sender.mainFrame) throw new Error('GrammieGuide window required')
@@ -58,12 +59,17 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
           : { type: 'end', id: 'whatsapp-call' }
       )
       push(state)
+      connection.check()
     }
   )
-  const stopWatchingLock = onAdminLocked(() => setup.closeSetup())
+  const connection = new WhatsAppConnection(setup, () => {
+    const state = controller.state()
+    return !state.call && !state.pending
+  })
+  const stopWatchingLock = onAdminLocked(() => connection.closeSetup())
   app.once('before-quit', () => {
     controller.dispose()
-    setup.dispose()
+    connection.dispose()
     stopWatchingLock()
     stopSetupUpdates()
   })
@@ -82,18 +88,17 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
   ipcMain.handle('whatsapp:openSetup', (event) => {
     requireCaregiver(event)
     if (controller.state().call || controller.state().pending) throw new Error('End the call first')
-    setup.close()
-    return setup.open(getAdminWindow() ?? undefined)
+    return connection.openSetup(getAdminWindow() ?? undefined)
   })
   ipcMain.handle('whatsapp:closeSetup', (event) => {
     requireCaregiver(event)
-    return setup.closeSetup()
+    return connection.closeSetup()
   })
   ipcMain.handle('whatsapp:prepare', (event) => {
     requireControlWindow(event)
     const home = getLauncherWindow()
     if (!home) throw new Error('Home is unavailable')
-    setup.prepare(home)
+    connection.prepare(home)
     return controller.refresh()
   })
   ipcMain.handle('whatsapp:closeCalls', async (event) => {
@@ -121,7 +126,7 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
       // Native failure must not suppress the local teardown or its proof.
     } finally {
       if (timer) clearTimeout(timer)
-      setup.close()
+      connection.stop()
       controller.cancelPending()
     }
     return controller.refresh()

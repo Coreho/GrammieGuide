@@ -21,6 +21,7 @@ export interface WhatsAppRuntimeState {
     | 'recipient-lookup'
     | 'recipient-not-found'
     | 'recipient-unresolved'
+    | 'offline'
   call: {
     id: string
     phone: string | null
@@ -85,20 +86,24 @@ export async function whatsAppRuntime(
       }
     }
     const observe = (): WhatsAppRuntimeState => {
+      const idle = (): WhatsAppRuntimeState =>
+        invoke(load('WAComms'), 'isSocketConnected') === true
+          ? { supported: true, idle: true, call: null }
+          : { ...unavailable(), failure: 'offline' }
       const local = invoke(load('WAWebVoipLocalCallStateStore'), 'getLocalCallState')
       if (typeof local !== 'number') return unavailable()
       if (
         (local === states.None || local === states.CallActiveElseWhere) &&
         !calls.pendingOutgoingCall
       ) {
-        if (!calls.activeCall) return { supported: true, idle: true, call: null }
+        if (!calls.activeCall) return idle()
         const modelState = invoke(object(calls.activeCall), 'getState')
         if (
           modelState === states.None ||
           modelState === states.CallActiveElseWhere ||
           modelState === states.CallStateEnding
         )
-          return { supported: true, idle: true, call: null }
+          return idle()
         return unavailable()
       }
       if (!calls.activeCall) return unavailable()

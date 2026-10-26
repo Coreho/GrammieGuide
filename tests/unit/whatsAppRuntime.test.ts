@@ -17,6 +17,7 @@ function fixture(): {
     calls.activeCall = null
   })
   const modules: Record<string, unknown> = {
+    WAComms: { isSocketConnected: () => true },
     WAWebVoipGatingUtils: {
       isCallingEnabled: () => true,
       isWebCallingUiEnabled: () => true,
@@ -67,6 +68,27 @@ function fixture(): {
 }
 
 describe('observed WhatsApp web control contracts', () => {
+  it('does not offer idle calling while disconnected, but preserves an observed active media call', async () => {
+    const f = fixture()
+    f.modules.WAComms = { isSocketConnected: () => false }
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      supported: false,
+      failure: 'offline'
+    })
+    await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'voice' })
+    expect(f.start).not.toHaveBeenCalled()
+    f.setState(6)
+    f.calls.activeCall = {
+      id: 'active',
+      peerJid: '15551111111@c.us',
+      getState: () => 6,
+      isVideo: false
+    }
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      supported: true,
+      call: { phase: 'connected' }
+    })
+  })
   it('does not call a number that WhatsApp cannot resolve', async () => {
     const f = fixture()
     const query = vi.fn(async () => null)
