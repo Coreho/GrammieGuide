@@ -36,8 +36,12 @@ then confirmed an incoming call displayed only GrammieGuide, with no extra scree
 For caregiver testing, **Prepare voice calls** starts the connection without a
 Home tile. **End call / close connection** stops it. Account setup cannot replace
 an active call. Closing or locking the admin panel closes account setup but does
-not terminate a Home call. Home reload/close, app quit, call renderer failure,
-removing the calling tile and explicit teardown release the embedded peer.
+not terminate a Home call. Closing setup restores an already requested incoming
+listener; setup alone never enables listening. Failed initial loads and destroyed
+call renderers recover through connection-only retries with backoff capped at 30s.
+Recovery waits for the old call and pending command to clear before creating a peer.
+Home reload/close, app quit, removing the calling tile and explicit teardown cancel
+listening and retries. Reloaded Home must explicitly request listening again.
 
 Calls use a sandboxed hidden `WebContentsView` owned by GrammieGuide. Grandma
 sees the trusted large controls; the account's chat interface and provider call
@@ -53,11 +57,13 @@ Both typed preloads expose:
 
 ```typescript
 await window.launcher.prepareWhatsApp()
-const stopWatching = window.launcher.onWhatsAppChanged(state => {
+const stopWatching = window.launcher.onWhatsAppChanged((state) => {
   // Render reported state and availableActions, never infer answered from a click.
 })
 const result = await window.launcher.controlWhatsApp({
-  type: 'start', contactId: 'preferred', mode: 'voice'
+  type: 'start',
+  contactId: 'preferred',
+  mode: 'voice'
 })
 // Answer, decline and end require state.call.id, an opaque local ID.
 // result.ok acknowledges the operation; it does not mean the person answered.
@@ -99,6 +105,12 @@ uncertain call without provider idle. Incoming caller numbers are resolved local
 from the current peer only; unresolved LIDs and non-saved contacts cannot answer.
 Video answer is denied. Controller operations are serialized and bounded to 10s.
 
+An idle peer with disconnected signaling reports unavailable calling and does not
+offer Start. It can become ready again when signaling returns. An observed active
+media call is preserved if its signaling socket drops. If that call subsequently
+ends locally while signaling remains offline, the adapter destroys the now-idle
+peer to clear the old call and audio hold with main-process teardown proof.
+
 End attempts the native decline/hang-up and, after at most 1.5s, closes the local
 renderer. This path remains available during unknown state or a hung command.
 Timeout/cancellation destroys the remote renderer so late provider promises cannot
@@ -112,14 +124,28 @@ stale commands, cancellation, malformed observations, device permission policy,
 session lifecycle, and call priority in audio policy. Built-app tests intercept all
 WhatsApp requests in a fresh temporary profile: linking/isolation, outgoing and
 connected states, lonely/connecting state, incoming answer, unknown-caller refusal,
-native end and hung-end teardown. They do not contact WhatsApp or anyone's phone.
+native end and hung-end teardown, missed/declined calls, offline/reconnect, failed
+first load, renderer crash, and listener restoration after setup/lock. A separate
+fixture verifies a persistent synthetic link cookie and caregiver PIN across two
+complete app processes. It does not inspect or copy real account credentials.
+These tests do not contact WhatsApp or anyone's phone.
 The call fixture also requires recipient lookup before Start and uses Chromium's
 fake audio device through the actual session permission handlers. Rejected starts
 verify that the screen stops recommending End after local teardown removed it.
 
+Latest validation: all 1,278 unit tests and all six WhatsApp built-app tests pass;
+build/typechecks and repository lint pass. The earlier sign-in timeout did not
+reproduce in four initial traced runs or the latest full run. The 60s limit is
+unchanged, and failure traces are retained; its original cause remains unknown.
+The real linked profile also reached ready after two launches of the built app,
+including a complete process shutdown between them, without another QR scan.
+Read-only checks showed one embedded peer, no call/pending operation and voice
+available. The separate native client remained closed. No calls were placed.
+
 Before real kiosk use (TASK-61): repeat incoming/outgoing and two-way
 sound checks on the kiosk, busy/unanswered/offline behavior, actual
 microphone permissions on Windows, reconnect/restart after calls, provider popup
-behavior, crashes and the real touchscreen at each text size. Video needs a
-separate in-app rendering design and verification. The old full-unit run also had
-unrelated filesystem/hook timeouts in media-library tests; limits were not raised.
+behavior, crashes and the real touchscreen at each text size. A full Windows reboot
+with the real linked profile still needs a manual check. The native WhatsApp startup
+entry was observed disabled for this Windows user, but this does not prove reboot
+behavior. Video needs a separate in-app rendering design and verification.

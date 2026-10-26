@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25 11:13'
-updated_date: '2026-10-25 23:23'
+updated_date: '2026-10-26 03:26'
 labels: []
 dependencies: []
 references:
@@ -36,6 +36,10 @@ Investigate the installed WhatsApp app with REA before selecting a reliable live
 Diagnose the owner's first real-call error. Preserve the error and account relationship, inspect sanitized runtime stages without placing calls, fix the identified cause with a regression test, and recheck the user-initiated live attempt.
 
 Owner now confirms incoming calls work, but reports a separate WhatsApp window during calls. Identify the owning process/window before changing behavior, resolve the duplicate presentation while preserving embedded calling and account linking, and verify with an owner-initiated incoming call.
+
+Prepare the WhatsApp branch for review: reproduce the sign-in e2e timeout with a trace, fix the demonstrated cause without raising limits, extend recovery and restart checks, inspect native-client startup, review only the WhatsApp diff against its actual parent, and publish a focused PR with honest remaining reboot/hardware limits.
+
+Independent review found two confirmed recovery defects: no listener recreation after failed load/crash, and no restoration after account setup closes. Add a main-owned listening lifecycle with explicit stop/suspend intent, capped connection-only retry backoff, owner-document cleanup, and regression tests. Do not retry call commands. The original sign-in timeout currently does not reproduce across four traced runs; retain that distinction.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -64,4 +68,8 @@ Incoming calls and audio are now owner-confirmed. Initial read-only inspection f
 Inspected owner-provided CallerWindow.png. The separate call UI matches the native Windows WhatsApp client; its verified WhatsApp.Root process was running independently of GrammieGuide. Closed only that exact package process. Follow-up process checks show it remains closed, while GrammieGuide remains ready with voice available. Added caregiver guidance to keep the desktop client fully closed to avoid duplicate incoming windows. The copy/docs-only update passes build/typechecks, targeted lint, formatting and diff checks. Awaiting the owner's incoming-call recheck after closing the native client.
 
 Owner completed the incoming-call recheck after the native Windows WhatsApp client was closed: confirmed no extra screen. Both incoming calling and the single GrammieGuide presentation now have owner proof. The duplicate was the independently running desktop client, not an embedded popup. Guidance is saved on feat/whatsapp-controls; broad kiosk reliability checks remain open.
+
+Independent review confirmed missing listener recovery after first-load failure/crash and after account setup closes. Added main-owned listening intent, setup suspension/restoration, capped connection-only backoff, explicit-stop and Home-document cleanup, and waiting for old call/pending teardown proof. Idle offline signaling disables Start; active media survives socket loss; ended-while-offline destroys the idle old peer to release call/audio state. No call commands replay. Validation: 1278/1278 unit tests across 103 files; all 6 WhatsApp built-app fixture tests pass, including process-restart persistence, failed load/crash, setup/lock, missed/declined, offline/reconnect and hang-up recovery. Build/typechecks and lint pass. Historical sign-in timeout did not reproduce in four initial traced runs or the full run; 60s limit unchanged and failure traces retained. Native-client startup entry observed disabled (State 1), with no settings changed. Full Windows reboot and real network-loss/sustained kiosk checks remain open. PR must target actual parent feat/buddy-chatgpt-plan to avoid including unrelated earlier features.
+
+Final independent review found no remaining recovery-diff merge blockers. The real linked profile reached ready on two built-app launches separated by complete app process shutdown: one embedded peer, voice available, no call/pending operation, no QR scan. Native Windows WhatsApp remained closed. Read-only flags only; no calls/messages sent, and no account storage read. Full Windows reboot remains untested.
 <!-- SECTION:NOTES:END -->

@@ -18,8 +18,8 @@ REA inspected `WhatsApp.Root.dll` and `WhatsApp.VoIP.dll` without executing them
 Both contain managed CIL targeting .NET 8; the root references WinUI, WebView2,
 and the VoIP assembly. This does not prove a public integration API exists.
 
-| Artifact | SHA-256 | REA Evidence |
-| --- | --- | --- |
+| Artifact          | SHA-256                                                            | REA Evidence                                                          |
+| ----------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | WhatsApp.Root.dll | `150a692e7498c046ebf6cef39f9994bdeec2772c53172399d0f827e420579d17` | `ev_d35c74a297b8e5baae791f45163c2ff9cb597fd8f1bce381f106b4a6e4a68bcf` |
 | WhatsApp.VoIP.dll | `7f7a50a9227bc90270eb1d15797e5e0261b3a0492ae73b9fbd0289c6afaa384b` | `ev_4ed8c4649c4bb119701c2f7fe965436f67f5591174b5f1fad6d37ec1ef484bf5` |
 
@@ -151,14 +151,14 @@ contact list, cookies, storage or credentials, and placed no calls. Observed:
 
 Static source analysis identifies these private contracts:
 
-| Operation | Observed contract |
-| --- | --- |
-| Start voice | `WAWebVoipStartCall.startWAWebVoipCall(Wid, false, 0, 0, null, {entryTrust: 'user_gesture'})` |
-| Answer voice | Cached Web stack `acceptCall(true, false, null)` |
-| Decline | Cached Web stack `rejectCall()` |
-| End | Cached Web stack `endCall(EndCallReason.Self, true)`; Self observed as 2 |
-| State | Local state store plus `activeCall.getState()`, pending outgoing and current model |
-| Peer mapping | `WAWebLidMigrationUtils.toPn(peerJid)` if locally resolvable; otherwise unknown |
+| Operation    | Observed contract                                                                             |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| Start voice  | `WAWebVoipStartCall.startWAWebVoipCall(Wid, false, 0, 0, null, {entryTrust: 'user_gesture'})` |
+| Answer voice | Cached Web stack `acceptCall(true, false, null)`                                              |
+| Decline      | Cached Web stack `rejectCall()`                                                               |
+| End          | Cached Web stack `endCall(EndCallReason.Self, true)`; Self observed as 2                      |
+| State        | Local state store plus `activeCall.getState()`, pending outgoing and current model            |
+| Peer mapping | `WAWebLidMigrationUtils.toPn(peerJid)` if locally resolvable; otherwise unknown               |
 
 The original integration validates these shapes on each operation and fails closed
 on changes. A true start result or undefined stack result is submission, not proof
@@ -223,3 +223,37 @@ The screenshot matches the desktop client's call UI. The verified desktop packag
 process was closed; GrammieGuide's independent session remained ready with voice
 available. The owner repeated the incoming-call test and confirmed there was no
 extra screen with the desktop client closed.
+
+## Recovery review and automated restart checks
+
+An independent review found two lifecycle gaps: failed first loads or destroyed
+peers could permanently stop incoming listening, and opening account setup could
+remove the listener without restoring it when setup closed. A main-owned listening
+intent now suspends for setup, restores only previously requested listening, and
+backs off connection recreation up to 30s. Explicit stop and Home document loss
+cancel retries. Call commands are never replayed, and recovery waits for local
+teardown proof and cleared pending work before replacing an old call peer.
+
+Idle signaling loss now disables Start until reconnect. Active media state remains
+observable during signaling loss. A call that ends locally while offline releases
+the old peer and audio hold through verified destruction, rather than retaining an
+unknown call indefinitely.
+
+All 1,278 unit tests and six WhatsApp built-app tests pass. The latter use only
+intercepted local fixtures and cover failed first load, renderer crash, setup/lock
+restoration, missed/declined calls, remote end during signaling loss, reconnect and
+a synthetic persistent link cookie plus caregiver PIN across complete app process
+restarts. Build/typechecks and lint pass. The earlier sign-in timeout did not
+reproduce in four traced runs or the latest full run; limits were not raised and
+failure traces are now retained. No root cause for that historical timeout is claimed.
+
+Read-only inspection found the separate native WhatsApp startup entry disabled for
+this Windows user (StartupTaskState 1). No startup settings were changed. A complete
+Windows reboot, real network-loss recovery and sustained kiosk operation remain
+manual release checks; fixture persistence is not proof of those outcomes.
+
+The real linked profile was subsequently reopened twice in the built app, with a
+complete app process shutdown between launches. Both reached ready without a QR
+scan. Read-only checks returned only calling flags: one embedded peer, voice
+available, no current call and no pending operation. The separate native client
+remained closed. No calls or messages were sent during these checks.
