@@ -16,6 +16,16 @@ export const whatsAppCommandSchema = z.discriminatedUnion('type', [
 export type WhatsAppCommand = z.infer<typeof whatsAppCommandSchema>
 export type WhatsAppAction = 'voice' | 'video' | 'answer' | 'decline' | 'end'
 export type WhatsAppConnection = 'unavailable' | 'not-linked' | 'ready' | 'disconnected'
+export const whatsAppVideoBoundsSchema = z
+  .object({
+    x: z.number().int().nonnegative().max(16384),
+    y: z.number().int().nonnegative().max(16384),
+    width: z.number().int().min(1).max(16384),
+    height: z.number().int().min(1).max(16384)
+  })
+  .strict()
+  .nullable()
+export type WhatsAppVideoBounds = z.infer<typeof whatsAppVideoBoundsSchema>
 export interface WhatsAppSetupState {
   open: boolean
   phase: 'closed' | 'loading' | 'link-required' | 'linked' | 'unavailable'

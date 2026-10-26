@@ -151,6 +151,37 @@ describe('embedded WhatsApp account setup', () => {
     expect(f.setup.locallyClosed).toBe(true)
     expect(check(contents, 'media', origin, details)).toBe(false)
   })
+  it('grants camera only with an explicit video lease and never to the canvas child or setup', () => {
+    const f = make()
+    f.setup.open(undefined, true)
+    const check = mocks.ses.setPermissionCheckHandler.mock.calls[0]![0]
+    const request = mocks.ses.setPermissionRequestHandler.mock.calls[0]![0]
+    const contents = f.view().webContents
+    const origin = 'https://web.whatsapp.com/'
+    const details = { isMainFrame: true, mediaType: 'video' }
+    f.setup.allowMicrophone(true)
+    expect(check(contents, 'media', origin, details)).toBe(false)
+    f.setup.allowCamera(true)
+    expect(check(contents, 'media', origin, details)).toBe(true)
+    expect(check({}, 'media', origin, details)).toBe(false)
+    expect(check(contents, 'media', origin, { ...details, isMainFrame: false })).toBe(false)
+    expect(check(contents, 'display-capture', origin, details)).toBe(false)
+    const callback = vi.fn()
+    const media = { isMainFrame: true, requestingUrl: origin, mediaTypes: ['audio', 'video'] }
+    request(contents, 'media', callback, media)
+    expect(callback).toHaveBeenLastCalledWith(true)
+    request(contents, 'display-capture', callback, media)
+    expect(callback).toHaveBeenLastCalledWith(false)
+    request(contents, 'media', callback, { ...media, mediaTypes: [] })
+    expect(callback).toHaveBeenLastCalledWith(false)
+    f.setup.allowCamera(false)
+    expect(check(contents, 'media', origin, details)).toBe(false)
+    f.setup.close()
+    f.setup.open(undefined)
+    f.setup.allowMicrophone(true)
+    f.setup.allowCamera(true)
+    expect(check(f.view().webContents, 'media', origin, details)).toBe(false)
+  })
   it('loads only on an explicit open, in a persistent isolated session with capture denied', async () => {
     const f = make()
     expect(mocks.partition).not.toHaveBeenCalled()

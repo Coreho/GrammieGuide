@@ -6,6 +6,7 @@ import { logActivity } from '../activityLog/activityLog'
 const observation = z
   .object({
     supported: z.boolean(),
+    videoSupported: z.boolean().optional(),
     idle: z.boolean(),
     rejected: z.boolean().optional(),
     failure: z
@@ -23,7 +24,8 @@ const observation = z
         'recipient-lookup',
         'recipient-not-found',
         'recipient-unresolved',
-        'offline'
+        'offline',
+        'video-unavailable'
       ])
       .optional(),
     call: z
@@ -89,7 +91,31 @@ export function createWhatsAppSessionAdapter(setup: EmbeddedWhatsAppSession): Wh
     }
     signal.addEventListener('abort', cancel, { once: true })
     try {
-      if (request.type === 'start' || request.type === 'answer') setup.allowMicrophone(true)
+      if (request.type === 'start' || request.type === 'answer') {
+        let video = request.type === 'start' && request.mode === 'video'
+        if (request.type === 'answer') {
+          // An incoming call can disappear/change while the trusted command is
+          // queued. Establish its exact identity before granting either device.
+          const before = observation.parse(await setup.run({ type: 'read' }, signal))
+          if (
+            !before.supported ||
+            before.call?.id !== request.callId ||
+            before.call.phase !== 'incoming'
+          )
+            throw new Error('Incoming call changed')
+          video = before.call.mode === 'video'
+          if (video && !before.videoSupported) throw new Error('Video unavailable')
+        }
+        if (video && !(await setup.prepareVideo())) {
+          report('video-unavailable')
+          cancel()
+          return unavailable()
+        }
+        signal.throwIfAborted()
+        if (setup.generationId !== generation) throw new Error('Call session replaced')
+        setup.allowCamera(video)
+        setup.allowMicrophone(true)
+      }
       let state = observation.parse(await setup.run(request, signal))
       // Submission is not a call. Wait briefly for a real model without ever
       // resubmitting Start; otherwise tear down even a late provider operation.
@@ -112,6 +138,7 @@ export function createWhatsAppSessionAdapter(setup: EmbeddedWhatsAppSession): Wh
         report(state.failure ?? 'unsupported-observation')
         if (state.failure === 'offline' && request.type === 'read') {
           setup.allowMicrophone(false)
+          setup.allowCamera(false)
           // Offline is reported only after positively observed local idle. If a
           // call just ended, destroy its peer so main can clear the old call even
           // while signaling is down; the listener manager may create a fresh one.
@@ -125,11 +152,20 @@ export function createWhatsAppSessionAdapter(setup: EmbeddedWhatsAppSession): Wh
         return unavailable()
       }
       hadCall = !!state.call
-      if (state.idle) setup.allowMicrophone(false)
+      if (state.idle) {
+        setup.allowMicrophone(false)
+        setup.allowCamera(false)
+      }
       return {
         revision: ++revision,
         connection: 'ready',
-        capabilities: { voice: true, video: false, answer: true, decline: true, end: true },
+        capabilities: {
+          voice: true,
+          video: state.videoSupported === true,
+          answer: true,
+          decline: true,
+          end: true
+        },
         call: state.call
       }
     } catch {

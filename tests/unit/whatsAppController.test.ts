@@ -53,6 +53,27 @@ function fixture(): {
 }
 
 describe('WhatsApp control interface', () => {
+  it('answers known video callers only while video capability is available', async () => {
+    const f = fixture()
+    const incoming = {
+      ...active(2, 'incoming'),
+      call: { ...active(2, 'incoming').call!, mode: 'video' as const }
+    }
+    f.set({ ...incoming, capabilities: { ...incoming.capabilities, video: false } })
+    expect((await f.controller.refresh()).availableActions).not.toContain('answer')
+    f.set({ ...incoming, revision: 3 })
+    const enabled = await f.controller.refresh()
+    expect(enabled.availableActions).toContain('answer')
+    vi.mocked(f.adapter.execute).mockResolvedValue({
+      ...active(4, 'connected'),
+      call: { ...active(4, 'connected').call!, mode: 'video' }
+    })
+    expect((await f.controller.command({ type: 'answer', callId: enabled.call!.id })).ok).toBe(true)
+    expect(f.adapter.execute).toHaveBeenCalledExactlyOnceWith(
+      { type: 'answer', callId: 'private-provider-id' },
+      expect.any(AbortSignal)
+    )
+  })
   it('checks queued authority before performing a side effect', async () => {
     const f = fixture()
     await f.controller.refresh()

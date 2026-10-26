@@ -28,7 +28,8 @@ import type {
   WhatsAppCallState,
   WhatsAppCommand,
   WhatsAppCommandResult,
-  WhatsAppSetupState
+  WhatsAppSetupState,
+  WhatsAppVideoBounds
 } from './whatsAppCalls'
 
 /**
@@ -128,6 +129,7 @@ export interface IpcApi {
   'whatsapp:closeSetup': { request: void; response: WhatsAppSetupState }
   'whatsapp:state': { request: void; response: WhatsAppCallState }
   'whatsapp:command': { request: WhatsAppCommand; response: WhatsAppCommandResult }
+  'whatsapp:videoBounds': { request: WhatsAppVideoBounds; response: void }
   'chatgpt:state': { request: void; response: ChatGptState }
   'chatgpt:connect': { request: { id?: string }; response: ChatGptState }
   'chatgpt:cancel': { request: void; response: ChatGptState }

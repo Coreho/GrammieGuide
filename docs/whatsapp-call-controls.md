@@ -8,7 +8,9 @@ successful outgoing call with good audio after the lookup and state-wait fixes.*
 The owner also confirmed incoming calls with good audio. Sustained kiosk reliability
 remains unverified. This is a development integration; it is not yet ready to replace
 the real kiosk's calling arrangements.
-Video remains disabled. WhatsApp's private Web modules can change without notice.
+TASK-64 on `feat/whatsapp-video` adds video start/answer and an in-app canvas view.
+Its fake-camera built-app checks pass; real video calling still needs an owner test.
+WhatsApp's private Web modules can change without notice.
 
 ## Caregiver setup and use
 
@@ -21,9 +23,11 @@ Video remains disabled. WhatsApp's private Web modules can change without notice
    enabling live calls does not require Twilio credentials or enable SMS requests.
 4. In **Tiles**, add a **Built-in → Family calls** tile in an available Home slot.
    Its presence starts the hidden embedded connection. No calls start automatically.
-5. Open **Family calls** on Home and press **Call {name}**. Incoming saved-contact
-   voice calls offer **Answer** and **No, thank you**. Unknown/group/video callers
-   cannot be answered through this interface. Active calls always offer **End call**.
+5. Open **Family calls** on Home and press **Call {name}** for voice or
+   **Video call {name}** when video rendering is available. Incoming saved-contact
+   voice/video calls offer **Answer** and **No, thank you**. Unknown/group callers
+   cannot be answered. Answering video explicitly turns on the camera; ringing
+   alone does not. Active calls always offer **End call**.
 
 Keep the separate **Windows WhatsApp desktop app fully closed** while using
 GrammieGuide. If both clients are running on the linked account, the desktop app
@@ -45,11 +49,24 @@ listening and retries. Reloaded Home must explicitly request listening again.
 
 Calls use a sandboxed hidden `WebContentsView` owned by GrammieGuide. Grandma
 sees the trusted large controls; the account's chat interface and provider call
-windows are not shown. All popup windows, external navigation, downloads, camera
-and screen capture are denied. Microphone permission is leased only after an
-explicit Start/Answer, only for audio in the exact owned WhatsApp main frame.
+windows are not shown. External navigation, downloads and screen capture are denied.
+Microphone permission is leased only after explicit Start/Answer in the exact owned
+WhatsApp main frame. Video Start/Answer additionally leases camera access after
+the neutral video surface has been prepared. Setup and the canvas child cannot
+capture either device. Idle/failure/teardown revokes the leases; local teardown
+destroys the peer so late operations cannot keep capturing.
 Music pauses, Buddy speech/listening stops and other web-page audio is muted while
 a call is pending or active. The call holds the screen awake through audio policy.
+
+Video uses a single main-issued, randomly named `about:blank` child, hosted as a
+`WebContentsView` inside Home. It contains only our two canvases and neutral labels;
+no provider UI is moved or copied. All other popups remain denied. Electron's
+supplied opener-linked WebContents must be retained in `createWindow`; a regression
+test covers the invalid-WebContents error found during the first canvas probe.
+The observed provider registry renders remote video and mirrored self preview in
+cross-window portal mode. `peerVideoJid` follows the provider's video-state callbacks;
+source changes rebind without repeatedly requesting keyframes. Muted/unrendered
+canvases are masked. Only Home's main frame can submit validated canvas bounds.
 
 ## Application API
 
@@ -103,7 +120,8 @@ ready means positively idle; unavailable/disconnected cannot establish hang-up.
 Only main-process proof that the local renderer was destroyed can clear an
 uncertain call without provider idle. Incoming caller numbers are resolved locally
 from the current peer only; unresolved LIDs and non-saved contacts cannot answer.
-Video answer is denied. Controller operations are serialized and bounded to 10s.
+Video answer additionally requires verified rendering capabilities. Controller
+operations are serialized and bounded to 10s.
 
 An idle peer with disconnected signaling reports unavailable calling and does not
 offer Start. It can become ready again when signaling returns. An observed active
@@ -133,7 +151,13 @@ The call fixture also requires recipient lookup before Start and uses Chromium's
 fake audio device through the actual session permission handlers. Rejected starts
 verify that the screen stops recommending End after local teardown removed it.
 
-Latest validation: all 1,278 unit tests and all six WhatsApp built-app tests pass;
+Latest unit validation: all 1,297 tests pass, including device leases, video flags,
+blank-window creation, source rebinding, muted-frame masking and cleanup. The video
+built-app test uses a real Chromium fake camera through the production permission
+handlers and verifies both canvas pixels, attachment/bounds, outgoing/incoming
+controls, remote camera-off masking and teardown. It does not prove real video
+transport or camera quality.
+The six existing WhatsApp built-app tests are retained;
 build/typechecks and repository lint pass. The earlier sign-in timeout did not
 reproduce in four initial traced runs or the latest full run. The 60s limit is
 unchanged, and failure traces are retained; its original cause remains unknown.
@@ -145,7 +169,8 @@ available. The separate native client remained closed. No calls were placed.
 Before real kiosk use (TASK-61): repeat incoming/outgoing and two-way
 sound checks on the kiosk, busy/unanswered/offline behavior, actual
 microphone permissions on Windows, reconnect/restart after calls, provider popup
-behavior, crashes and the real touchscreen at each text size. A full Windows reboot
-with the real linked profile still needs a manual check. The native WhatsApp startup
-entry was observed disabled for this Windows user, but this does not prove reboot
-behavior. Video needs a separate in-app rendering design and verification.
+behavior, crashes and the real touchscreen at each text size. The owner has now confirmed a full
+Windows reboot after approximately two hours powered off, with calling preserved,
+and a live internet disconnect/reconnect with automatic recovery. These supersede
+the earlier unverified reboot/network notes. Real outgoing/incoming video, two-way
+picture and sound, camera release and long-running behavior still need device checks.

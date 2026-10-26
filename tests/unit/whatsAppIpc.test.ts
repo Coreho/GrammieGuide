@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     close: vi.fn(() => ({ open: false, phase: 'closed' })),
     closeSetup: vi.fn(() => ({ open: false, phase: 'closed' })),
     prepare: vi.fn(),
+    setVideoBounds: vi.fn(),
     subscribe: vi.fn(() => () => {}),
     dispose: vi.fn()
   }
@@ -34,6 +35,7 @@ vi.mock('../../src/main/services/whatsapp/whatsAppSession', () => ({
     close = mocks.setup.close
     closeSetup = mocks.setup.closeSetup
     prepare = mocks.setup.prepare
+    setVideoBounds = mocks.setup.setVideoBounds
     subscribe = mocks.setup.subscribe
     dispose = mocks.setup.dispose
   }
@@ -70,6 +72,7 @@ describe('WhatsApp IPC boundary', () => {
       | 'whatsapp:setupState'
       | 'whatsapp:openSetup'
       | 'whatsapp:closeSetup'
+      | 'whatsapp:videoBounds'
   >(
     channel: C
   ): ((...args: unknown[]) => Promise<IpcResponse<C>>) =>
@@ -106,6 +109,29 @@ describe('WhatsApp IPC boundary', () => {
     await expect(
       Promise.resolve().then(() => handler('whatsapp:state')(event(mocks.admin.webContents)))
     ).rejects.toThrow('admin unlock required')
+  })
+  it('allows only Home to place the video and rejects malformed or overflowing bounds', async () => {
+    const home = mocks.home as typeof mocks.home & { getContentSize: () => number[] }
+    home.getContentSize = () => [1200, 800]
+    const bounds = { x: 100, y: 100, width: 900, height: 500 }
+    await handler('whatsapp:videoBounds')(event(), bounds)
+    expect(mocks.setup.setVideoBounds).toHaveBeenLastCalledWith(bounds)
+    await handler('whatsapp:videoBounds')(event(), null)
+    expect(mocks.setup.setVideoBounds).toHaveBeenLastCalledWith(null)
+    for (const source of [event(mocks.admin.webContents), { ...event(), senderFrame: {} }])
+      await expect(
+        Promise.resolve().then(() => handler('whatsapp:videoBounds')(source, bounds))
+      ).rejects.toThrow('Home window required')
+    for (const invalid of [
+      { ...bounds, x: -1 },
+      { ...bounds, width: 1201 },
+      { ...bounds, x: 500 },
+      { ...bounds, height: 0 },
+      { ...bounds, url: 'https://evil.test' }
+    ])
+      await expect(
+        Promise.resolve().then(() => handler('whatsapp:videoBounds')(event(), invalid))
+      ).rejects.toThrow()
   })
   it('returns honest unavailable state with redacted contacts and refuses real dialing', async () => {
     const state = await handler('whatsapp:state')(event())

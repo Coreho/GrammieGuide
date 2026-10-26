@@ -9,6 +9,8 @@ function fixture(): {
     generationId: number
     state: () => { open: boolean; phase: string }
     allowMicrophone: ReturnType<typeof vi.fn>
+    allowCamera: ReturnType<typeof vi.fn>
+    prepareVideo: ReturnType<typeof vi.fn>
     close: ReturnType<typeof vi.fn>
     run: ReturnType<typeof vi.fn>
     subscribe: ReturnType<typeof vi.fn>
@@ -21,6 +23,8 @@ function fixture(): {
     generationId: 1,
     state: () => ({ open: false, phase: 'linked' }),
     allowMicrophone: vi.fn(),
+    allowCamera: vi.fn(),
+    prepareVideo: vi.fn(async () => true),
     close: vi.fn(() => {
       ++session.generationId
       session.callsOpen = false
@@ -34,6 +38,104 @@ function fixture(): {
 }
 
 describe('embedded voice transport', () => {
+  it('prepares the video surface before leasing a camera and releases capture at idle', async () => {
+    const { session, adapter } = fixture()
+    const order: string[] = []
+    session.prepareVideo.mockImplementation(async () => {
+      order.push('prepare')
+      return true
+    })
+    session.allowCamera.mockImplementation((allow) => {
+      if (allow) order.push('camera')
+    })
+    session.run.mockResolvedValue({
+      supported: true,
+      videoSupported: true,
+      idle: false,
+      call: { id: 'video', phone: '+15551111111', mode: 'video', phase: 'outgoing' }
+    })
+    expect(
+      await adapter.execute(
+        { type: 'start', phone: '+15551111111', mode: 'video' },
+        new AbortController().signal
+      )
+    ).toMatchObject({ capabilities: { video: true }, call: { mode: 'video' } })
+    expect(order).toEqual(['prepare', 'camera'])
+    expect(session.run).toHaveBeenCalledOnce()
+    session.run.mockResolvedValue({ supported: true, videoSupported: true, idle: true, call: null })
+    await adapter.read(new AbortController().signal)
+    expect(session.allowCamera).toHaveBeenLastCalledWith(false)
+    expect(session.allowMicrophone).toHaveBeenLastCalledWith(false)
+  })
+  it('does not send Start or grant capture when the video surface cannot be prepared', async () => {
+    const { session, adapter } = fixture()
+    session.prepareVideo.mockResolvedValue(false)
+    expect(
+      await adapter.execute(
+        { type: 'start', phone: '+15551111111', mode: 'video' },
+        new AbortController().signal
+      )
+    ).toMatchObject({ connection: 'unavailable', localSessionClosed: true })
+    expect(session.run).not.toHaveBeenCalled()
+    expect(session.allowCamera).not.toHaveBeenCalledWith(true)
+    expect(session.allowMicrophone).not.toHaveBeenCalledWith(true)
+  })
+  it('cannot grant capture or submit Start after cancellation during video preparation', async () => {
+    const { session, adapter } = fixture()
+    let finish!: (value: boolean) => void
+    session.prepareVideo.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve
+        })
+    )
+    const abort = new AbortController()
+    const pending = adapter.execute(
+      { type: 'start', phone: '+15551111111', mode: 'video' },
+      abort.signal
+    )
+    abort.abort()
+    finish(true)
+    expect(await pending).toMatchObject({ connection: 'unavailable', localSessionClosed: true })
+    expect(session.run).not.toHaveBeenCalled()
+    expect(session.allowCamera).not.toHaveBeenCalledWith(true)
+    expect(session.allowMicrophone).not.toHaveBeenCalledWith(true)
+  })
+  it('observes the exact incoming video call before leasing capture for Answer', async () => {
+    const { session, adapter } = fixture()
+    session.run
+      .mockResolvedValueOnce({
+        supported: true,
+        videoSupported: true,
+        idle: false,
+        call: { id: 'video', phone: '+15551111111', mode: 'video', phase: 'incoming' }
+      })
+      .mockResolvedValue({
+        supported: true,
+        videoSupported: true,
+        idle: false,
+        call: { id: 'video', phone: '+15551111111', mode: 'video', phase: 'connected' }
+      })
+    expect(
+      await adapter.execute({ type: 'answer', callId: 'video' }, new AbortController().signal)
+    ).toMatchObject({ call: { phase: 'connected' } })
+    expect(session.prepareVideo).toHaveBeenCalledOnce()
+    expect(session.allowCamera).toHaveBeenCalledWith(true)
+    expect(session.run.mock.calls.map((args) => args[0].type)).toEqual(['read', 'answer'])
+  })
+  it('never leases camera or answers after the incoming call has changed', async () => {
+    const { session, adapter } = fixture()
+    session.run.mockResolvedValue({
+      supported: true,
+      videoSupported: true,
+      idle: false,
+      call: { id: 'new-video', phone: '+15551111111', mode: 'video', phase: 'incoming' }
+    })
+    await adapter.execute({ type: 'answer', callId: 'old-video' }, new AbortController().signal)
+    expect(session.run.mock.calls.map((args) => args[0].type)).toEqual(['read'])
+    expect(session.allowCamera).not.toHaveBeenCalledWith(true)
+    expect(session.prepareVideo).not.toHaveBeenCalled()
+  })
   it('clears a locally ended call with destruction proof when signaling is offline', async () => {
     const { session, adapter } = fixture()
     session.run.mockResolvedValue({

@@ -1,6 +1,8 @@
 import { BrowserWindow, WebContentsView, session, type Session, type WebContents } from 'electron'
 import type { WhatsAppSetupState } from '@shared/whatsAppCalls'
 import { whatsAppRuntime, type WhatsAppRuntimeRequest } from '@shared/whatsAppRuntime'
+import { WhatsAppVideoView } from './whatsAppVideoView'
+import type { WhatsAppVideoBounds } from '@shared/whatsAppCalls'
 
 export const WHATSAPP_PARTITION = 'persist:whatsapp'
 const WHATSAPP_URL = 'https://web.whatsapp.com/'
@@ -48,6 +50,10 @@ export class EmbeddedWhatsAppSession {
   private disposed = false
   private callMode = false
   private microphone = false
+  private camera = false
+  private callParent: BrowserWindow | null = null
+  private video: WhatsAppVideoView | null = null
+  private videoBounds: WhatsAppVideoBounds | null = null
   private lastClosed: WebContents | null = null
 
   get callsOpen(): boolean {
@@ -61,6 +67,34 @@ export class EmbeddedWhatsAppSession {
   }
   allowMicrophone(allow: boolean): void {
     this.microphone = allow && this.callsOpen
+  }
+  allowCamera(allow: boolean): void {
+    this.camera = allow && this.callsOpen
+    if (!this.camera) {
+      this.video?.close()
+      this.video = null
+    }
+  }
+  setVideoBounds(bounds: WhatsAppVideoBounds | null): void {
+    this.videoBounds = bounds
+    this.video?.setBounds(bounds)
+  }
+  async prepareVideo(): Promise<boolean> {
+    const parent = this.callParent
+    const opener = this.view?.webContents
+    if (!this.callsOpen || !parent || parent.isDestroyed() || !opener) return false
+    if (this.video) return this.video.prepare()
+    const generation = this.generation
+    const video = new WhatsAppVideoView(opener, parent)
+    this.video = video
+    video.setBounds(this.videoBounds)
+    const ready = await video.prepare()
+    if (!ready || generation !== this.generation) {
+      video.close()
+      if (this.video === video) this.video = null
+      return false
+    }
+    return true
   }
   prepare(parent: BrowserWindow): void {
     if (this.callsOpen || this.disposed) return
@@ -87,6 +121,14 @@ export class EmbeddedWhatsAppSession {
     )
     signal.throwIfAborted()
     if (generation !== this.generation) throw new Error('Call session replaced')
+    // Only canvases in our blank child view are visible. The provider's account
+    // document stays hidden; an unsupported video renderer tears down the call.
+    const call = (result as { call?: { id?: unknown; mode?: unknown; phase?: unknown } })?.call
+    if (this.video && call?.mode === 'video' && typeof call.id === 'string') {
+      if (!(await this.video.sync(call.id))) throw new Error('Video surface unavailable')
+      signal.throwIfAborted()
+      if (generation !== this.generation) throw new Error('Call session replaced')
+    }
     return result
   }
 
@@ -123,15 +165,15 @@ export class EmbeddedWhatsAppSession {
       contents === this.view?.webContents &&
       !!contents &&
       allowedNavigation(contents.getURL())
-    // A lease exists only after Start/Answer, for this exact main frame. Setup,
-    // video, screens, subframes and other sessions never gain capture access.
+    // A lease exists only after explicit Start/Answer, for this exact main frame.
+    // Video adds camera access; setup, blank canvases and screen sharing do not.
     ses.setPermissionCheckHandler(
       (contents, permission, origin, details) =>
         owns(contents) &&
         permission === 'media' &&
         allowedNavigation(origin) &&
         details.isMainFrame === true &&
-        details.mediaType === 'audio'
+        (details.mediaType === 'audio' || (this.camera && details.mediaType === 'video'))
     )
     ses.setPermissionRequestHandler((contents, permission, callback, details) => {
       const media = ('mediaTypes' in details ? details.mediaTypes : []) ?? []
@@ -140,8 +182,8 @@ export class EmbeddedWhatsAppSession {
           permission === 'media' &&
           details.isMainFrame === true &&
           allowedNavigation(details.requestingUrl) &&
-          media.length === 1 &&
-          media[0] === 'audio'
+          media.length > 0 &&
+          media.every((type) => type === 'audio' || (this.camera && type === 'video'))
       )
     })
     ses.setDevicePermissionHandler(() => false)
@@ -160,6 +202,7 @@ export class EmbeddedWhatsAppSession {
     }
     const generation = ++this.generation
     this.callMode = forCalls
+    this.callParent = forCalls ? (parent ?? null) : null
     const quiet = process.env.GRAMMIEGUIDE_E2E === '1'
     // Establish the partition before allocating a window so a session failure
     // cannot leave an invisible, unowned setup window behind.
@@ -314,6 +357,11 @@ export class EmbeddedWhatsAppSession {
     this.cleanupParent = null
     const host = this.host
     const view = this.view
+    this.video?.close()
+    this.video = null
+    this.videoBounds = null
+    this.camera = false
+    this.callParent = null
     this.host = null
     this.view = null
     this.microphone = false

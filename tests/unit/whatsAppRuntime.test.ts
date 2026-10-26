@@ -67,7 +67,75 @@ function fixture(): {
   }
 }
 
+function enableVideo(modules: Record<string, unknown>): void {
+  modules.WAWebVoipVideoRendererRegistry = {
+    videoRendererRegistry: {
+      registerVideoCanvas: vi.fn(),
+      assignSourceToCanvas: vi.fn(),
+      unregisterVideoCanvas: vi.fn(),
+      onCanvasResize: vi.fn(),
+      setCoverFit: vi.fn(),
+      getRendererType: () => 0
+    }
+  }
+  modules.WAWebVoipVideoRenderSource = {
+    WAWebVoipVideoRenderStream: { CAMERA: 'CAMERA' },
+    WAWebVoipVideoRenderSource: { self: vi.fn(), peer: vi.fn() }
+  }
+}
+
 describe('observed WhatsApp web control contracts', () => {
+  it('advertises video only when its rendering contracts are available', async () => {
+    const f = fixture()
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      supported: true,
+      videoSupported: false
+    })
+    enableVideo(f.modules)
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      supported: true,
+      videoSupported: true
+    })
+    ;(
+      f.modules.WAWebVoipVideoRendererRegistry as {
+        videoRendererRegistry: { getRendererType: () => number }
+      }
+    ).videoRendererRegistry.getRendererType = () => {
+      throw new Error('Renderer not initialized')
+    }
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      supported: true,
+      videoSupported: false
+    })
+  })
+  it('uses explicit video flags for start and a matching incoming answer', async () => {
+    const f = fixture()
+    enableVideo(f.modules)
+    await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'video' })
+    expect(f.start).toHaveBeenCalledExactlyOnceWith('resolved-peer@lid', true, 0, 0, null, {
+      entryTrust: 'user_gesture'
+    })
+    const accept = vi.fn()
+    f.modules.WAWebVoipStackInterface = {
+      getCachedVoipStackInterface: () => ({
+        type: 'web',
+        acceptCall: accept,
+        rejectCall: vi.fn(),
+        endCall: f.end
+      })
+    }
+    f.setState(3)
+    f.calls.activeCall = {
+      id: 'incoming-video',
+      peerJid: '15551111111@c.us',
+      getState: () => 3,
+      isVideo: true
+    }
+    await whatsAppRuntime({ type: 'answer', callId: 'stale' })
+    expect(accept).not.toHaveBeenCalled()
+    await whatsAppRuntime({ type: 'answer', callId: 'incoming-video' })
+    expect(accept).toHaveBeenCalledExactlyOnceWith(true, true, null)
+  })
   it('does not offer idle calling while disconnected, but preserves an observed active media call', async () => {
     const f = fixture()
     f.modules.WAComms = { isSocketConnected: () => false }

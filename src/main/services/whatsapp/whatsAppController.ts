@@ -74,7 +74,7 @@ export class WhatsAppController {
           state.call.contact &&
           this.contacts().some((person) => person.phone === this.providerPhone) &&
           this.capabilities.answer &&
-          state.call.mode === 'voice'
+          (state.call.mode === 'voice' || this.capabilities.video)
         )
           state.availableActions.push('answer')
         if (this.capabilities.decline) state.availableActions.push('decline')

@@ -4,6 +4,7 @@ import { zLayers } from '@shared/zLayers'
 import { ContactPicture } from '../contacts/ContactButton'
 import { tilesInHome } from '@shared/homeLayout'
 import type { BuiltinViewProps } from './builtins'
+import { CallVideo } from './CallVideo'
 
 /** A small, trusted surface; the remote account and chats remain out of sight. */
 export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
@@ -101,8 +102,10 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
     ? call.phase === 'connected'
       ? 'You can talk now.'
       : call.phase === 'incoming'
-        ? call.contact && call.mode === 'voice'
-          ? 'Press Answer to talk.'
+        ? state?.availableActions.includes('answer')
+          ? call.mode === 'video'
+            ? 'Press Answer to see and talk. Your camera will turn on.'
+            : 'Press Answer to talk.'
           : 'This call cannot be answered here.'
         : call.phase === 'unknown'
           ? 'We cannot check whether the call is still connected.'
@@ -122,29 +125,47 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
     >
       <section
         ref={dialog}
-        className="contact-dialog call-dialog"
+        className={`contact-dialog call-dialog${call?.mode === 'video' ? ' call-dialog-video' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Family calls"
       >
-        <ContactPicture />
+        {call?.mode !== 'video' && <ContactPicture />}
         <div role="status" aria-live="polite" aria-atomic="true">
           <h1>{title}</h1>
           <p>{detail}</p>
         </div>
+        {call?.mode === 'video' && call.phase !== 'incoming' && <CallVideo callId={call.id} />}
         <div className="contact-actions">
           {!call &&
             state?.contacts.map((contact) => (
-              <button
+              <div
                 key={contact.id}
-                className="contact-home call-start"
-                disabled={busy || !state.availableActions.includes('voice')}
-                onClick={() =>
-                  void command({ type: 'start', contactId: contact.id, mode: 'voice' })
-                }
+                className="call-contact"
+                role="group"
+                aria-label={`Call ${contact.name}`}
               >
-                Call {contact.name}
-              </button>
+                <button
+                  className="contact-home call-start"
+                  disabled={busy || !state.availableActions.includes('voice')}
+                  onClick={() =>
+                    void command({ type: 'start', contactId: contact.id, mode: 'voice' })
+                  }
+                >
+                  Call {contact.name}
+                </button>
+                {state.availableActions.includes('video') && (
+                  <button
+                    className="contact-home call-start"
+                    disabled={busy}
+                    onClick={() =>
+                      void command({ type: 'start', contactId: contact.id, mode: 'video' })
+                    }
+                  >
+                    Video call {contact.name}
+                  </button>
+                )}
+              </div>
             ))}
           {call && state?.availableActions.includes('answer') && (
             <button

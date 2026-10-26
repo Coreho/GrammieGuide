@@ -23,6 +23,8 @@ const launcherApi = {
   closeWhatsAppCalls: () => invoke('whatsapp:closeCalls'),
   getWhatsAppState: () => invoke('whatsapp:state'),
   controlWhatsApp: (command: IpcRequest<'whatsapp:command'>) => invoke('whatsapp:command', command),
+  setWhatsAppVideoBounds: (bounds: IpcRequest<'whatsapp:videoBounds'>) =>
+    invoke('whatsapp:videoBounds', bounds),
   onWhatsAppChanged: (cb: (state: IpcEvents['whatsapp:changed']) => void) =>
     on('whatsapp:changed', cb),
   getContact: () => invoke('contacts:home'),

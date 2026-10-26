@@ -7,7 +7,8 @@ were observed on the real linked page. The owner subsequently confirmed a succes
 outgoing call with good audio after the fixes below, followed by working incoming
 calls with good audio. Sustained kiosk reliability remains unverified. TASK-63
 tracks implementation; TASK-61 retains real-device proof.
-The owner requires calls to stay inside GrammieGuide. Video is disabled.
+The owner requires calls to stay inside GrammieGuide. TASK-64 now implements video
+on `feat/whatsapp-video`; fake-camera checks pass, while real video remains unverified.
 
 ## Verified artifact observations
 
@@ -257,3 +258,28 @@ complete app process shutdown between launches. Both reached ready without a QR
 scan. Read-only checks returned only calling flags: one embedded peer, voice
 available, no current call and no pending operation. The separate native client
 remained closed. No calls or messages were sent during these checks.
+
+## Video canvas integration — 2026-10-26
+
+The owner confirmed voice calling after a full Windows reboot and about two hours
+powered off, then tested live internet disconnect/reconnect and confirmed automatic
+recovery. These supersede the earlier unverified reboot/network notes.
+
+Ordinary static inspection of the retained public JS (not a new REA capture) found
+the video flag in the existing high-level start method, and explicit microphone and
+camera flags in `acceptCall`. The existing registry supports two cross-window portal
+canvases: remote camera and mirrored self preview. The call model's `peerVideoJid`
+is assigned from the video-state callback's media identity and is preferred over
+the call's peer identity. This is static contract evidence, not live video proof.
+
+An isolated Electron probe proved same-origin canvas access through a single blank
+`WebContentsView` returned by `setWindowOpenHandler.createWindow`. The first probe
+incorrectly allocated replacement web contents and raised an Electron main-process
+error. Preserving the supplied `options.webContents` fixed it; a regression test
+covers that ownership requirement. No provider UI is shown in the child.
+
+TASK-64 adds original serialized canvas code, narrow camera leases, rendering-shape
+checks, known-contact video answer and Home controls. The built-app fake-camera
+test verifies real permission handling, two canvas pixels, native attachment/bounds,
+incoming/outgoing controls, camera-off masking and teardown. Camera/video transport
+on the real linked account still needs an owner-initiated call.

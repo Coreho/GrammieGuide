@@ -1,5 +1,5 @@
 import { test, expect, _electron as electron } from '@playwright/test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve, sep } from 'node:path'
 
@@ -112,7 +112,10 @@ test('isolated in-app WhatsApp setup links, closes and cannot enable calling fro
   }
 })
 
-async function recoveryFixture(failFirstLoad = false): Promise<{
+async function recoveryFixture(
+  failFirstLoad = false,
+  html = CALL_FIXTURE
+): Promise<{
   app: import('@playwright/test').ElectronApplication
   home: import('@playwright/test').Page
   admin: import('@playwright/test').Page
@@ -138,7 +141,7 @@ async function recoveryFixture(failFirstLoad = false): Promise<{
           return new Response(fixture.html, { headers: { 'content-type': 'text/html' } })
         })
       },
-      { html: CALL_FIXTURE, failFirstLoad }
+      { html, failFirstLoad }
     )
     const opened = app.context().waitForEvent('page')
     await app.evaluate(() => {
@@ -469,6 +472,194 @@ const CALL_FIXTURE = `<!doctype html><title>Fixture calls</title><div id="pane-s
   window.fixtureSetCall = set;
 })();
 </script>`
+
+const VIDEO_FIXTURE =
+  CALL_FIXTURE +
+  `<script>
+(() => {
+  const requireBase = window.require;
+  const calls = requireBase('WAWebCallCollection');
+  const setBase = window.fixtureSetCall;
+  window.fixtureSetCall = (next, unknown = false) => {
+    if (!next) window.fixtureStream?.getTracks().forEach(track => track.stop());
+    setBase(next, unknown);
+    if (calls.activeCall) Object.assign(calls.activeCall, {
+      isVideo:!!window.fixtureVideo, peerVideoState:1, selfVideoState:1,
+      peerVideoJid:window.fixtureVideo ? 'fixture-video-peer' : null
+    });
+  };
+  const capture = async video => {
+    window.fixtureVideo = video;
+    window.fixtureStream = await navigator.mediaDevices.getUserMedia({audio:true,video});
+  };
+  requireBase('WAWebVoipStartCall').startWAWebVoipCall = async (peer, video) => {
+    if (!window.fixtureLookupReady) throw new Error('Lookup first');
+    await capture(video);
+    window.fixtureSetCall(1);
+    return true;
+  };
+  const stack = requireBase('WAWebVoipStackInterface').getCachedVoipStackInterface();
+  stack.acceptCall = async (mic, camera) => { await capture(camera); window.fixtureSetCall(6); };
+  stack.rejectCall = async () => window.fixtureSetCall(0);
+  stack.endCall = async () => window.fixtureSetCall(0);
+  const canvases = new Map();
+  const paint = canvas => {
+    const source = canvases.get(canvas);
+    if (!source) return;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = source.local ? '#2868d8' : '#38a060';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  };
+  const renderer = {
+    getRendererType:()=>0,
+    registerVideoCanvas:canvas=>canvases.set(canvas,null),
+    assignSourceToCanvas:({canvas,source})=>{canvases.set(canvas,source);paint(canvas);},
+    unregisterVideoCanvas:canvas=>canvases.delete(canvas),
+    onCanvasResize:(canvas,width,height)=>{canvas.width=width;canvas.height=height;paint(canvas);},
+    setCoverFit:()=>{},
+    hasRenderedFirstFrameForCanvas:canvas=>!!canvases.get(canvas)
+  };
+  const extra = {
+    WAWebVoipVideoRendererRegistry:{videoRendererRegistry:renderer},
+    WAWebVoipVideoRenderSource:{WAWebVoipVideoRenderStream:{CAMERA:'CAMERA'},
+      WAWebVoipVideoRenderSource:{self:()=>({local:true}),peer:()=>({local:false})}},
+    WAWebVoipVideoStateUtils:{isVideoMuted:state=>state===0}
+  };
+  window.require = name => extra[name] ?? requireBase(name);
+})();
+</script>`
+
+test('Video stays inside Home, requires explicit camera consent and releases the view on end', async () => {
+  const f = await recoveryFixture(false, VIDEO_FIXTURE)
+  const provider = (code: string): Promise<unknown> =>
+    f.app.evaluate(async ({ webContents }, script) => {
+      const peer = webContents
+        .getAllWebContents()
+        .find((c) => c.getURL() === 'https://web.whatsapp.com/')!
+      return peer.executeJavaScript(script)
+    }, code)
+  try {
+    await f.home.getByRole('button', { name: 'Family calls', exact: true }).click()
+    await expect(
+      f.home.getByRole('button', { name: 'Video call Sarah', exact: true })
+    ).toBeEnabled()
+    const windows = await f.app.evaluate(
+      ({ BrowserWindow }) => BrowserWindow.getAllWindows().length
+    )
+    expect(await provider('!!window.fixtureStream')).toBe(false)
+    await f.home.getByRole('button', { name: 'Video call Sarah', exact: true }).click()
+    await expect(f.home.getByRole('heading', { name: 'Calling Sarah…' })).toBeVisible()
+    await expect
+      .poll(() =>
+        provider('window.fixtureStream?.getVideoTracks().filter(t=>t.readyState==="live").length')
+      )
+      .toBe(1)
+    const pixels = (): Promise<unknown> =>
+      f.app.evaluate(async ({ webContents }) => {
+        const video = webContents
+          .getAllWebContents()
+          .find((c) => c.getTitle() === 'Family video call')
+        return video?.executeJavaScript(`Array.from(document.querySelectorAll('canvas')).map(c=>({
+        visible:c.style.visibility, pixel:Array.from(c.getContext('2d').getImageData(0,0,1,1).data),
+        width:c.width,height:c.height
+      }))`)
+      })
+    await expect
+      .poll(pixels)
+      .toEqual([
+        expect.objectContaining({ visible: 'visible', pixel: [56, 160, 96, 255] }),
+        expect.objectContaining({ visible: 'visible', pixel: [40, 104, 216, 255] })
+      ])
+    expect(await f.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(
+      windows
+    )
+    await f.home.screenshot({ path: test.info().outputPath('video-call.png') })
+    // Page.screenshot captures Home's renderer alone. Inspect the separately
+    // composited native view as well, including its actual attachment and bounds.
+    const visual = await f.app.evaluate(async ({ BrowserWindow, webContents }) => {
+      const video = webContents
+        .getAllWebContents()
+        .find((c) => c.getTitle() === 'Family video call')!
+      const home = BrowserWindow.getAllWindows().find((w) =>
+        w.webContents.getURL().includes('/launcher/index.html')
+      )!
+      const child = home.contentView.children.find(
+        (v) => 'webContents' in v && v.webContents === video
+      )!
+      return {
+        attached: !!child,
+        bounds: child?.getBounds(),
+        image: (await video.capturePage()).toDataURL()
+      }
+    })
+    expect(visual.attached).toBe(true)
+    const slot = await f.home
+      .getByRole('img', { name: 'Family video and your camera preview' })
+      .boundingBox()
+    expect(visual.bounds!.x).toBe(Math.ceil(slot!.x))
+    expect(visual.bounds!.y).toBe(Math.ceil(slot!.y))
+    expect(visual.bounds!.width).toBeGreaterThan(400)
+    await writeFile(
+      test.info().outputPath('video-surface.png'),
+      Buffer.from(visual.image.split(',')[1]!, 'base64')
+    )
+    await f.home.getByRole('button', { name: 'End call', exact: true }).click()
+    await expect(
+      f.home.getByRole('button', { name: 'Video call Sarah', exact: true })
+    ).toBeEnabled()
+    await expect
+      .poll(() =>
+        f.app.evaluate(
+          ({ webContents }) =>
+            webContents.getAllWebContents().filter((c) => c.getTitle() === 'Family video call')
+              .length
+        )
+      )
+      .toBe(0)
+
+    await provider('window.fixtureVideo=true;window.fixtureSetCall(3)')
+    await expect(f.home.getByRole('button', { name: 'Answer', exact: true })).toBeVisible()
+    expect(
+      await provider(
+        'window.fixtureStream?.getVideoTracks().some(t=>t.readyState==="live") ?? false'
+      )
+    ).toBe(false)
+    await f.home.getByRole('button', { name: 'Answer', exact: true }).click()
+    await expect(f.home.getByRole('heading', { name: 'Talking with Sarah' })).toBeVisible()
+    await expect
+      .poll(pixels)
+      .toEqual([
+        expect.objectContaining({ visible: 'visible' }),
+        expect.objectContaining({ visible: 'visible' })
+      ])
+    await provider("window.require('WAWebCallCollection').activeCall.peerVideoState=0")
+    await expect
+      .poll(pixels)
+      .toEqual([
+        expect.objectContaining({ visible: 'hidden' }),
+        expect.objectContaining({ visible: 'visible' })
+      ])
+    await provider('window.fixtureSetCall(0)')
+    await expect(
+      f.home.getByRole('button', { name: 'Video call Sarah', exact: true })
+    ).toBeEnabled()
+    expect(
+      await provider('window.fixtureStream.getTracks().every(t=>t.readyState==="ended")')
+    ).toBe(true)
+    await expect
+      .poll(() =>
+        f.app.evaluate(
+          ({ webContents }) =>
+            webContents.getAllWebContents().filter((c) => c.getTitle() === 'Family video call')
+              .length
+        )
+      )
+      .toBe(0)
+  } finally {
+    await f.app.close()
+    await removeProfile(f.folder)
+  }
+})
 
 test('Family calls stays in GrammieGuide, observes connected state, handles incoming and tears down a hung call', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'grammie-whatsapp-'))

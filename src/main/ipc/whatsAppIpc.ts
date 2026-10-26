@@ -1,6 +1,7 @@
 import { app, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import type { ContactPerson } from '@shared/contactSettings'
 import type { WhatsAppCallState } from '@shared/whatsAppCalls'
+import { whatsAppVideoBoundsSchema } from '@shared/whatsAppCalls'
 import { getConfig } from '../config/store'
 import { getAdminWindow, getLauncherWindow } from '../windows/windowManager'
 import { isAdminUnlocked, onAdminLocked } from '../services/auth/adminAuth'
@@ -134,6 +135,20 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
   ipcMain.handle('whatsapp:state', (event) => {
     requireControlWindow(event)
     return controller.refresh()
+  })
+  ipcMain.handle('whatsapp:videoBounds', (event, value: unknown) => {
+    const home = getLauncherWindow()
+    if (!home || event.sender !== home.webContents || event.senderFrame !== event.sender.mainFrame)
+      throw new Error('Home window required')
+    const bounds = whatsAppVideoBoundsSchema.parse(value)
+    if (bounds) {
+      const [width = 0, height = 0] = home.getContentSize()
+      // A renderer may position the canvas, but cannot cover window controls or
+      // put remote content outside Home. Reject stale/out-of-window layouts.
+      if (bounds.x + bounds.width > width || bounds.y + bounds.height > height)
+        throw new Error('Video bounds outside Home')
+    }
+    setup.setVideoBounds(bounds)
   })
   ipcMain.handle('whatsapp:command', (event, command: unknown) => {
     requireControlWindow(event)

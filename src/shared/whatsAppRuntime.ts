@@ -4,6 +4,8 @@ export type WhatsAppRuntimeRequest =
   | { type: 'answer' | 'decline' | 'end'; callId: string }
 export interface WhatsAppRuntimeState {
   supported: boolean
+  /** Rendering contract readiness, independent of camera permission or hardware. */
+  videoSupported?: boolean
   idle: boolean
   rejected?: boolean
   /** Fixed diagnostic codes only; never provider messages, peer IDs or numbers. */
@@ -22,6 +24,7 @@ export interface WhatsAppRuntimeState {
     | 'recipient-not-found'
     | 'recipient-unresolved'
     | 'offline'
+    | 'video-unavailable'
   call: {
     id: string
     phone: string | null
@@ -76,6 +79,30 @@ export async function whatsAppRuntime(
       typeof calls.getModelsArray !== 'function'
     )
       return unavailable()
+    // Video uses only our own canvases, never the provider's chat/call UI. Older
+    // or changed video modules disable video without taking voice calls away.
+    const videoSupported = (() => {
+      try {
+        const registry = object(load('WAWebVoipVideoRendererRegistry').videoRendererRegistry)
+        const sourceModule = load('WAWebVoipVideoRenderSource')
+        const source = object(sourceModule.WAWebVoipVideoRenderSource)
+        return (
+          [
+            'registerVideoCanvas',
+            'assignSourceToCanvas',
+            'unregisterVideoCanvas',
+            'onCanvasResize',
+            'setCoverFit'
+          ].every((name) => typeof registry[name] === 'function') &&
+          typeof source.self === 'function' &&
+          typeof source.peer === 'function' &&
+          object(sourceModule.WAWebVoipVideoRenderStream).CAMERA != null &&
+          invoke(registry, 'getRendererType') != null
+        )
+      } catch {
+        return false
+      }
+    })()
     const phoneOf = (peer: unknown): string | null => {
       try {
         const pn = invoke(load('WAWebLidMigrationUtils'), 'toPn', peer) ?? peer
@@ -88,7 +115,7 @@ export async function whatsAppRuntime(
     const observe = (): WhatsAppRuntimeState => {
       const idle = (): WhatsAppRuntimeState =>
         invoke(load('WAComms'), 'isSocketConnected') === true
-          ? { supported: true, idle: true, call: null }
+          ? { supported: true, videoSupported, idle: true, call: null }
           : { ...unavailable(), failure: 'offline' }
       const local = invoke(load('WAWebVoipLocalCallStateStore'), 'getLocalCallState')
       if (typeof local !== 'number') return unavailable()
@@ -133,6 +160,7 @@ export async function whatsAppRuntime(
       if (typeof call.id !== 'string' || !call.id || call.id.length > 256) return unavailable()
       return {
         supported: true,
+        videoSupported,
         idle: false,
         call: {
           id: call.id,
@@ -146,9 +174,9 @@ export async function whatsAppRuntime(
     const before = observe()
     if (request.type === 'read' || !before.supported) return before
     if (request.type === 'start') {
-      // Video remains disabled until an in-app video rendering path is verified.
-      if (request.mode !== 'voice' || !/^\+[1-9]\d{7,14}$/.test(request.phone) || !before.idle)
-        throw new Error('Cannot start')
+      if (request.mode === 'video' && !videoSupported)
+        return { ...before, rejected: true, failure: 'video-unavailable' }
+      if (!/^\+[1-9]\d{7,14}$/.test(request.phone) || !before.idle) throw new Error('Cannot start')
       // Device sync does not resolve every saved PN. The interactive number
       // lookup stores WhatsApp's PN/LID mapping without creating/sending a chat.
       stage = 'recipient-lookup'
@@ -157,9 +185,18 @@ export async function whatsAppRuntime(
       const peer = invoke(load('WAWebLidMigrationUtils'), 'toLid', object(resolved).wid)
       if (!peer) return { ...before, rejected: true, failure: 'recipient-unresolved' }
       stage = 'start'
-      const accepted = await invoke(start, 'startWAWebVoipCall', peer, false, 0, 0, null, {
-        entryTrust: 'user_gesture'
-      })
+      const accepted = await invoke(
+        start,
+        'startWAWebVoipCall',
+        peer,
+        request.mode === 'video',
+        0,
+        0,
+        null,
+        {
+          entryTrust: 'user_gesture'
+        }
+      )
       stage = 'observation'
       return {
         ...observe(),
@@ -169,9 +206,10 @@ export async function whatsAppRuntime(
     if (!before.call || before.call.id !== request.callId) throw new Error('Stale call')
     if (request.type === 'answer') {
       stage = 'answer'
-      if (before.call.phase !== 'incoming' || before.call.mode !== 'voice')
-        throw new Error('Cannot answer')
-      await invoke(stack, 'acceptCall', true, false, null)
+      if (before.call.phase !== 'incoming') throw new Error('Cannot answer')
+      if (before.call.mode === 'video' && !videoSupported)
+        return { ...before, rejected: true, failure: 'video-unavailable' }
+      await invoke(stack, 'acceptCall', true, before.call.mode === 'video', null)
     } else if (request.type === 'decline') {
       stage = 'decline'
       if (before.call.phase !== 'incoming') throw new Error('Cannot decline')
