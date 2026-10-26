@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25 11:13'
-updated_date: '2026-10-26 03:26'
+updated_date: '2026-10-26 13:45'
 labels: []
 dependencies: []
 references:
@@ -72,4 +72,10 @@ Owner completed the incoming-call recheck after the native Windows WhatsApp clie
 Independent review confirmed missing listener recovery after first-load failure/crash and after account setup closes. Added main-owned listening intent, setup suspension/restoration, capped connection-only backoff, explicit-stop and Home-document cleanup, and waiting for old call/pending teardown proof. Idle offline signaling disables Start; active media survives socket loss; ended-while-offline destroys the idle old peer to release call/audio state. No call commands replay. Validation: 1278/1278 unit tests across 103 files; all 6 WhatsApp built-app fixture tests pass, including process-restart persistence, failed load/crash, setup/lock, missed/declined, offline/reconnect and hang-up recovery. Build/typechecks and lint pass. Historical sign-in timeout did not reproduce in four initial traced runs or the full run; 60s limit unchanged and failure traces retained. Native-client startup entry observed disabled (State 1), with no settings changed. Full Windows reboot and real network-loss/sustained kiosk checks remain open. PR must target actual parent feat/buddy-chatgpt-plan to avoid including unrelated earlier features.
 
 Final independent review found no remaining recovery-diff merge blockers. The real linked profile reached ready on two built-app launches separated by complete app process shutdown: one embedded peer, voice available, no call/pending operation, no QR scan. Native Windows WhatsApp remained closed. Read-only flags only; no calls/messages sent, and no account storage read. Full Windows reboot remains untested.
+
+2026-10-26: Owner reports calling persisted after restart. This adds owner confirmation of calling functionality after restart beyond the earlier read-only ready-state check. Restart type was not specified; full Windows reboot and real internet-loss recovery remain unverified.
+
+2026-10-26 clarification: Owner confirms this was a full Windows reboot, with the laptop powered off for about two hours, and calling still worked afterward. The full reboot/power-off persistence check is now owner-confirmed; the previous note leaving full Windows reboot unverified is superseded. Real internet-loss recovery remains unverified.
+
+2026-10-26: Owner completed a live internet disconnect/reconnect test while GrammieGuide remained running and explicitly confirms it recovered automatically. Live disconnect/reconnect recovery is now owner-confirmed, superseding earlier notes that real internet-loss recovery was unverified. The owner did not separately specify a post-reconnection call or two-way audio result in this report.
 <!-- SECTION:NOTES:END -->
