@@ -75,6 +75,8 @@ function enableVideo(modules: Record<string, unknown>): void {
       unregisterVideoCanvas: vi.fn(),
       onCanvasResize: vi.fn(),
       setCoverFit: vi.fn(),
+      resumeRenderingForSource: vi.fn(),
+      pauseRenderingForSource: vi.fn(),
       getRendererType: () => 0
     }
   }
@@ -85,6 +87,18 @@ function enableVideo(modules: Record<string, unknown>): void {
 }
 
 describe('observed WhatsApp web control contracts', () => {
+  it('keeps voice available but refuses video without source visibility controls', async () => {
+    const f = fixture()
+    enableVideo(f.modules)
+    const registry = (
+      f.modules.WAWebVoipVideoRendererRegistry as { videoRendererRegistry: Record<string, unknown> }
+    ).videoRendererRegistry
+    delete registry.resumeRenderingForSource
+    expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({
+      supported: true,
+      videoSupported: false
+    })
+  })
   it('advertises video only when its rendering contracts are available', async () => {
     const f = fixture()
     expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({

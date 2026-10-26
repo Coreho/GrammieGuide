@@ -41,6 +41,9 @@ export class WhatsAppVideoView {
   }
 
   private async prepareOnce(): Promise<boolean> {
+    const [parentWidth = 1, parentHeight = 1] = this.parent.getContentSize()
+    const initialWidth = Math.max(1, Math.round(this.bounds?.width ?? parentWidth))
+    const initialHeight = Math.max(1, Math.round(this.bounds?.height ?? parentHeight))
     let armed = true
     this.opener.setWindowOpenHandler((details) => {
       if (!armed || this.closed || details.url !== 'about:blank' || details.frameName !== this.name)
@@ -67,6 +70,9 @@ export class WhatsAppVideoView {
             }
           })
           this.view = view
+          // Give the blank document a real viewport before its canvases are
+          // registered, while keeping it detached until preparation succeeds.
+          view.setBounds({ x: 0, y: 0, width: initialWidth, height: initialHeight })
           view.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
           const blocked = (event: { preventDefault: () => void }): void => {
             event.preventDefault()
@@ -83,7 +89,7 @@ export class WhatsAppVideoView {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
       const ok = await Promise.race([
-        this.run({ type: 'prepare', name: this.name }, true),
+        this.run({ type: 'prepare', name: this.name, initialWidth, initialHeight }, true),
         new Promise<false>((resolve) => {
           timer = setTimeout(() => resolve(false), 3000)
         })
@@ -107,7 +113,12 @@ export class WhatsAppVideoView {
 
   async sync(callId: string): Promise<boolean> {
     if (this.closed || !this.ready) return false
-    const ok = await this.run({ type: 'sync', name: this.name, callId })
+    const ok = await this.run({
+      type: 'sync',
+      name: this.name,
+      callId,
+      visible: this.attached && this.parent.isVisible()
+    })
     if (!ok) this.close()
     return ok && !this.closed
   }

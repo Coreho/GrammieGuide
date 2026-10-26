@@ -505,11 +505,13 @@ const VIDEO_FIXTURE =
   const canvases = new Map();
   const paint = canvas => {
     const source = canvases.get(canvas);
-    if (!source) return;
+    if (!source || (!source.local && !source.resumed)) return;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = source.local ? '#2868d8' : '#38a060';
     ctx.fillRect(0,0,canvas.width,canvas.height);
+    rendered.add(canvas);
   };
+  const rendered = new WeakSet();
   const renderer = {
     getRendererType:()=>0,
     registerVideoCanvas:canvas=>canvases.set(canvas,null),
@@ -517,7 +519,12 @@ const VIDEO_FIXTURE =
     unregisterVideoCanvas:canvas=>canvases.delete(canvas),
     onCanvasResize:(canvas,width,height)=>{canvas.width=width;canvas.height=height;paint(canvas);},
     setCoverFit:()=>{},
-    hasRenderedFirstFrameForCanvas:canvas=>!!canvases.get(canvas)
+    resumeRenderingForSource:source=>{
+      source.resumed=true;
+      for(const [canvas,selected] of canvases) if(selected===source) paint(canvas);
+    },
+    pauseRenderingForSource:source=>{source.resumed=false;},
+    hasRenderedFirstFrameForCanvas:canvas=>rendered.has(canvas)
   };
   const extra = {
     WAWebVoipVideoRendererRegistry:{videoRendererRegistry:renderer},
@@ -561,7 +568,8 @@ test('Video stays inside Home, requires explicit camera consent and releases the
           .find((c) => c.getTitle() === 'Family video call')
         return video?.executeJavaScript(`Array.from(document.querySelectorAll('canvas')).map(c=>({
         visible:c.style.visibility, pixel:Array.from(c.getContext('2d').getImageData(0,0,1,1).data),
-        width:c.width,height:c.height
+        width:c.width,height:c.height,displayWidth:c.getBoundingClientRect().width,
+        displayHeight:c.getBoundingClientRect().height,ratio:devicePixelRatio
       }))`)
       })
     await expect
@@ -599,6 +607,24 @@ test('Video stays inside Home, requires explicit camera consent and releases the
     expect(visual.bounds!.x).toBe(Math.ceil(slot!.x))
     expect(visual.bounds!.y).toBe(Math.ceil(slot!.y))
     expect(visual.bounds!.width).toBeGreaterThan(400)
+    expect(visual.bounds!.height).toBeGreaterThan(400)
+    const buffers = (await pixels()) as {
+      width: number
+      height: number
+      displayWidth: number
+      displayHeight: number
+      ratio: number
+    }[]
+    for (const buffer of buffers) {
+      expect(buffer.width).toBe(Math.max(1, Math.trunc(buffer.displayWidth * buffer.ratio)))
+      expect(buffer.height).toBe(Math.max(1, Math.trunc(buffer.displayHeight * buffer.ratio)))
+    }
+    const controls = await f.home
+      .getByRole('button', { name: 'End call and go Home', exact: true })
+      .boundingBox()
+    expect(controls!.y + controls!.height).toBeLessThanOrEqual(
+      await f.home.evaluate(() => innerHeight)
+    )
     await writeFile(
       test.info().outputPath('video-surface.png'),
       Buffer.from(visual.image.split(',')[1]!, 'base64')

@@ -15,6 +15,7 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
   const closeButton = useRef<HTMLButtonElement>(null)
   const leaving = useRef(false)
   const call = state?.call
+  const showingVideo = call?.mode === 'video' && call.phase !== 'incoming'
   const name = call?.contact?.name ?? 'Someone'
 
   useEffect(() => {
@@ -119,13 +120,13 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
           : 'Choose who you would like to talk to.'
   return (
     <div
-      className="contact-backdrop"
+      className={`contact-backdrop${showingVideo ? ' call-backdrop-video' : ''}`}
       data-contact-control
       style={{ position: 'fixed', zIndex: zLayers.activeCall }}
     >
       <section
         ref={dialog}
-        className={`contact-dialog call-dialog${call?.mode === 'video' ? ' call-dialog-video' : ''}`}
+        className={`contact-dialog call-dialog${showingVideo ? ' call-dialog-video' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Family calls"
@@ -133,9 +134,9 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
         {call?.mode !== 'video' && <ContactPicture />}
         <div role="status" aria-live="polite" aria-atomic="true">
           <h1>{title}</h1>
-          <p>{detail}</p>
+          {!(showingVideo && call?.phase === 'connected') && <p>{detail}</p>}
         </div>
-        {call?.mode === 'video' && call.phase !== 'incoming' && <CallVideo callId={call.id} />}
+        {showingVideo && <CallVideo callId={call.id} />}
         <div className="contact-actions">
           {!call &&
             state?.contacts.map((contact) => (

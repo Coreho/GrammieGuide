@@ -30,6 +30,8 @@ function fixture(): {
   }
   parent: {
     isDestroyed: () => boolean
+    isVisible: ReturnType<typeof vi.fn>
+    getContentSize: () => number[]
     contentView: {
       addChildView: ReturnType<typeof vi.fn>
       removeChildView: ReturnType<typeof vi.fn>
@@ -74,6 +76,8 @@ function fixture(): {
   }
   const parent = {
     isDestroyed: () => false,
+    isVisible: vi.fn(() => true),
+    getContentSize: () => [1000, 800],
     contentView: { addChildView: vi.fn(), removeChildView: vi.fn() }
   }
   const video = new WhatsAppVideoView(
@@ -88,6 +92,35 @@ afterEach(() => {
 })
 
 describe('owned embedded video view', () => {
+  it('passes native attachment and parent visibility to the video renderer', async () => {
+    const f = fixture()
+    expect(await f.video.prepare()).toBe(true)
+    expect(await f.video.sync('call')).toBe(true)
+    expect(f.opener.executeJavaScript).toHaveBeenLastCalledWith(
+      expect.stringContaining('"visible":false'),
+      false
+    )
+    f.video.setBounds({ x: 0, y: 0, width: 600, height: 400 })
+    expect(await f.video.sync('call')).toBe(true)
+    expect(f.opener.executeJavaScript).toHaveBeenLastCalledWith(
+      expect.stringContaining('"visible":true'),
+      false
+    )
+    f.parent.isVisible.mockReturnValue(false)
+    expect(await f.video.sync('call')).toBe(true)
+    expect(f.opener.executeJavaScript).toHaveBeenLastCalledWith(
+      expect.stringContaining('"visible":false'),
+      false
+    )
+    f.parent.isVisible.mockReturnValue(true)
+    f.video.setBounds(null)
+    expect(await f.video.sync('call')).toBe(true)
+    expect(f.opener.executeJavaScript).toHaveBeenLastCalledWith(
+      expect.stringContaining('"visible":false'),
+      false
+    )
+    f.video.close()
+  })
   it('preserves Chromium supplied WebContents and hardens the one blank child', async () => {
     const f = fixture()
     const bounds = { x: 10, y: 20, width: 600, height: 400 }
@@ -106,7 +139,13 @@ describe('owned embedded video view', () => {
     })
     expect(f.denied).toEqual(['deny', 'deny', 'deny'])
     expect(f.parent.contentView.addChildView).toHaveBeenCalledOnce()
-    expect(mocks.views[0]).toMatchObject({ setBounds: expect.any(Function) })
+    const view = mocks.views[0] as { setBounds: ReturnType<typeof vi.fn> }
+    expect(view.setBounds).toHaveBeenNthCalledWith(1, { x: 0, y: 0, width: 600, height: 400 })
+    expect(view.setBounds).toHaveBeenLastCalledWith(bounds)
+    expect(f.opener.executeJavaScript).toHaveBeenLastCalledWith(
+      expect.stringContaining('"initialWidth":600,"initialHeight":400'),
+      true
+    )
     expect(f.handler()({ url: 'about:blank', frameName: 'anything' }).action).toBe('deny')
     f.video.setBounds(null)
     expect(f.parent.contentView.removeChildView).toHaveBeenCalledOnce()
@@ -119,6 +158,10 @@ describe('owned embedded video view', () => {
     const f = fixture()
     expect(await f.video.prepare()).toBe(true)
     expect(f.parent.contentView.addChildView).not.toHaveBeenCalled()
+    expect(f.opener.executeJavaScript).toHaveBeenLastCalledWith(
+      expect.stringContaining('"initialWidth":1000,"initialHeight":800'),
+      true
+    )
     f.video.close()
   })
 

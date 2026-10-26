@@ -281,5 +281,33 @@ covers that ownership requirement. No provider UI is shown in the child.
 TASK-64 adds original serialized canvas code, narrow camera leases, rendering-shape
 checks, known-contact video answer and Home controls. The built-app fake-camera
 test verifies real permission handling, two canvas pixels, native attachment/bounds,
-incoming/outgoing controls, camera-off masking and teardown. Camera/video transport
-on the real linked account still needs an owner-initiated call.
+incoming/outgoing controls, camera-off masking and teardown.
+
+The owner then tested real incoming video. The first screenshot showed the local
+preview while the remote camera was on but the large view stayed blank. A later
+call showed both pictures; the owner requested a larger remote view and reported
+mediocre quality and slight audio delay/echo. Both devices were in the same room;
+the cooler is not an established explanation.
+
+Read-only live flags on the later call showed matching remote media identity,
+decoded video and a rendered remote frame, with no current source pause. Received
+portrait dimensions reached 720x1280, but both DOM canvases still reported the
+default 300x150 backing sizes while the large canvas displayed at 1035x290 CSS
+pixels on a 1.25-density display. These are structural measurements only; no call
+media, participant identities or contact content were retained.
+
+Additional PUBLIC video-UI scripts were loaded without mounting the provider UI
+or initiating a call. Ordinary CDP capture saved their URL/SHA-256 manifest and
+module offsets under `C:/Users/koreo/GrammieGuide-analysis/whatsapp-video-ui-public-js/`.
+This is not new REA Evidence. The provider canvas lifecycle sets backing dimensions
+before registration. Its visibility effect also pauses remote sources globally
+when the provider document is hidden, and assigning an extra canvas does not undo
+that pause. The local preview skips that visibility effect.
+
+Corrections initialize and resize backing buffers, avoid unchanged resets, resume
+remote rendering for the actual visible Home surface, and enlarge the video area
+while retaining End controls. The modeled paused-source and size regressions pass,
+as do all 1,303 unit tests, seven WhatsApp built-app tests, build and lint. These
+fixes are supported by the code, but available evidence does not identify which
+condition caused the first blank attempt. Post-fix real quality and separated-device
+audio comparisons remain pending.

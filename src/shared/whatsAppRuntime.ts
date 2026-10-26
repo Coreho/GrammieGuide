@@ -92,7 +92,9 @@ export async function whatsAppRuntime(
             'assignSourceToCanvas',
             'unregisterVideoCanvas',
             'onCanvasResize',
-            'setCoverFit'
+            'setCoverFit',
+            'resumeRenderingForSource',
+            'pauseRenderingForSource'
           ].every((name) => typeof registry[name] === 'function') &&
           typeof source.self === 'function' &&
           typeof source.peer === 'function' &&

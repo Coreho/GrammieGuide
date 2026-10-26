@@ -1,7 +1,7 @@
 export type WhatsAppVideoRequest =
-  | { type: 'prepare'; name: string }
+  | { type: 'prepare'; name: string; initialWidth: number; initialHeight: number }
   | { type: 'close'; name: string }
-  | { type: 'sync'; name: string; callId: string }
+  | { type: 'sync'; name: string; callId: string; visible: boolean }
 
 /** Serialized into the owned provider page. Only our blank canvas document is visible. */
 export function whatsAppVideoRuntime(request: WhatsAppVideoRequest): boolean {
@@ -75,7 +75,9 @@ export function whatsAppVideoRuntime(request: WhatsAppVideoRequest): boolean {
         'assignSourceToCanvas',
         'unregisterVideoCanvas',
         'onCanvasResize',
-        'setCoverFit'
+        'setCoverFit',
+        'resumeRenderingForSource',
+        'pauseRenderingForSource'
       ])
         if (typeof registry[name] !== 'function') return false
       if (typeof source.self !== 'function' || typeof source.peer !== 'function') return false
@@ -108,18 +110,24 @@ export function whatsAppVideoRuntime(request: WhatsAppVideoRequest): boolean {
       }
       const remote = panel(false)
       const self = panel(true)
+      const sizes = new WeakMap<HTMLCanvasElement, { width: number; height: number }>()
       const resize = (): void => {
         for (const canvas of [remote.canvas, self.canvas]) {
           const rect = canvas.getBoundingClientRect()
           const ratio = child.devicePixelRatio || 1
-          if (rect.width > 0 && rect.height > 0)
-            invoke(
-              registry,
-              'onCanvasResize',
-              canvas,
-              Math.round(rect.width * ratio),
-              Math.round(rect.height * ratio)
-            )
+          if (rect.width <= 0 || rect.height <= 0) continue
+          const width = Math.trunc(rect.width * ratio)
+          const height = Math.trunc(rect.height * ratio)
+          const previous = sizes.get(canvas)
+          // Provider renderers reset their backing canvas on resize. State polls
+          // must not reset a playing picture or send needless worker messages.
+          if (previous?.width === width && previous.height === height) continue
+          // Portal mode renders into a separate OffscreenCanvas. Its resize
+          // message does not update this DOM bitmaprenderer canvas for us.
+          if (canvas.width !== width) canvas.width = width
+          if (canvas.height !== height) canvas.height = height
+          invoke(registry, 'onCanvasResize', canvas, width, height)
+          sizes.set(canvas, { width, height })
         }
       }
       const state: VideoState = {
@@ -135,7 +143,24 @@ export function whatsAppVideoRuntime(request: WhatsAppVideoRequest): boolean {
         resize
       }
       scope.__grammieGuideVideo = state
-      for (const canvas of [state.remote, state.self]) {
+      for (const [canvas, widthScale, heightScale] of [
+        [state.remote, 1, 1],
+        [state.self, 0.25, 0.28]
+      ] as const) {
+        // The provider's canvas lifecycle initializes the backing buffer before
+        // registration. Portal workers otherwise begin at HTML's 300x150 default.
+        // If layout has not committed yet, use the native viewport passed by
+        // main; preview fractions match the panel's CSS above.
+        const rect = canvas.getBoundingClientRect()
+        const ratio = child.devicePixelRatio || 1
+        canvas.width = Math.max(
+          1,
+          Math.trunc((rect.width || request.initialWidth * widthScale) * ratio)
+        )
+        canvas.height = Math.max(
+          1,
+          Math.trunc((rect.height || request.initialHeight * heightScale) * ratio)
+        )
         // The registry's portal mode explicitly supports canvases in a child document.
         invoke(registry, 'registerVideoCanvas', canvas, true)
         invoke(registry, 'setCoverFit', canvas, false)
@@ -175,6 +200,15 @@ export function whatsAppVideoRuntime(request: WhatsAppVideoRequest): boolean {
       })
       state.selfSource = selfSource
     }
+    // WhatsApp's hidden call UI pauses the shared peer source globally. Our
+    // canvas has its own native visibility, so reassert that source's state on
+    // every observation; binding a canvas alone does not resume decoded frames.
+    // Self preview is independent and must not receive the peer visibility rule.
+    invoke(
+      state.registry,
+      request.visible ? 'resumeRenderingForSource' : 'pauseRenderingForSource',
+      remoteSource
+    )
     let muted: Obj | null = null
     try {
       muted = load('WAWebVoipVideoStateUtils')

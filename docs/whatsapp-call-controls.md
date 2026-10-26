@@ -9,7 +9,9 @@ The owner also confirmed incoming calls with good audio. Sustained kiosk reliabi
 remains unverified. This is a development integration; it is not yet ready to replace
 the real kiosk's calling arrangements.
 TASK-64 on `feat/whatsapp-video` adds video start/answer and an in-app canvas view.
-Its fake-camera built-app checks pass; real video calling still needs an owner test.
+The owner confirmed an incoming video call with both pictures appearing on a
+subsequent attempt. The first attempt's remote picture stayed blank; quality and
+the enlarged view need a real-device recheck after the corrections below.
 WhatsApp's private Web modules can change without notice.
 
 ## Caregiver setup and use
@@ -67,6 +69,11 @@ The observed provider registry renders remote video and mirrored self preview in
 cross-window portal mode. `peerVideoJid` follows the provider's video-state callbacks;
 source changes rebind without repeatedly requesting keyframes. Muted/unrendered
 canvases are masked. Only Home's main frame can submit validated canvas bounds.
+The video dialog fills the available Home window while retaining End controls.
+Its visible native view resumes remote rendering: WhatsApp's hidden account UI can
+otherwise pause that shared source. Hidden Home views pause rendering again.
+Backing buffers initialize before portal registration and track real layout and
+display-density changes; unchanged state polls do not reset the buffers.
 
 ## Application API
 
@@ -151,14 +158,13 @@ The call fixture also requires recipient lookup before Start and uses Chromium's
 fake audio device through the actual session permission handlers. Rejected starts
 verify that the screen stops recommending End after local teardown removed it.
 
-Latest unit validation: all 1,297 tests pass, including device leases, video flags,
+Latest unit validation: all 1,303 tests pass, including device leases, video flags,
 blank-window creation, source rebinding, muted-frame masking and cleanup. The video
 built-app test uses a real Chromium fake camera through the production permission
 handlers and verifies both canvas pixels, attachment/bounds, outgoing/incoming
-controls, remote camera-off masking and teardown. It does not prove real video
-transport or camera quality.
-The six existing WhatsApp built-app tests are retained;
-build/typechecks and repository lint pass. The earlier sign-in timeout did not
+controls, a globally paused remote source, camera-off masking, backing-buffer
+dimensions and teardown. All seven WhatsApp built-app tests, build/typechecks and
+repository lint pass. These do not prove real camera quality. The earlier sign-in timeout did not
 reproduce in four initial traced runs or the latest full run. The 60s limit is
 unchanged, and failure traces are retained; its original cause remains unknown.
 The real linked profile also reached ready after two launches of the built app,
@@ -174,3 +180,6 @@ Windows reboot after approximately two hours powered off, with calling preserved
 and a live internet disconnect/reconnect with automatic recovery. These supersede
 the earlier unverified reboot/network notes. Real outgoing/incoming video, two-way
 picture and sound, camera release and long-running behavior still need device checks.
+The owner reported slight delay/echo during video with both devices in the same
+room. Speaker-to-microphone feedback is a hypothesis; a separate-room or headphone
+comparison is pending. The cooler has not been established as the cause.
