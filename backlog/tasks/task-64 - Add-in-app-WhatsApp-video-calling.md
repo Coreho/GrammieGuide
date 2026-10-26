@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-26 13:50'
-updated_date: '2026-10-26 14:14'
+updated_date: '2026-10-26 16:09'
 labels: []
 dependencies: []
 references:
@@ -42,4 +42,6 @@ Implemented video start/answer, explicit camera leases and an embedded blank two
 Built app launched with the real existing linked profile. Read-only flags now report ready with both voice and video actions, one remote call peer, no active call and no pending command; no camera or call was started. REA file-page target evidence ev_8de3d8a13712dddf319520a51eb59442130abc2fcf1ad67072767ebb6a036a59 identifies the running launcher; ordinary CDP structural probes confirmed native renderer/source method readiness separately. Camera-permission mutation was caught by two tests, exact source restored, and 16 surface/session tests pass afterward. TASK-64 remains In Progress until real video is verified.
 
 Final independent review found no material issues in the native view, capture leases, source binding, masks, bounds authority or teardown. Real video transport/device behavior remains the explicit owner verification step.
+
+Owner reported dev would not start. Reproduced npm run dev building successfully then exiting cleanly while the built app still held the shared-profile single-instance lock. Closed the verified idle built instance and started npm run dev successfully; no code changes needed. Avoid leaving the built app open when switching to dev.
 <!-- SECTION:NOTES:END -->
