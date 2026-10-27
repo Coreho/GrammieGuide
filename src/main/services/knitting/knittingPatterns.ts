@@ -1,19 +1,12 @@
-import { extname } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
-import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { MAX_PATTERN_PAGES, PATTERN_PAGE_EDGE, orderPagePaths } from '@shared/knitting/knitting'
-import type { LibraryStore } from '../media/libraryStore'
-import { downscale, type PhotoCodec } from '../photos/photoLibrary'
+import type { PhotoCodec } from '../photos/photoLibrary'
+import { encodePicture, type KnittingLibrary } from './knittingPictures'
 
-export type PatternLibrary = Pick<LibraryStore, 'addImage' | 'remove' | 'list'>
-
-/**
- * Each picked page goes through the same decode and re-encode as a family photo, so
- * only JPEGs this app wrote are ever served, and never the caregiver's original files.
- */
+/** Pages are added in file-name order; one unreadable page is counted and skipped. */
 export async function importPatternPages(
   paths: readonly string[],
-  library: PatternLibrary,
+  library: KnittingLibrary,
   codec: PhotoCodec,
   patternId: string
 ): Promise<{ pages: string[]; failed: number }> {
@@ -24,15 +17,7 @@ export async function importPatternPages(
   let failed = 0
   for (const source of orderPagePaths(paths)) {
     try {
-      if (!PHOTO_EXTENSIONS.some((type) => `.${type}` === extname(source).toLowerCase())) {
-        throw new Error('Unsupported page type')
-      }
-      const decoded = await codec.createFromPath(source)
-      if (decoded.isEmpty()) throw new Error('Page could not be decoded')
-      const page = downscale(decoded, PATTERN_PAGE_EDGE)
-      const jpeg = page.toJPEG(85)
-      const thumbnail = downscale(page, 320).toJPEG(85)
-      if (!jpeg.length || !thumbnail.length) throw new Error('Page could not be encoded')
+      const { jpeg, thumbnail } = await encodePicture(source, codec, PATTERN_PAGE_EDGE)
       pages.push((await library.addImage(jpeg, thumbnail, { patternId })).id)
     } catch {
       // One unreadable page affects only itself; its name or path never goes back to admin.
@@ -42,12 +27,4 @@ export async function importPatternPages(
     await setImmediate()
   }
   return { pages, failed }
-}
-
-/** Best effort: an unremoved page is an unused file, never a page she can reach. */
-export async function removePatternPages(
-  library: PatternLibrary,
-  ids: readonly string[]
-): Promise<void> {
-  for (const id of ids) await library.remove(id).catch(() => undefined)
 }

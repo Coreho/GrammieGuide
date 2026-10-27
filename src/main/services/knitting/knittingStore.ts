@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { knittingFileSchema, type KnittingFile } from '@shared/knitting/knitting'
 
-const EMPTY: KnittingFile = { version: 1, project: null, patterns: [] }
-// 20 patterns of 60 page IDs is about 50 KB; anything far beyond that is not her file.
+const EMPTY: KnittingFile = { version: 1, project: null, patterns: [], pieces: [] }
+// 20 patterns of 60 page IDs and 100 pieces is about 80 KB; anything far beyond that is not her file.
 const MAX_BYTES = 256_000
 
 /**
