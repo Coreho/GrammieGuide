@@ -1,10 +1,10 @@
 ---
 id: TASK-72
 title: Knitting tile on Home
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-27 09:28'
-updated_date: '2026-10-27 09:30'
+updated_date: '2026-10-27 10:25'
 labels:
   - knitting
   - home
