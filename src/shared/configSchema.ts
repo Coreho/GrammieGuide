@@ -10,6 +10,7 @@ import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
 import { newsSourceSchema } from './news/sources'
 import { personalFactsSchema } from './buddy/personalFacts'
+import { DEFAULT_LOCAL_VOICE, LOCAL_VOICE_IDS } from './buddy/localVoices'
 import {
   contactConfigSchema,
   defaultContactSetup,
@@ -22,7 +23,7 @@ import {
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 20
+export const CURRENT_SCHEMA_VERSION = 21
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music', 'games'] as const
@@ -90,12 +91,17 @@ export const buddyConfigSchema = z.object({
   /** Discovered and verified against the signed-in ChatGPT account. */
   model: z.string().default(''),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
-  /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
+  /** Online Edge voice for speech; off (or offline) falls back to the voice on this computer. */
   cloudTtsEnabled: z.boolean().default(true),
   /** Read chat replies and tap reactions aloud. Unprompted remarks stay silent either way. */
   voiceEnabled: z.boolean().default(true),
   /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
   ttsVoice: z.string().default('en-US-AriaNeural'),
+  /**
+   * The voice on this computer (Kokoro), used when the online one is off or
+   * failing. Lenient: a voice dropped from the list must not fail her config.
+   */
+  localVoice: z.enum(LOCAL_VOICE_IDS).default(DEFAULT_LOCAL_VOICE).catch(DEFAULT_LOCAL_VOICE),
   /** Caregivers choose how much movement helps her, rather than assuming more is better. */
   motion: z.enum(['still', 'roam', 'reduced']).default('roam'),
   tapAction: z.enum(['reaction', 'chat']).default('reaction'),
@@ -226,6 +232,7 @@ export function defaultConfig(): Config {
       cloudTtsEnabled: true,
       voiceEnabled: true,
       ttsVoice: 'en-US-AriaNeural',
+      localVoice: DEFAULT_LOCAL_VOICE,
       motion: 'roam',
       tapAction: 'reaction'
     },

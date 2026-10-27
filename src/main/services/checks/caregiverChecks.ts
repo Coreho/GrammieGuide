@@ -37,8 +37,10 @@ const POLL_MS = 100
 export type CaregiverChecksDeps = {
   now(): number
   sleep(ms: number): Promise<void>
-  voiceSettings(): { cloudTtsEnabled: boolean; ttsVoice: string }
+  voiceSettings(): { cloudTtsEnabled: boolean; ttsVoice: string; localVoice: string }
   synthesize(text: string, voice: string): Promise<BuddySpeakResult>
+  /** The voice on this computer, waiting for it to load if it must. */
+  synthesizeLocal(text: string, voice: string): Promise<BuddySpeakResult>
   listen(signal: AbortSignal): Promise<BuddyListenResult>
   /** Starts a main-owned 'listening' audio hold (music pauses, voices stop); returns its release. */
   holdListening(): () => void
@@ -269,19 +271,29 @@ export function createCaregiverChecks(deps: CaregiverChecksDeps): CaregiverCheck
     async startVoice(): Promise<VoiceStart> {
       cancel('voice')
       const runId = nextRunId++
-      const { cloudTtsEnabled, ttsVoice } = deps.voiceSettings()
-      voice = { id: runId, path: 'windows', fallback: false, stage: 'started' }
+      const { cloudTtsEnabled, ttsVoice, localVoice } = deps.voiceSettings()
+      const run: VoiceRun = { id: runId, path: 'windows', fallback: false, stage: 'started' }
+      voice = run
       set('voice', runId, 'checking', M.voiceChecking)
-      if (!cloudTtsEnabled) return { runId, kind: 'windows', fallback: false }
-      const spoken = await deps.synthesize(VOICE_CHECK_LINE, ttsVoice)
-      if (voice?.id !== runId || voice.stage !== 'started') return { runId, kind: 'cancelled' }
-      if (spoken.ok) {
-        voice.path = 'online'
-        return { runId, kind: 'audio', audioBase64: spoken.audioBase64, mime: spoken.mime }
+      const live = (): boolean => voice === run && run.stage === 'started'
+      // The same order Buddy uses on Home: online if it's on, then this
+      // computer's voice, then Windows. A fallback is said so, never passed off.
+      if (cloudTtsEnabled) {
+        const spoken = await deps.synthesize(VOICE_CHECK_LINE, ttsVoice)
+        if (!live()) return { runId, kind: 'cancelled' }
+        if (spoken.ok) {
+          run.path = 'online'
+          return { runId, kind: 'audio', audioBase64: spoken.audioBase64, mime: spoken.mime }
+        }
+        run.fallback = true
       }
-      // Buddy on Home falls back to the Windows voice the same way; say so, never pass it off.
-      voice.fallback = true
-      return { runId, kind: 'windows', fallback: true }
+      const local = await deps.synthesizeLocal(VOICE_CHECK_LINE, localVoice)
+      if (!live()) return { runId, kind: 'cancelled' }
+      if (local.ok) {
+        run.path = 'local'
+        return { runId, kind: 'audio', audioBase64: local.audioBase64, mime: local.mime }
+      }
+      return { runId, kind: 'windows', fallback: run.fallback }
     },
 
     /**
@@ -300,9 +312,13 @@ export function createCaregiverChecks(deps: CaregiverChecksDeps): CaregiverCheck
           'played',
           run.path === 'online'
             ? M.voicePlayedOnline
-            : run.fallback
-              ? M.voicePlayedFallback
-              : M.voicePlayedWindows
+            : run.path === 'local'
+              ? run.fallback
+                ? M.voicePlayedLocalFallback
+                : M.voicePlayedLocal
+              : run.fallback
+                ? M.voicePlayedFallback
+                : M.voicePlayedWindows
         )
       } else if (run.stage === 'started' && report === 'playback-failed') {
         run.stage = 'done'

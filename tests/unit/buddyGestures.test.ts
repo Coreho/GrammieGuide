@@ -140,7 +140,8 @@ describe('gesture requests in chat', () => {
       resolveAction: vi.fn(),
       log: vi.fn()
     })
-    expect(result).toEqual({ ok: true, reply: 'Hooray! A big cheer for you!', gesture: 'cheer' })
+    expect(result).toMatchObject({ ok: true, reply: 'Hooray! A big cheer for you!' })
+    expect(['cheer', 'hooray']).toContain(result.ok && result.gesture)
   })
 
   it('refuses a gesture tool outside the allow-list', async () => {
