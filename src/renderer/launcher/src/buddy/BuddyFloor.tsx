@@ -54,6 +54,8 @@ type FloorProps = {
   gesture: { clip: ClipName; sequence: number } | null
   reaction: { clip: ClipName; sequence: number } | null
   musicPlaying: boolean
+  /** Where she last tapped on Home, in Stage pixels, and when (performance.now()). */
+  lookAt: { x: number; at: number } | null
   onTap: () => void
   motion: BuddyMotion
   chattiness: Chattiness
@@ -143,12 +145,14 @@ export function BuddyFloor(props: FloorProps) {
                   motion={ctx.motion}
                   activity={brain.activity}
                   forcedClip={ctx.forcedClip}
+                  openingClip={ctx.openingClip}
                   commandSequence={ctx.commandSequence}
                   gestureSequence={ctx.gestureSequence}
                   target={ctx.target}
                   start={ctx.position}
                   night={isNight(props.hour)}
                   music={props.musicPlaying}
+                  lookAt={props.lookAt}
                   chatOpen={props.chatOpen}
                   onClipDone={() => brain.send({ type: 'CLIP_DONE' })}
                   onArrived={(at) => brain.send({ type: 'ARRIVED', at })}
@@ -245,12 +249,14 @@ function FloorScene(props: {
   motion: BuddyMotion
   activity: BuddyActivity
   forcedClip: ClipName | null
+  openingClip: ClipName | null
   commandSequence: number
   gestureSequence: number
   target: number
   start: number
   night: boolean
   music: boolean
+  lookAt: { x: number; at: number } | null
   chatOpen: boolean
   onClipDone: () => void
   onArrived: (at: number) => void
@@ -288,6 +294,7 @@ function FloorScene(props: {
       motion={props.motion}
       activity={props.activity}
       forcedClip={props.forcedClip}
+      openingClip={props.openingClip}
       commandSequence={props.commandSequence}
       gestureSequence={props.gestureSequence}
       targetX={toWorld(props.target)}
@@ -296,6 +303,13 @@ function FloorScene(props: {
       restYaw={props.chatOpen ? -0.35 : 0}
       night={props.night}
       music={props.music}
+      // The floor spans the Stage, so Stage pixels are canvas pixels; the
+      // orthographic camera is centered on x = 0.
+      lookAt={
+        props.lookAt
+          ? { worldX: (props.lookAt.x - size.width / 2) / zoom, at: props.lookAt.at }
+          : null
+      }
       hurry={props.chatOpen}
       onClipDone={props.onClipDone}
       onArrived={(wx) => props.onArrived(toFraction(wx))}

@@ -44,6 +44,8 @@ export type BuddyContext = {
   gestureSequence: number
   /** The gesture the line being spoken opens with (chat replies only). */
   replyGesture: ClipName | null
+  /** That gesture while he plays it: a suggestion, unlike a deliberate forcedClip. */
+  openingClip: ClipName | null
   /** When he last reacted to something she did on Home. */
   lastReactionAt: number
   /** A new morning has started and he hasn't had his stretch yet. */
@@ -223,6 +225,7 @@ export const buddyMachine = setup({
       commandSequence: 0,
       gestureSequence: 0,
       replyGesture: null,
+      openingClip: null,
       lastReactionAt: -Infinity,
       morningStretch: isMorning(input.hour),
       commandSpeak: false,
@@ -421,18 +424,18 @@ export const buddyMachine = setup({
         talking: {
           // A line opens with the gesture its words suggest; reduced motion keeps its one talk.
           entry: assign(({ context }) => ({
-            forcedClip: context.motion === 'reduced' ? null : context.replyGesture,
+            openingClip: context.motion === 'reduced' ? null : context.replyGesture,
             replyGesture: null
           })),
-          exit: assign({ forcedClip: null }),
+          exit: assign({ openingClip: null }),
           on: {
             CLIP_DONE: [
               // One gentle gesture per reply is enough; don't keep moving until speech ends.
               { guard: ({ context }) => context.motion === 'reduced', target: 'attending' },
               // After the opening gesture, the usual talking gestures carry on.
               {
-                guard: ({ context }) => context.forcedClip !== null,
-                actions: assign({ forcedClip: null })
+                guard: ({ context }) => context.openingClip !== null,
+                actions: assign({ openingClip: null })
               }
             ]
           }

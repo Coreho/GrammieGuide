@@ -95,6 +95,7 @@ export default function App() {
   const [buddyReaction, setBuddyReaction] = useState<{ clip: ClipName; sequence: number } | null>(
     null
   )
+  const [buddyLookAt, setBuddyLookAt] = useState<{ x: number; at: number } | null>(null)
   // Closing a built-in view (it covers Home without unmounting Buddy) gets a
   // small welcome back. Coming back from a web page rebuilds his floor, which
   // greets her already.
@@ -295,6 +296,14 @@ export default function App() {
         )
       )
         return
+      // Buddy glances toward where she tapped. The Stage is scaled, so convert
+      // to its own pixels (his floor spans its width).
+      const stage = stageRef.current
+      if (stage && stage.offsetWidth > 0) {
+        const box = stage.getBoundingClientRect()
+        const scale = box.width / stage.offsetWidth
+        setBuddyLookAt({ x: (e.clientX - box.x) / scale, at: performance.now() })
+      }
       const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
       if (triggered) {
         triggerConfusionRecovery()
@@ -472,6 +481,7 @@ export default function App() {
               gesture: buddyGesture,
               reaction: buddyReaction,
               musicPlaying: musicState.state === 'playing' || musicState.state === 'lowered',
+              lookAt: buddyLookAt,
               motion: config.buddy.motion,
               chattiness: config.buddy.chattiness,
               hour: now.getHours(),

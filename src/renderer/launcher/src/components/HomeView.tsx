@@ -22,6 +22,8 @@ export type HomeBuddyProps = {
   /** His response to something she just did on Home (homeReactions.ts). */
   reaction: { clip: ClipName; sequence: number } | null
   musicPlaying: boolean
+  /** Where she last tapped (Stage pixels) and when, for his glance. */
+  lookAt: { x: number; at: number } | null
   motion: BuddyMotion
   chattiness: Chattiness
   hour: number

@@ -203,22 +203,24 @@ describe('gestures in the machine', () => {
     const { actor, activity, ctx } = chatActor('roam')
     actor.send({ type: 'CHAT_PHASE', phase: 'speaking', gesture: 'heart' })
     expect(activity()).toBe('chat.talking')
-    expect(ctx().forcedClip).toBe('heart')
+    expect(ctx().openingClip).toBe('heart')
+    // A suggestion, not a deliberate gesture: data-buddy-clip stays for those.
+    expect(ctx().forcedClip).toBeNull()
     actor.send({ type: 'CLIP_DONE' })
     expect(activity()).toBe('chat.talking')
-    expect(ctx().forcedClip).toBeNull()
+    expect(ctx().openingClip).toBeNull()
     actor.send({ type: 'CHAT_PHASE', phase: 'idle' })
     expect(activity()).toBe('chat.attending')
     // The next line without a cue starts plainly.
     actor.send({ type: 'CHAT_PHASE', phase: 'speaking' })
-    expect(ctx().forcedClip).toBeNull()
+    expect(ctx().openingClip).toBeNull()
   })
 
   it('keeps reduced motion to its single talk gesture', () => {
     const { actor, activity, ctx } = chatActor('reduced')
     actor.send({ type: 'CHAT_PHASE', phase: 'speaking', gesture: 'cheer' })
     expect(activity()).toBe('chat.talking')
-    expect(ctx().forcedClip).toBeNull()
+    expect(ctx().openingClip).toBeNull()
     actor.send({ type: 'CLIP_DONE' })
     expect(activity()).toBe('chat.attending')
   })
