@@ -4,6 +4,7 @@ title: Knitting view and her current project with a row counter
 status: To Do
 assignee: []
 created_date: '2026-10-27 09:28'
+updated_date: '2026-10-27 09:30'
 labels:
   - knitting
   - home
@@ -28,4 +29,6 @@ The foundation for the knitting tile, and the part she would use most. Knitters 
 - [ ] #5 The caregiver can reset the count or start a new project from admin; she cannot reset it by accident on Home
 - [ ] #6 Logs record that the counter was used, never the project name or who it is for
 - [ ] #7 Unit and e2e tests cover counting, persistence, the double-tap guard and the admin setup
+- [ ] #8 Delivers the Knitting tile and its shelf, modelled on the News shelf, with the My project sub-tile; the other sub-tiles arrive with their own subtasks
+- [ ] #9 The My project sub-tile shows the project name and current row, so she can see where she got to before opening it
 <!-- AC:END -->
