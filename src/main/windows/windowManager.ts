@@ -225,13 +225,21 @@ export function getLauncherWindow(): BrowserWindow | null {
 
 export function createAdminWindow(): BrowserWindow {
   if (adminWindow && !adminWindow.isDestroyed()) {
-    if (!QUIET_E2E_WINDOWS) adminWindow.focus()
+    if (!QUIET_E2E_WINDOWS) {
+      adminWindow.moveTop()
+      adminWindow.focus()
+    }
     return adminWindow
   }
 
+  // The kiosk Home is always on top, so a plain admin window opened behind it
+  // and Ctrl+Shift+A looked dead. Owned by Home and on top itself, it stays
+  // above Home even when a click lands on Home around it.
+  const kioskHome = KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed() ? launcherWindow : undefined
   adminWindow = new BrowserWindow({
     width: 1000,
     height: 720,
+    ...(kioskHome ? { parent: kioskHome, alwaysOnTop: true } : {}),
     ...quietWindowOptions(),
     // Shown at once as before; under e2e, quietly once it can paint.
     show: !QUIET_E2E_WINDOWS,
