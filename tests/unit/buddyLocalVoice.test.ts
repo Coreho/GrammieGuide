@@ -249,16 +249,22 @@ describe('speaking a long line in pieces', () => {
 })
 
 describe('local voice setting', () => {
-  it('migration 021 adds the default voice and keeps the online settings', () => {
+  it('migration 021 adds the default voice and switches the online voice off once', () => {
     const before = {
       schemaVersion: 20,
-      buddy: { cloudTtsEnabled: false, ttsVoice: 'en-US-GuyNeural' }
+      buddy: { cloudTtsEnabled: true, ttsVoice: 'en-US-GuyNeural' }
     }
     expect(migration.migrate(before)).toEqual({
       schemaVersion: 21,
       buddy: { cloudTtsEnabled: false, ttsVoice: 'en-US-GuyNeural', localVoice: 'am_michael' }
     })
     expect(before.buddy).not.toHaveProperty('localVoice')
+    expect(before.buddy.cloudTtsEnabled).toBe(true)
+  })
+
+  it('starts new installs on the voice on this computer', () => {
+    expect(defaultConfig().buddy.cloudTtsEnabled).toBe(false)
+    expect(buddyConfigSchema.parse({}).cloudTtsEnabled).toBe(false)
   })
 
   it('falls back to the default instead of failing her config on an unknown voice', () => {

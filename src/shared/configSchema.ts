@@ -91,8 +91,12 @@ export const buddyConfigSchema = z.object({
   /** Discovered and verified against the signed-in ChatGPT account. */
   model: z.string().default(''),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
-  /** Online Edge voice for speech; off (or offline) falls back to the voice on this computer. */
-  cloudTtsEnabled: z.boolean().default(true),
+  /**
+   * Online Edge voice for speech; off (or offline) falls back to the voice on this computer.
+   * Off by default: the free voice on this computer needs no internet, and Microsoft's unofficial
+   * endpoint has refused every request for weeks at a time.
+   */
+  cloudTtsEnabled: z.boolean().default(false),
   /** Read chat replies and tap reactions aloud. Unprompted remarks stay silent either way. */
   voiceEnabled: z.boolean().default(true),
   /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
@@ -229,7 +233,7 @@ export function defaultConfig(): Config {
     buddy: {
       model: '',
       chattiness: 'off',
-      cloudTtsEnabled: true,
+      cloudTtsEnabled: false,
       voiceEnabled: true,
       ttsVoice: 'en-US-AriaNeural',
       localVoice: DEFAULT_LOCAL_VOICE,

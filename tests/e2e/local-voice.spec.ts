@@ -73,7 +73,8 @@ test('the caregiver can choose and try it in the Buddy tab', async () => {
 
 test('with the online voice off, Buddy on Home speaks with it instead of the Windows voice', async () => {
   test.setTimeout(60_000)
-  await admin.getByLabel(/Use the natural online voice/).uncheck()
+  // Off out of the box: the voice on this computer is the one she hears.
+  await expect(admin.getByLabel(/Use the natural online voice/)).not.toBeChecked()
   await expect
     .poll(() =>
       page.evaluate(() => window.launcher.getConfig().then((c) => c.buddy.cloudTtsEnabled))
