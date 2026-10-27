@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { zLayers } from '@shared/zLayers'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
+import type { ClipName } from '@shared/buddy/commands'
+import { gestureForReply } from '@shared/buddy/replyGesture'
 import { speak, stopSpeaking } from './speech'
 import { holdAudio } from '../../../audio/audioBridge'
 import {
@@ -49,12 +51,16 @@ export function BuddyChatPanel({
   onClose,
   onPhaseChange,
   voiceEnabled,
-  onAction
+  onAction,
+  onGesture
 }: {
   onClose: () => void
-  onPhaseChange: (phase: ChatPhase) => void
+  /** `gesture`: what a spoken line opens with, chosen from its words. */
+  onPhaseChange: (phase: ChatPhase, gesture?: ClipName | null) => void
   voiceEnabled: boolean
   onAction: (plan: BuddyActionPlan) => Promise<void>
+  /** A gesture she asked for ("Buddy, dance!"); chat stays open. */
+  onGesture: (clip: ClipName) => void
 }) {
   const [messages, setMessages] = useState<Message[]>([{ from: 'buddy', text: GREETING }])
   const [draft, setDraft] = useState('')
@@ -73,9 +79,9 @@ export function BuddyChatPanel({
   // already moved on (sent something, tapped Talk) can't reset the phase.
   const phaseGen = useRef(0)
 
-  function setPhase(phase: ChatPhase): number {
+  function setPhase(phase: ChatPhase, gesture: ClipName | null = null): number {
     phaseGen.current++
-    phaseRef.current(phase)
+    phaseRef.current(phase, gesture)
     return phaseGen.current
   }
 
@@ -109,8 +115,8 @@ export function BuddyChatPanel({
   }, [])
 
   /** Buddy says a line: reads it aloud if allowed, and he gestures while it lasts. */
-  async function voice(text: string): Promise<void> {
-    const mine = setPhase('speaking')
+  async function voice(text: string, gesture = gestureForReply(text)): Promise<void> {
+    const mine = setPhase('speaking', gesture)
     if (voiceRef.current) {
       await speak(text)
     } else {
@@ -119,9 +125,9 @@ export function BuddyChatPanel({
     if (open.current && phaseGen.current === mine) setPhase('idle')
   }
 
-  function say(text: string, choices?: BuddyTileChoice[]): void {
+  function say(text: string, choices?: BuddyTileChoice[], gesture?: ClipName | null): void {
     setMessages((prev) => [...prev, { from: 'buddy', text, choices }])
-    void voice(text)
+    void voice(text, gesture === undefined ? gestureForReply(text) : gesture)
   }
 
   async function sendText(raw: string): Promise<void> {
@@ -135,6 +141,7 @@ export function BuddyChatPanel({
     setPhase('thinking')
     let reply: string
     let choices: BuddyTileChoice[] | undefined
+    let requested: ClipName | undefined
     try {
       const result = await window.launcher.buddyChat(toTurns(next))
       if (!open.current) return
@@ -143,13 +150,18 @@ export function BuddyChatPanel({
         return
       }
       reply = result.reply
-      if (!result.ok) choices = result.choices
+      if (result.ok) requested = result.gesture
+      else choices = result.choices
     } catch {
       reply = LINES.trouble
     }
     if (!open.current) return
     setWaiting(false)
-    say(reply, choices)
+    if (requested) {
+      onGesture(requested)
+      // The gesture she asked for is the performance; the line adds no second one.
+      say(reply, undefined, null)
+    } else say(reply, choices)
   }
 
   async function requestAction(action: BuddyActionRequest): Promise<void> {

@@ -2,6 +2,7 @@ import { setup, assign } from 'xstate'
 import { farewellLine, greetingFor, pickRemark, type RemarkWeather } from './remarks'
 import type { BuddyCommand, ClipName } from './commands'
 import type { Config } from '../configSchema'
+import { isMorning, MORNING_CLIP, REACTION_GAP_MS } from './homeReactions'
 
 /**
  * Buddy's behavior: what he's doing right now, as a state machine. Pure
@@ -39,6 +40,16 @@ export type BuddyContext = {
   bubble: string | null
   forcedClip: ClipName | null
   commandSequence: number
+  /** Bumped by each gesture she asks for, so asking twice replays it. */
+  gestureSequence: number
+  /** The gesture the line being spoken opens with (chat replies only). */
+  replyGesture: ClipName | null
+  /** That gesture while he plays it: a suggestion, unlike a deliberate forcedClip. */
+  openingClip: ClipName | null
+  /** When he last reacted to something she did on Home. */
+  lastReactionAt: number
+  /** A new morning has started and he hasn't had his stretch yet. */
+  morningStretch: boolean
   commandSpeak: boolean
   recentRemarks: string[]
   nextStrollAt: number
@@ -51,7 +62,10 @@ export type BuddyEvent =
   | { type: 'ARRIVED'; at: number }
   | { type: 'CHAT_OPEN'; at?: number }
   | { type: 'CHAT_CLOSE' }
-  | { type: 'CHAT_PHASE'; phase: ChatPhase }
+  | { type: 'CHAT_PHASE'; phase: ChatPhase; gesture?: ClipName | null }
+  | { type: 'GESTURE'; clip: ClipName }
+  /** Something she did on Home (homeReactions.ts); only acted on while he's idle. */
+  | { type: 'REACT'; clip: ClipName }
   | { type: 'PET' }
   | {
       type: 'SETTINGS'
@@ -126,6 +140,7 @@ export const buddyMachine = setup({
     strollDue: ({ context }) =>
       context.motion === 'roam' && !isNight(context.hour) && context.now() >= context.nextStrollAt,
     canFidget: ({ context }) => context.motion !== 'reduced',
+    canReact: ({ context }) => context.now() - context.lastReactionAt >= REACTION_GAP_MS,
     phaseChanged: ({ context, event }) =>
       event.type === 'CHAT_PHASE' && event.phase !== context.chatPhase,
     hearing: ({ context }) => context.chatPhase === 'hearing',
@@ -156,6 +171,8 @@ export const buddyMachine = setup({
         chattiness: event.chattiness,
         hour: event.hour,
         weather: event.weather,
+        // The kiosk runs for days: each night that ends brings a new morning stretch.
+        morningStretch: context.morningStretch || (isNight(context.hour) && !isNight(event.hour)),
         // A newly switched-on chattiness starts its own clock rather than
         // firing at once because the old "never" was long overdue.
         nextRemarkAt: chattinessChanged
@@ -166,10 +183,14 @@ export const buddyMachine = setup({
     setPosition: assign({
       position: ({ context, event }) => (event.type === 'ARRIVED' ? event.at : context.position)
     }),
-    setPhase: assign({
-      chatPhase: ({ context, event }) =>
-        event.type === 'CHAT_PHASE' ? event.phase : context.chatPhase
-    }),
+    setPhase: assign(({ context, event }) =>
+      event.type === 'CHAT_PHASE'
+        ? {
+            chatPhase: event.phase,
+            replyGesture: event.phase === 'speaking' ? (event.gesture ?? null) : null
+          }
+        : { chatPhase: context.chatPhase }
+    ),
     clearBubble: assign({ bubble: null }),
     stopAtCurrent: assign(({ context, event }) => {
       const position = event.type === 'SETTINGS' ? (event.at ?? context.position) : context.position
@@ -202,6 +223,11 @@ export const buddyMachine = setup({
       bubble: null,
       forcedClip: null,
       commandSequence: 0,
+      gestureSequence: 0,
+      replyGesture: null,
+      openingClip: null,
+      lastReactionAt: -Infinity,
+      morningStretch: isMorning(input.hour),
       commandSpeak: false,
       recentRemarks: [],
       nextStrollAt: now() + strollGap(random),
@@ -250,11 +276,22 @@ export const buddyMachine = setup({
     },
 
     resting: {
+      on: { REACT: { guard: 'canReact', target: 'reacting' } },
       after: { idleTick: 'deciding' }
     },
 
     deciding: {
       always: [
+        {
+          guard: ({ context }) => context.morningStretch && context.motion !== 'reduced',
+          target: 'reacting'
+        },
+        {
+          // Reduced motion keeps to its calm gestures; the stretch is simply skipped.
+          guard: ({ context }) => context.morningStretch,
+          target: 'resting',
+          actions: assign({ morningStretch: false })
+        },
         { guard: 'remarkDue', target: 'remarking' },
         { guard: 'strollDue', target: 'strolling' },
         { guard: 'canFidget', target: 'fidgeting' },
@@ -265,6 +302,7 @@ export const buddyMachine = setup({
     fidgeting: {
       on: {
         CLIP_DONE: 'resting',
+        REACT: { guard: 'canReact', target: 'reacting' },
         SETTINGS: [
           {
             guard: ({ event }) => event.motion === 'reduced',
@@ -274,6 +312,19 @@ export const buddyMachine = setup({
           { actions: 'applySettings' }
         ]
       },
+      after: { clipTimeout: 'resting' }
+    },
+
+    reacting: {
+      entry: assign(({ context, event }) => ({
+        forcedClip: event.type === 'REACT' ? event.clip : MORNING_CLIP,
+        // The same gesture twice in a row must play twice.
+        gestureSequence: context.gestureSequence + 1,
+        lastReactionAt: context.now(),
+        morningStretch: event.type === 'REACT' ? context.morningStretch : false
+      })),
+      exit: assign({ forcedClip: null }),
+      on: { CLIP_DONE: 'resting' },
       after: { clipTimeout: 'resting' }
     },
 
@@ -343,6 +394,7 @@ export const buddyMachine = setup({
         COMMAND: {},
         CHAT_PHASE: { guard: 'phaseChanged', actions: 'setPhase', target: '.routing' },
         PET: '.petted',
+        GESTURE: { target: '.gesturing', reenter: true },
         CHAT_CLOSE: {
           target: 'farewell',
           actions: assign({
@@ -370,10 +422,37 @@ export const buddyMachine = setup({
         hearing: {},
         thinking: {},
         talking: {
-          // One gentle gesture per reply is enough; don't keep moving until speech ends.
+          // A line opens with the gesture its words suggest; reduced motion keeps its one talk.
+          entry: assign(({ context }) => ({
+            openingClip: context.motion === 'reduced' ? null : context.replyGesture,
+            replyGesture: null
+          })),
+          exit: assign({ openingClip: null }),
           on: {
-            CLIP_DONE: { guard: ({ context }) => context.motion === 'reduced', target: 'attending' }
+            CLIP_DONE: [
+              // One gentle gesture per reply is enough; don't keep moving until speech ends.
+              { guard: ({ context }) => context.motion === 'reduced', target: 'attending' },
+              // After the opening gesture, the usual talking gestures carry on.
+              {
+                guard: ({ context }) => context.openingClip !== null,
+                actions: assign({ openingClip: null })
+              }
+            ]
           }
+        },
+        gesturing: {
+          entry: assign(({ context, event }) =>
+            event.type === 'GESTURE'
+              ? { forcedClip: event.clip, gestureSequence: context.gestureSequence + 1 }
+              : {}
+          ),
+          exit: assign({ forcedClip: null }),
+          on: {
+            // His reply is spoken while he performs; it must not cut the gesture short.
+            CHAT_PHASE: { actions: 'setPhase' },
+            CLIP_DONE: 'routing'
+          },
+          after: { clipTimeout: 'routing' }
         },
         petted: { on: { CLIP_DONE: 'routing' }, after: { clipTimeout: 'routing' } }
       }
@@ -395,12 +474,14 @@ export type BuddyActivity =
   | 'fidgeting'
   | 'strolling'
   | 'remarking'
+  | 'reacting'
   | 'farewell'
   | 'chat.hello'
   | 'chat.attending'
   | 'chat.hearing'
   | 'chat.thinking'
   | 'chat.talking'
+  | 'chat.gesturing'
   | 'chat.petted'
 
 /** Flattens the snapshot's state value ("deciding"/"routing" are instantaneous and never observed). */

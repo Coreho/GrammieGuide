@@ -50,8 +50,11 @@ const POOLS: Record<BuddyActivity, Weighted> = {
     ['idle_soft', 3],
     ['sway', 2],
     ['stretch', 2],
+    ['big_stretch', 1],
     ['dance', 1]
   ],
+  // Always a forced clip (homeReactions.ts); this is only a fallback.
+  reacting: [['wave', 1]],
   // Walking is handled by movement, not by the activity; this is only a fallback.
   strolling: [['walk_casual', 1]],
   remarking: [
@@ -77,19 +80,32 @@ const POOLS: Record<BuddyActivity, Weighted> = {
     ['agree', 2],
     ['shrug', 1]
   ],
+  // Always a forced clip (the gesture she asked for); this is only a fallback.
+  'chat.gesturing': [['heart', 1]],
   'chat.petted': [
     ['heart', 3],
     ['cheer', 2],
     ['fist_pump', 2],
     ['happy_jump', 1],
     ['motivate', 1],
+    ['hooray', 1],
     ['dance', 1]
   ]
 }
 
-// At night: nothing bouncy, just the quiet idles.
+// While her music plays he moves along with it; night still wins.
+const MUSIC_FIDGETS: Weighted = [
+  ['sway', 3],
+  ['groove', 2],
+  ['dance', 2],
+  ['funny_dance', 1],
+  ['idle_soft', 1]
+]
+
+// At night: nothing bouncy, just the quiet idles and a little doze.
 const NIGHT_FIDGETS: Weighted = [
   ['idle_soft', 3],
+  ['doze', 2],
   ['look_around', 1]
 ]
 
@@ -111,10 +127,23 @@ const REDUCED_CLIPS: Partial<Record<BuddyActivity, ClipName>> = {
  */
 export function pickClip(
   activity: BuddyActivity,
-  opts: { random: () => number; night?: boolean; last?: ClipName | null; motion?: BuddyMotion }
+  opts: {
+    random: () => number
+    night?: boolean
+    last?: ClipName | null
+    motion?: BuddyMotion
+    music?: boolean
+  }
 ): ClipName {
   if (opts.motion === 'reduced' && REDUCED_CLIPS[activity]) return REDUCED_CLIPS[activity]!
-  const base = activity === 'fidgeting' && opts.night ? NIGHT_FIDGETS : POOLS[activity]
+  const base =
+    activity !== 'fidgeting'
+      ? POOLS[activity]
+      : opts.night
+        ? NIGHT_FIDGETS
+        : opts.music
+          ? MUSIC_FIDGETS
+          : POOLS.fidgeting
   const pool = base.length > 1 && opts.last ? base.filter(([name]) => name !== opts.last) : base
   const total = pool.reduce((sum, [, w]) => sum + w, 0)
   let r = opts.random() * total

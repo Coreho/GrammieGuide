@@ -11,7 +11,7 @@ import {
   type BuddyMotion
 } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
-import type { BuddyCommand } from '@shared/buddy/commands'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import { speak, stopSpeaking } from './speech'
 
 type BrainInput = {
@@ -22,6 +22,9 @@ type BrainInput = {
   weather: RemarkWeather | null
   chatOpen: boolean
   chatPhase: ChatPhase
+  replyGesture: ClipName | null
+  gesture: { clip: ClipName; sequence: number } | null
+  reaction: { clip: ClipName; sequence: number } | null
   command: (BuddyCommand & { sequence: number }) | null
 }
 
@@ -74,7 +77,17 @@ export function useBuddyBrain(input: BrainInput): {
   )
   const snapshot = useSyncExternalStore(subscribe, () => actor?.getSnapshot() ?? null)
 
-  const { motion, chattiness, hour, weather, chatOpen, chatPhase } = input
+  const {
+    motion,
+    chattiness,
+    hour,
+    weather,
+    chatOpen,
+    chatPhase,
+    replyGesture,
+    gesture,
+    reaction
+  } = input
   const weatherCategory = weather?.category
   const weatherTemp = weather ? Math.round(weather.temp) : null
   const weatherUnit = weather?.unit
@@ -103,8 +116,16 @@ export function useBuddyBrain(input: BrainInput): {
   }, [actor, chatOpen])
 
   useEffect(() => {
-    actor?.send({ type: 'CHAT_PHASE', phase: chatPhase })
-  }, [actor, chatPhase])
+    actor?.send({ type: 'CHAT_PHASE', phase: chatPhase, gesture: replyGesture })
+  }, [actor, chatPhase, replyGesture])
+
+  useEffect(() => {
+    if (gesture) actor?.send({ type: 'GESTURE', clip: gesture.clip })
+  }, [actor, gesture])
+
+  useEffect(() => {
+    if (reaction) actor?.send({ type: 'REACT', clip: reaction.clip })
+  }, [actor, reaction])
 
   useEffect(() => {
     if (input.command)

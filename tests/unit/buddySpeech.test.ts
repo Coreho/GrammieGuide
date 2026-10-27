@@ -48,7 +48,12 @@ describe('tts service', () => {
     const first = await tts.speak('Hello there', 'en-US-AriaNeural')
     const second = await tts.speak('Hello again', 'en-US-AriaNeural')
 
-    expect(first).toEqual({ ok: true, audioBase64: Buffer.from('abcd').toString('base64'), mime: 'audio/mpeg' })
+    expect(first).toEqual({
+      ok: true,
+      audioBase64: Buffer.from('abcd').toString('base64'),
+      mime: 'audio/mpeg',
+      source: 'online'
+    })
     expect(second.ok).toBe(true)
     expect(create).toHaveBeenCalledTimes(1)
     expect(client.setMetadata).toHaveBeenCalledWith('en-US-AriaNeural', expect.anything())

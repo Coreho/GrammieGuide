@@ -82,7 +82,8 @@ test('ChatGPT receives the frozen prompt, discovered model, full sanitized histo
     'play_my_music',
     'show_my_pictures',
     'go_home',
-    'open_saved_tile'
+    'open_saved_tile',
+    'do_a_gesture'
   ])
   expect(body).not.toHaveProperty('max_output_tokens')
 })
