@@ -1,22 +1,31 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import type { AdminKnitting } from '@shared/knitting/knitting'
+import { MAX_PATTERN_PAGES, type AdminKnitting } from '@shared/knitting/knitting'
 import { TilePhotoPicker } from './TilePhotoPicker'
 
-type Draft = { name: string; forWhom: string; photoId?: string }
+type Draft = { name: string; forWhom: string; photoId?: string; patternId?: string }
 
 const toDraft = (knitting: AdminKnitting): Draft => ({
   name: knitting.project?.name ?? '',
   forWhom: knitting.project?.forWhom ?? '',
-  photoId: knitting.project?.photoId
+  photoId: knitting.project?.photoId,
+  patternId: knitting.project?.patternId
 })
 
+/** Main's knitting messages are written for the caregiver; drop Electron's IPC prefix. */
+function mainMessage(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message : ''
+  return message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') || fallback
+}
+
 /**
- * Her project lives in its own main-process file, not in config: Home updates the
- * row count on every tap, and only this tab can set up, reset or remove it.
+ * Her project and patterns live in their own main-process file, not in config: Home
+ * updates the row count and her pattern page as she goes, and only this tab can set
+ * them up, reset or remove them.
  */
 export function KnittingTab() {
   const [knitting, setKnitting] = useState<AdminKnitting | null>(null)
   const [draft, setDraft] = useState<Draft>({ name: '', forWhom: '' })
+  const [patternName, setPatternName] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -46,17 +55,28 @@ export function KnittingTab() {
     }
   }, [])
 
-  async function run(action: () => Promise<AdminKnitting>, done: string): Promise<void> {
+  async function run(
+    action: () => Promise<AdminKnitting>,
+    done: string,
+    { keepDraft = false } = {}
+  ): Promise<void> {
     setBusy(true)
     setMessage('')
     setError('')
     try {
       const result = await action()
       setKnitting(result)
-      setDraft(toDraft(result))
+      if (keepDraft) {
+        // A removed pattern can't stay chosen for her project.
+        setDraft((current) =>
+          result.patterns.some((pattern) => pattern.id === current.patternId)
+            ? current
+            : { ...current, patternId: undefined }
+        )
+      } else setDraft(toDraft(result))
       setMessage(done)
-    } catch {
-      setError('Could not save. Check the details and try again.')
+    } catch (failure) {
+      setError(mainMessage(failure, 'Could not save. Check the details and try again.'))
     } finally {
       setBusy(false)
     }
@@ -73,13 +93,42 @@ export function KnittingTab() {
           name: draft.name,
           forWhom: draft.forWhom,
           photoId: draft.photoId,
+          patternId: draft.patternId,
           startNew
         }),
       startNew ? 'New project saved. Her row count starts at 0.' : 'Project saved.'
     )
   }
 
+  async function addPattern(): Promise<void> {
+    if (!patternName.trim()) {
+      setError('Give the pattern a name (up to 40 characters).')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    setError('')
+    try {
+      const result = await window.admin.addKnittingPattern(patternName)
+      setKnitting(result.knitting)
+      if (result.added) {
+        setPatternName('')
+        setMessage(
+          `Pattern saved with ${result.added} ${result.added === 1 ? 'page' : 'pages'}.` +
+            (result.failed
+              ? ` ${result.failed} ${result.failed === 1 ? 'picture' : 'pictures'} couldn't be read.`
+              : '')
+        )
+      }
+    } catch (failure) {
+      setError(mainMessage(failure, 'Could not add the pattern. Try again.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const project = knitting?.project ?? null
+  const patterns = knitting?.patterns ?? []
 
   return (
     <div>
@@ -125,6 +174,20 @@ export function KnittingTab() {
               value={draft.forWhom}
               onChange={(e) => setDraft({ ...draft, forWhom: e.target.value })}
             />
+          </label>
+          <label>
+            Pattern for this project{' '}
+            <select
+              value={draft.patternId ?? ''}
+              onChange={(e) => setDraft({ ...draft, patternId: e.target.value || undefined })}
+            >
+              <option value="">No pattern</option>
+              {patterns.map((pattern) => (
+                <option key={pattern.id} value={pattern.id}>
+                  {pattern.name}
+                </option>
+              ))}
+            </select>
           </label>
           <TilePhotoPicker
             label="Project photo"
@@ -172,6 +235,83 @@ export function KnittingTab() {
           </button>
         </p>
       )}
+
+      <section aria-labelledby="knitting-patterns-heading" style={{ marginTop: 28 }}>
+        <h3 id="knitting-patterns-heading">Patterns</h3>
+        <p style={{ fontSize: '.9rem', color: '#555' }}>
+          Take a clear photo of each page, or save the pages as pictures, then choose them all at
+          once (up to {MAX_PATTERN_PAGES}). Pages are shown in file-name order, so name them page1,
+          page2 and so on. She sees one page at a time, filling the screen, and it reopens on the
+          page she was reading.
+        </p>
+        <ul aria-label="Saved patterns" style={{ listStyle: 'none', padding: 0 }}>
+          {patterns.map((pattern) => (
+            <li
+              key={pattern.id}
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                padding: 10,
+                marginBottom: 8,
+                border: '1px solid #ccc',
+                borderRadius: 12
+              }}
+            >
+              {pattern.thumbnailUrl && (
+                <img
+                  src={pattern.thumbnailUrl}
+                  alt=""
+                  style={{ width: 64, height: 80, objectFit: 'contain', background: '#fff' }}
+                />
+              )}
+              <span style={{ flex: 1 }}>
+                <strong>{pattern.name}</strong> · {pattern.pageCount}{' '}
+                {pattern.pageCount === 1 ? 'page' : 'pages'}
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                aria-label={`Remove pattern ${pattern.name}`}
+                onClick={() => {
+                  if (window.confirm(`Remove the pattern "${pattern.name}" and its pages?`))
+                    void run(
+                      () => window.admin.removeKnittingPattern(pattern.id),
+                      'Pattern removed.',
+                      { keepDraft: true }
+                    )
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+          {knitting && patterns.length === 0 && <li>No patterns yet.</li>}
+        </ul>
+        <form
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault()
+            void addPattern()
+          }}
+        >
+          <fieldset disabled={!knitting || busy} style={{ display: 'grid', gap: 14, padding: 20 }}>
+            <legend>Add a pattern</legend>
+            <label>
+              Pattern name{' '}
+              <input
+                required
+                maxLength={40}
+                placeholder="Cable scarf"
+                value={patternName}
+                onChange={(e) => setPatternName(e.target.value)}
+              />
+            </label>
+            <div>
+              <button type="submit">Choose page pictures…</button>
+            </div>
+          </fieldset>
+        </form>
+      </section>
     </div>
   )
 }

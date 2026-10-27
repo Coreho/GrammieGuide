@@ -28,6 +28,7 @@ import type {
   AdminKnitting,
   HomeKnitting,
   KnittingProjectInput,
+  PatternImportResult,
   RowDirection
 } from './knitting/knitting'
 
@@ -139,11 +140,16 @@ export interface IpcApi {
   'knitting:home': { request: void; response: HomeKnitting }
   /** One tap on Home's counter; main applies the double-tap guard. */
   'knitting:changeRows': { request: { direction: RowDirection }; response: HomeKnitting }
+  /** Remembers the pattern page she is on, so it reopens there. */
+  'knitting:patternPage': { request: { patternId: string; page: number }; response: void }
   /** Caregiver-only from here down. */
   'knitting:get': { request: void; response: AdminKnitting }
   'knitting:saveProject': { request: KnittingProjectInput; response: AdminKnitting }
   'knitting:resetRows': { request: void; response: AdminKnitting }
   'knitting:removeProject': { request: void; response: AdminKnitting }
+  /** Opens the native picker in main; the pages chosen become one named pattern. */
+  'knitting:addPattern': { request: { name: string }; response: PatternImportResult }
+  'knitting:removePattern': { request: { id: string }; response: AdminKnitting }
   'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }

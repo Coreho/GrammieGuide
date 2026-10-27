@@ -12,7 +12,8 @@ const scarf: KnittingFile = {
     name: 'Scarf',
     forWhom: 'Tom',
     rows: 3
-  }
+  },
+  patterns: []
 }
 
 let folder: string
@@ -24,7 +25,7 @@ afterEach(() => rmSync(folder, { recursive: true, force: true }))
 describe('knitting store', () => {
   it('starts with no project and writes nothing until something changes', async () => {
     const store = new KnittingStore(folder)
-    expect(await store.read()).toEqual({ version: 1, project: null })
+    expect(await store.read()).toEqual({ version: 1, project: null, patterns: [] })
     await store.update((file) => file)
     expect(readdirSync(folder)).toEqual([])
   })
@@ -50,7 +51,7 @@ describe('knitting store', () => {
     writeFileSync(join(folder, 'project.json'), '{"version":1,"project":{"rows":')
     const onReset = vi.fn()
     const store = new KnittingStore(folder, onReset)
-    expect(await store.read()).toEqual({ version: 1, project: null })
+    expect(await store.read()).toEqual({ version: 1, project: null, patterns: [] })
     const [backup] = onReset.mock.calls[0]!
     expect(backup).toMatch(/^project\.corrupt-\d+\.json$/)
     expect(readFileSync(join(folder, backup), 'utf8')).toBe('{"version":1,"project":{"rows":')

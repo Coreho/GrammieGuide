@@ -3,8 +3,9 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { knittingFileSchema, type KnittingFile } from '@shared/knitting/knitting'
 
-const EMPTY: KnittingFile = { version: 1, project: null }
-const MAX_BYTES = 64_000
+const EMPTY: KnittingFile = { version: 1, project: null, patterns: [] }
+// 20 patterns of 60 page IDs is about 50 KB; anything far beyond that is not her file.
+const MAX_BYTES = 256_000
 
 /**
  * Her project and its row count, kept out of config on purpose: Home writes it
@@ -74,15 +75,18 @@ export class KnittingStore {
   }
 
   private async save(file: KnittingFile): Promise<void> {
-    await mkdir(this.folder, { recursive: true })
     const temporary = join(this.folder, `.project-${randomUUID()}.tmp`)
     try {
+      await mkdir(this.folder, { recursive: true })
       await writeFile(temporary, JSON.stringify(file), {
         encoding: 'utf8',
         flush: true,
         flag: 'wx'
       })
       await rename(temporary, this.path)
+    } catch {
+      // Filesystem errors name userData paths; this message crosses IPC instead.
+      throw new Error('Could not save her knitting')
     } finally {
       await rm(temporary, { force: true }).catch(() => undefined)
     }

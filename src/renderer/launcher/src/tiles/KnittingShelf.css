@@ -209,6 +209,92 @@
   opacity: 0.5;
   cursor: default;
 }
+.knitting-card-page {
+  background: #fffdf8;
+}
+.knitting-card-page img {
+  object-fit: contain;
+}
+
+/* The pattern viewer wraps its own header (for the arrow keys), so it lays out like the shelf. */
+.knitting-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.knitting-pattern-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(240px, calc((100% - 28px) / 2));
+  gap: 28px;
+  padding: 8px 8px 16px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink2, #504738) transparent;
+}
+.knitting-shelf-header .knitting-pattern-title {
+  font-size: calc(36px * var(--font-scale, 1));
+  overflow-wrap: anywhere;
+}
+/* The page is paper whatever the theme, so a photographed pattern reads as it does in her hands. */
+.knitting-pattern-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 28px;
+  background: #fffdf8;
+  color: #30291f;
+  box-shadow: 0 12px 24px rgba(var(--sh, 60, 55, 45), 0.18);
+}
+.knitting-pattern-page img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.knitting-pattern-controls {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+}
+.knitting-pattern-turn {
+  min-height: 88px;
+  padding: 14px 26px;
+  border: 0;
+  border-radius: 32px;
+  font:
+    800 calc(30px * var(--font-scale, 1)) / 1.1 'Figtree',
+    system-ui,
+    sans-serif;
+  color: var(--ink, #30291f);
+  background: linear-gradient(180deg, var(--a1, #bce5cb), var(--a2, #89cba7));
+  box-shadow:
+    0 10px 20px rgba(var(--sh, 60, 55, 45), 0.18),
+    inset 0 3px 1px rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+.knitting-pattern-turn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.knitting-pattern-turn:active:not(:disabled) {
+  translate: 0 3px;
+}
+.knitting-pattern-position {
+  margin: 0;
+  font-size: calc(28px * var(--font-scale, 1));
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .knitting-shelf button:focus-visible {
   outline: 4px solid currentColor;
   outline-offset: -6px;
