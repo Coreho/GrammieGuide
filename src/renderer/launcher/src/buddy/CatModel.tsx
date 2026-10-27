@@ -35,6 +35,8 @@ export type BuddyCatProps = {
   activity: BuddyActivity
   forcedClip: ClipName | null
   commandSequence: number
+  /** Bumped by each gesture she asks for, so the same gesture twice plays twice. */
+  gestureSequence: number
   /** World x he should be at; he walks there if he isn't. */
   targetX: number
   /** World x on first mount. */
@@ -42,6 +44,8 @@ export type BuddyCatProps = {
   /** Which way to face when standing still (0 = straight at her). */
   restYaw: number
   night: boolean
+  /** Her music is playing: his fidgets sway and dance along. */
+  music: boolean
   /** Brisk walk instead of a stroll (heading over to chat). */
   hurry: boolean
   onClipDone: () => void
@@ -106,6 +110,7 @@ export function BuddyCat(props: BuddyCatProps) {
         random: Math.random,
         night: live.current.night,
         motion: live.current.motion,
+        music: live.current.music,
         last: lastPicked.current
       })
     lastPicked.current = name
@@ -116,7 +121,14 @@ export function BuddyCat(props: BuddyCatProps) {
   // arriving starts it.
   useEffect(() => {
     if (!moving.current) playForActivity()
-  }, [props.activity, props.forcedClip, props.commandSequence, props.motion, playForActivity])
+  }, [
+    props.activity,
+    props.forcedClip,
+    props.commandSequence,
+    props.gestureSequence,
+    props.motion,
+    playForActivity
+  ])
 
   useEffect(() => {
     const onFinished = (e: { action: THREE.AnimationAction }): void => {
@@ -124,7 +136,10 @@ export function BuddyCat(props: BuddyCatProps) {
       const activity = live.current.activity
       // He keeps gesturing for as long as he's speaking; the panel says when that stops.
       if (activity === 'chat.talking' && live.current.motion !== 'reduced') {
-        playForActivity()
+        // A line's opening gesture plays once; the machine clears it and the
+        // change starts the usual talking gestures.
+        if (live.current.forcedClip) live.current.onClipDone()
+        else playForActivity()
         return
       }
       // Settle into the resting loop first, so if the machine has nothing new

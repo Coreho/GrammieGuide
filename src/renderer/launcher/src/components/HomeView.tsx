@@ -4,7 +4,7 @@ import { TileGrid } from './TileGrid'
 import { BuddyFloor } from '../buddy/BuddyFloor'
 import type { ChatPhase, Chattiness, BuddyMotion } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
-import type { BuddyCommand } from '@shared/buddy/commands'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import type { HomeLayoutName } from '@shared/homeLayout'
 import type { ReactNode } from 'react'
 import { HomeHeader } from './HomeHeader'
@@ -15,6 +15,13 @@ export type HomeBuddyProps = {
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
+  /** The gesture the line he's speaking opens with. */
+  replyGesture: ClipName | null
+  /** A gesture she asked for in chat. */
+  gesture: { clip: ClipName; sequence: number } | null
+  /** His response to something she just did on Home (homeReactions.ts). */
+  reaction: { clip: ClipName; sequence: number } | null
+  musicPlaying: boolean
   motion: BuddyMotion
   chattiness: Chattiness
   hour: number

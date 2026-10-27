@@ -65,7 +65,7 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
     if (_e.sender !== getLauncherWindow()?.webContents)
       return { ok: false, reason: 'unavailable', reply: ACTION_REPLIES.unavailable }
-    const { model, chatEnabled } = getConfig().buddy
+    const { model, chatEnabled, motion } = getConfig().buddy
     let connected = false
     try {
       connected =
@@ -75,6 +75,7 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
     }
     const result = await buddyChat(Array.isArray(req?.turns) ? req.turns : [], {
       chatEnabled,
+      motion,
       ...(connected ? { generate: (messages) => chatGptBuddyReply(model, messages) } : {}),
       log: logActivity,
       personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },

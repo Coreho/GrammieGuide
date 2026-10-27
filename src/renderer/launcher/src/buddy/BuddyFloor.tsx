@@ -50,6 +50,10 @@ type FloorProps = {
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
+  replyGesture: ClipName | null
+  gesture: { clip: ClipName; sequence: number } | null
+  reaction: { clip: ClipName; sequence: number } | null
+  musicPlaying: boolean
   onTap: () => void
   motion: BuddyMotion
   chattiness: Chattiness
@@ -140,9 +144,11 @@ export function BuddyFloor(props: FloorProps) {
                   activity={brain.activity}
                   forcedClip={ctx.forcedClip}
                   commandSequence={ctx.commandSequence}
+                  gestureSequence={ctx.gestureSequence}
                   target={ctx.target}
                   start={ctx.position}
                   night={isNight(props.hour)}
+                  music={props.musicPlaying}
                   chatOpen={props.chatOpen}
                   onClipDone={() => brain.send({ type: 'CLIP_DONE' })}
                   onArrived={(at) => brain.send({ type: 'ARRIVED', at })}
@@ -240,9 +246,11 @@ function FloorScene(props: {
   activity: BuddyActivity
   forcedClip: ClipName | null
   commandSequence: number
+  gestureSequence: number
   target: number
   start: number
   night: boolean
+  music: boolean
   chatOpen: boolean
   onClipDone: () => void
   onArrived: (at: number) => void
@@ -281,11 +289,13 @@ function FloorScene(props: {
       activity={props.activity}
       forcedClip={props.forcedClip}
       commandSequence={props.commandSequence}
+      gestureSequence={props.gestureSequence}
       targetX={toWorld(props.target)}
       startX={toWorld(props.start)}
       // In chat he half-turns toward the panel on his left.
       restYaw={props.chatOpen ? -0.35 : 0}
       night={props.night}
+      music={props.music}
       hurry={props.chatOpen}
       onClipDone={props.onClipDone}
       onArrived={(wx) => props.onArrived(toFraction(wx))}

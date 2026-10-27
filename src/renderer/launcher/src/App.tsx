@@ -23,9 +23,10 @@ import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
-import type { BuddyCommand } from '@shared/buddy/commands'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import { BuddyMenu, type BuddyMenuAnchor } from './buddy/BuddyMenu'
 import { pickTapReaction, type TapReaction } from '@shared/buddy/tapReactions'
+import { reactionFor } from '@shared/buddy/homeReactions'
 import { builtinFor } from './tiles/builtins'
 import { useMusicPlayer } from './music/useMusicPlayer'
 import { NowPlayingChip } from './music/NowPlayingChip'
@@ -87,6 +88,24 @@ export default function App() {
     null
   )
   const [buddyChatPhase, setBuddyChatPhase] = useState<ChatPhase>('idle')
+  const [buddyReplyGesture, setBuddyReplyGesture] = useState<ClipName | null>(null)
+  const [buddyGesture, setBuddyGesture] = useState<{ clip: ClipName; sequence: number } | null>(
+    null
+  )
+  const [buddyReaction, setBuddyReaction] = useState<{ clip: ClipName; sequence: number } | null>(
+    null
+  )
+  // Closing a built-in view (it covers Home without unmounting Buddy) gets a
+  // small welcome back. Coming back from a web page rebuilds his floor, which
+  // greets her already.
+  const lastBuiltin = useRef<TileType | null>(null)
+  useEffect(() => {
+    const closed = lastBuiltin.current
+    lastBuiltin.current = openBuiltin
+    if (!closed || openBuiltin) return
+    const clip = reactionFor(closed.builtinKey === 'photos' ? 'photosClosed' : 'builtinClosed')
+    setBuddyReaction((previous) => ({ clip, sequence: (previous?.sequence ?? 0) + 1 }))
+  }, [openBuiltin])
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -449,6 +468,10 @@ export default function App() {
               command: buddyCommand,
               chatOpen: config.buddy.chatEnabled && showBuddyChat,
               chatPhase: buddyChatPhase,
+              replyGesture: buddyReplyGesture,
+              gesture: buddyGesture,
+              reaction: buddyReaction,
+              musicPlaying: musicState.state === 'playing' || musicState.state === 'lowered',
               motion: config.buddy.motion,
               chattiness: config.buddy.chattiness,
               hour: now.getHours(),
@@ -484,7 +507,13 @@ export default function App() {
           <BuddyChatPanel
             onAction={runBuddyAction}
             voiceEnabled={config.buddy.voiceEnabled}
-            onPhaseChange={setBuddyChatPhase}
+            onPhaseChange={(phase, gesture) => {
+              setBuddyChatPhase(phase)
+              setBuddyReplyGesture(gesture ?? null)
+            }}
+            onGesture={(clip) =>
+              setBuddyGesture((previous) => ({ clip, sequence: (previous?.sequence ?? 0) + 1 }))
+            }
             onClose={() => {
               setShowBuddyChat(false)
               setBuddyChatPhase('idle')

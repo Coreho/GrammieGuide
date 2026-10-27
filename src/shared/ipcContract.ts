@@ -1,6 +1,6 @@
 import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
-import type { BuddyCommand } from './buddy/commands'
+import type { BuddyCommand, ClipName } from './buddy/commands'
 import type { ChatGptState } from './buddy/chatGpt'
 import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
@@ -80,7 +80,8 @@ export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
  * has to invent error copy. `reason` is for logging/tests only.
  */
 export type BuddyChatResult =
-  | { ok: true; reply: string; action?: BuddyActionPlan }
+  /** `gesture`: a gesture she asked for, played in chat alongside the fixed reply. */
+  | { ok: true; reply: string; action?: BuddyActionPlan; gesture?: ClipName }
   | {
       ok: false
       reason: 'disabled' | 'not-connected' | 'unavailable' | 'declined'
