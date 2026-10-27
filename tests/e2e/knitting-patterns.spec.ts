@@ -182,28 +182,12 @@ test('she opens the linked pattern from her project and comes back to her count'
   await expect(shelf()).toHaveCount(0)
 })
 
-test('a page whose picture is gone shows a calm line, and the others still work', async () => {
-  const knitting = await page.evaluate(() => window.launcher.getKnitting())
-  const second = knitting.patterns[0]!.pages[1]!.url!.split('/').at(-1)!
-  unlinkSync(join(root, 'media', 'patterns', second))
-  // A lost page is missing when Home starts; reload so it isn't served from this session's cache.
-  await page.reload()
-  await openShelf()
-  await shelf().locator('[data-knitting-card="patterns"]').click()
-  await expect(position()).toHaveText('Page 2 of 3')
-  await expect(page.getByText("This page isn't ready right now.")).toBeVisible()
-  await page.getByRole('button', { name: 'Next page' }).click()
-  await expect(position()).toHaveText('Page 3 of 3')
-  expect(await shownWidth()).toBe(620)
-  await page.getByRole('button', { name: '🏠 Home', exact: true }).click()
-})
-
 test('with two patterns she chooses from a list, and Back returns to it', async () => {
-  await pickNext(await writePages({ 'hat-1.png': 640 }))
+  await pickNext(await writePages({ 'hat-1.png': 640, 'hat-2.png': 650 }))
   await admin.getByLabel('Pattern name').fill('Bobble hat')
   await admin.getByRole('button', { name: 'Choose page pictures…' }).click()
   await expect(
-    admin.getByRole('status').filter({ hasText: 'Pattern saved with 1 page.' })
+    admin.getByRole('status').filter({ hasText: 'Pattern saved with 2 pages.' })
   ).toBeVisible()
   await openShelf()
   await expect(shelf().locator('[data-knitting-card="patterns"]')).toHaveAccessibleName(
@@ -211,15 +195,34 @@ test('with two patterns she chooses from a list, and Back returns to it', async 
   )
   await shelf().locator('[data-knitting-card="patterns"]').click()
   await expect(page.getByRole('heading', { name: 'Patterns' })).toBeVisible()
-  await page.getByRole('button', { name: 'Bobble hat, 1 page' }).click()
+  await page.getByRole('button', { name: 'Bobble hat, 2 pages' }).click()
   await expect(page.getByRole('button', { name: 'Back to patterns', exact: true })).toBeFocused()
-  await expect(position()).toHaveText('Page 1 of 1')
+  await expect(position()).toHaveText('Page 1 of 2')
   expect(await shownWidth()).toBe(640)
   await page.getByRole('button', { name: 'Back to patterns', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Bobble hat, 1 page' })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Bobble hat, 2 pages' })).toBeFocused()
   await page.getByRole('button', { name: 'Back to Knitting', exact: true }).click()
   await expect(shelf().locator('[data-knitting-card="patterns"]')).toBeFocused()
   await page.getByRole('button', { name: 'Back to Home', exact: true }).click()
+})
+
+test('a page whose picture is gone shows a calm line, and the others still work', async () => {
+  // Remove a page Home has never shown: Chromium can keep a picture it already
+  // showed in memory, even across a reload, which made this test pass or fail by chance.
+  const knitting = await page.evaluate(() => window.launcher.getKnitting())
+  const hat = knitting.patterns.find((pattern) => pattern.name === 'Bobble hat')!
+  unlinkSync(join(root, 'media', 'patterns', hat.pages[1]!.url!.split('/').at(-1)!))
+  await openShelf()
+  await shelf().locator('[data-knitting-card="patterns"]').click()
+  await page.getByRole('button', { name: 'Bobble hat, 2 pages' }).click()
+  await expect(position()).toHaveText('Page 1 of 2')
+  await page.getByRole('button', { name: 'Next page' }).click()
+  await expect(position()).toHaveText('Page 2 of 2')
+  await expect(page.getByText("This page isn't ready right now.")).toBeVisible()
+  await page.getByRole('button', { name: 'Previous page' }).click()
+  await expect(position()).toHaveText('Page 1 of 2')
+  expect(await shownWidth()).toBe(640)
+  await page.getByRole('button', { name: '🏠 Home', exact: true }).click()
 })
 
 test('the viewer fits at every text size on both screen sizes', async () => {
