@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-23_
+_Last updated: 2026-10-27_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -9,6 +9,8 @@ This is a **separate repo from `grandmas-launcher`**, which keeps running untouc
 Full rewrite plan (context, decisions, architecture, milestones): see the plan document from the planning session (`i-kinda-wanna-overhaul-moonlit-prism.md`).
 
 ## Status
+
+- **Background color (TASK-73)** - in admin → Display the caregiver can choose the color behind her Home and full-screen views from ten calm presets, or keep the theme's own. Only presets her text stays readable on with the chosen theme are offered (light ones for light themes, dark ones for dark themes); it changes live and needs no restart.
 
 - **ChatGPT-only Buddy (TASK-60)** - admin → Buddy connects a ChatGPT account, discovers its models and requires a completed reply test before selecting a model. Tokens stay encrypted in main. Anthropic/OpenRouter and API-key setup have been removed; schema 020 preserves unrelated settings and media. Owner sign-in, GPT-6.1-Sol completed inference and four synthetic conversations passed; suitability with the kiosk user remains unverified. See [setup and checks](docs/buddy-chatgpt.md).
 
@@ -42,6 +44,8 @@ Home has a fixed layout chosen in **admin → Tiles → Home layout**: **Simple 
 The built-in Photos, Music, Weather, News and Games tiles show a clay picture of a photo stack, a radio, a sun and cloud, a newspaper, and game pieces. The pictures are bundled with the app, so they work offline; the weather picture is only there so she recognizes the tile, not a forecast. In **admin → Tiles → Card artwork** any tile can use one of these pictures, or the Games or Websites artwork; the picture never changes where the tile goes. A photo chosen for the tile takes priority, and a custom icon replaces the artwork. In **More choices**, normal-width tiles have room only for their label, so the artwork appears on wide tiles. If a picture can't load, the tile shows its usual icon.
 
 **Clay cards** (admin → Display) is the theme that matches the approved card design: a cream background, deeper tile colors and bigger, bolder labels. It is opt-in, so updating never changes the theme she already has.
+
+**Background** (admin → Display) puts a calm color behind Home and her full-screen views (News, Photos, Music, Games and the web page bar) in place of the theme's own: Cream, Sage green, Soft blue, Blush pink or Lavender with the light themes, and Midnight blue, Forest green, Plum, Charcoal or Deep teal with the dark ones. Cards, tiles and text keep the theme's colors, so only backgrounds her text stays easy to read on are offered. Switching to a theme of the other kind shows that theme's own background but keeps the choice, which comes back with a matching theme. **Theme default** goes back to the theme's background.
 
 Each tile also keeps its own color when tiles are added or removed, because the color is part of how she recognizes it; new tiles start with a color Home isn't using yet. Colors look different in the two "Tiles" themes and in Clay cards; the four other clay themes share one tile color. Leaving a web page, by the Home button or the idle timeout, closes it completely, so a video or radio stream stops instead of playing on out of sight.
 
