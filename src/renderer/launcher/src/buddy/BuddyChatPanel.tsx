@@ -187,9 +187,15 @@ export function BuddyChatPanel({
     setHearing(true)
     setPhase('hearing')
     let result: Awaited<ReturnType<typeof window.launcher.buddyListen>>
-    const hold = await holdAudio('listening')
-    if (!open.current) {
+    const hold = await holdAudio('listening', () => {
+      void window.launcher.buddyCancelListen()
+    })
+    if (!open.current || !hold.allowed) {
       hold.release()
+      if (open.current) {
+        setHearing(false)
+        setPhase('idle')
+      }
       return
     }
     try {

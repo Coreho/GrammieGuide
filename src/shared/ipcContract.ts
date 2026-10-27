@@ -24,6 +24,13 @@ import type {
 import type { BuiltinGameKey } from './games/gamesSchema'
 import type { ContactRequestSummary, HomeContactState } from './contacts'
 import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
+import type {
+  WhatsAppCallState,
+  WhatsAppCommand,
+  WhatsAppCommandResult,
+  WhatsAppSetupState,
+  WhatsAppVideoBounds
+} from './whatsAppCalls'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -117,6 +124,14 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'whatsapp:prepare': { request: void; response: WhatsAppCallState }
+  'whatsapp:closeCalls': { request: void; response: WhatsAppCallState }
+  'whatsapp:setupState': { request: void; response: WhatsAppSetupState }
+  'whatsapp:openSetup': { request: void; response: WhatsAppSetupState }
+  'whatsapp:closeSetup': { request: void; response: WhatsAppSetupState }
+  'whatsapp:state': { request: void; response: WhatsAppCallState }
+  'whatsapp:command': { request: WhatsAppCommand; response: WhatsAppCommandResult }
+  'whatsapp:videoBounds': { request: WhatsAppVideoBounds; response: void }
   'chatgpt:state': { request: void; response: ChatGptState }
   'chatgpt:connect': { request: { id?: string }; response: ChatGptState }
   'chatgpt:cancel': { request: void; response: ChatGptState }
@@ -278,6 +293,8 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'whatsapp:setupChanged': WhatsAppSetupState
+  'whatsapp:changed': WhatsAppCallState
   'browser:reader': import('./news/reader').ReaderState
   'browser:video': import('./browser/videoControls').VideoState
   'audio:changed': AudioUpdate

@@ -29,7 +29,7 @@
  * What can need quiet. `chat` is the chat panel being open, `webPage` an
  * embedded page that is audible right now (going quiet and closing both end it).
  */
-export type AudioSource = 'listening' | 'narration' | 'buddyVoice' | 'chat' | 'webPage'
+export type AudioSource = 'listening' | 'narration' | 'buddyVoice' | 'chat' | 'webPage' | 'call'
 
 /** What she last asked the music to do. */
 export type MusicIntent = 'off' | 'playing' | 'paused'
@@ -40,6 +40,7 @@ const QUIET_RANK: Record<Quiet, number> = { none: 0, lower: 1, pause: 2 }
 
 /** How much quiet each source needs from music. */
 const MUSIC_QUIET: Record<AudioSource, Quiet> = {
+  call: 'pause',
   // The microphone must not pick the music up.
   listening: 'pause',
   // A family member telling the story behind a photo: every word matters.
@@ -56,7 +57,12 @@ const MUSIC_QUIET: Record<AudioSource, Quiet> = {
 
 const VOICES: ReadonlySet<AudioSource> = new Set(['narration', 'buddyVoice'])
 /** Sources that page sound must never play over. */
-const MUTES_WEB_PAGE: ReadonlySet<AudioSource> = new Set(['listening', 'narration', 'buddyVoice'])
+const MUTES_WEB_PAGE: ReadonlySet<AudioSource> = new Set([
+  'listening',
+  'narration',
+  'buddyVoice',
+  'call'
+])
 
 /** How long music waits, after whatever held it ends, before it comes back. */
 export const RESUME_DELAY_MS = 2000
@@ -147,6 +153,16 @@ function start(state: AudioState, source: AudioSource, id: string, now: number):
   const base = Object.hasOwn(state.holds, id) ? withoutHolds(state, [id], now) : state
   const others = Object.entries(base.holds)
   const isVoice = VOICES.has(source)
+
+  if ((isVoice || source === 'listening') && others.some(([, s]) => s === 'call'))
+    return { state: base, stop: [id] }
+  if (source === 'call') {
+    const stop = others
+      .filter(([, s]) => VOICES.has(s) || s === 'listening')
+      .map(([other]) => other)
+    const remaining = withoutHolds(base, stop, now)
+    return { state: { ...remaining, holds: { ...remaining.holds, [id]: source } }, stop }
+  }
 
   if (isVoice && others.some(([, s]) => s === 'listening')) return { state: base, stop: [id] }
 
