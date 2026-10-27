@@ -19,6 +19,8 @@ function on<E extends IpcEventName>(event: E, cb: (payload: IpcEvents[E]) => voi
 }
 
 const launcherApi = {
+  getContact: () => invoke('contacts:home'),
+  requestCallback: () => invoke('contacts:request'),
   getAudio: () => invoke('audio:get'),
   buddyAction: (action: IpcRequest<'buddy:action'>) => invoke('buddy:action', action),
   resetAudioOwner: () => invoke('audio:resetOwner'),
@@ -50,6 +52,11 @@ const launcherApi = {
   openBrowserTile: (tileId: string) => invoke('browser:openTile', { tileId }),
   goHome: () => invoke('browser:goHome'),
   goBack: () => invoke('browser:goBack'),
+  readerMode: (mode: IpcRequest<'browser:readerMode'>) => invoke('browser:readerMode', mode),
+  onReader: (cb: (state: IpcEvents['browser:reader']) => void) => on('browser:reader', cb),
+  videoCommand: (command: IpcRequest<'browser:videoCommand'>) =>
+    invoke('browser:videoCommand', command),
+  onVideo: (cb: (state: IpcEvents['browser:video']) => void) => on('browser:video', cb),
   retryPage: () => invoke('browser:retry'),
   dismissBlockedPage: () => invoke('browser:dismissBlocked'),
   openRecoveryCheck: () => invoke('browser:openRecoveryCheck'),

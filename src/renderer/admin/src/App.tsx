@@ -14,6 +14,7 @@ import { MusicTab } from './components/MusicTab'
 import { GamesTab } from './components/GamesTab'
 import { ChecksTab } from './components/ChecksTab'
 import { SitesTab } from './components/SitesTab'
+import { ContactsTab } from './components/ContactsTab'
 import { useConfigStore } from './state/useConfigStore'
 
 declare global {
@@ -36,6 +37,7 @@ type Tab =
   | 'reliability'
   | 'checks'
   | 'sites'
+  | 'contacts'
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('loading')
@@ -71,7 +73,8 @@ export default function App() {
             'activity',
             'reliability',
             'checks',
-            'sites'
+            'sites',
+            'contacts'
           ] as Tab[]
         ).map((t) => (
           <button
@@ -116,6 +119,7 @@ export default function App() {
         {tab === 'reliability' && <ReliabilityTab />}
         {tab === 'checks' && <ChecksTab />}
         {tab === 'sites' && <SitesTab />}
+        {tab === 'contacts' && <ContactsTab />}
       </main>
     </div>
   )

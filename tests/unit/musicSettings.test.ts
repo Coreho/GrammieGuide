@@ -11,14 +11,14 @@ describe('music configuration', () => {
       ...defaultConfig(),
       schemaVersion: 10,
       music: { playlists: [list], autoStopMinutes: 45, showNowPlayingChip: false },
-      buddy: { ...defaultConfig().buddy, openrouterApiKey: 'private' }
+      buddy: { ...defaultConfig().buddy, ttsVoice: 'private' }
     }
     const before = structuredClone(raw)
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
     expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config.music).toEqual(raw.music)
-    expect(result.config.buddy.openrouterApiKey).toBe('private')
+    expect(result.config.buddy.ttsVoice).toBe('private')
     expect(raw).toEqual(before)
   })
   it('defaults to no playlists and a 90-minute auto-stop', () => {

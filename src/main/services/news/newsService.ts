@@ -159,6 +159,16 @@ async function download(
   }
 }
 
+/** Reader images use the same public-address, redirect, raster and size limits. */
+export async function readerImage(url: string): Promise<string | undefined> {
+  try {
+    const image = await download(url, fetch, IMAGE_MAX_BYTES, 3000, true, lookup)
+    return `data:${image.mime};base64,${Buffer.from(image.bytes).toString('base64')}`
+  } catch {
+    return undefined
+  }
+}
+
 function failureDetail(error: unknown): string {
   // Fetch errors can embed URLs. Keep diagnostics useful without recording the feed
   // address, article titles, or browsing history in either log.
@@ -173,6 +183,7 @@ export type NewsService = {
   get(tileId: string): Promise<NewsResult>
   /** The saved site (no storyId) or a story this service served; null for anything else. */
   destination(tileId: string, storyId?: string, sourceId?: string): string | null
+  headline(tileId: string, storyId: string): string
 }
 
 /** One service instance per app; injectable I/O and clock keep cache tests offline. */
@@ -258,6 +269,9 @@ export function createNewsService({
     },
 
     /** Browser metadata is accepted only for a saved site or a story we actually served. */
+    headline(tileId, storyId) {
+      return cache.get(tileId)?.good?.stories.find((story) => story.id === storyId)?.title ?? ''
+    },
     destination(tileId: string, storyId?: string, sourceId?: string): string | null {
       const tile = configuredTile(tileId)
       if (!tile) return null

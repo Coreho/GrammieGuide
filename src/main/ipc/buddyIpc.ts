@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import { getConfig } from '../config/store'
 import { buddyChat } from '../services/ai/buddyChatService'
-import { getBuddyChatClient } from '../services/ai/buddyChatClient'
+import { chatGptBuddyReply } from '../services/chatgpt/buddyAdapter'
+import { getChatGptSession } from '../services/chatgpt/runtime'
 import { logActivity } from '../services/activityLog/activityLog'
 import { createTtsService } from '../services/speech/ttsService'
 import { listenOnce, canListen } from '../services/speech/sttService'
@@ -22,6 +23,7 @@ import { libraryPaths } from '../services/media/libraryPaths'
 import type { MediaLibrary } from '@shared/media/mediaPath'
 import type { LibraryStore } from '../services/media/libraryStore'
 import { runPowerShell } from '../services/reliability/shellExec'
+import { PersonalHistory } from '@shared/buddy/personalFacts'
 
 const tts = createTtsService()
 // The recognizer/mic check spawns PowerShell (~1s); the answer can't change
@@ -29,6 +31,7 @@ const tts = createTtsService()
 let canListenOnce: Promise<boolean> | null = null
 
 export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore): void {
+  const personalHistory = new PersonalHistory()
   const resolveAction = (action: BuddyActionRequest): Promise<BuddyActionResult> =>
     resolveBuddyAction(
       action,
@@ -62,17 +65,25 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
     if (_e.sender !== getLauncherWindow()?.webContents)
       return { ok: false, reason: 'unavailable', reply: ACTION_REPLIES.unavailable }
-    const { provider, anthropicApiKey, openrouterApiKey, model, chatEnabled } = getConfig().buddy
-    // Each provider keeps its own key, so switching back and forth never needs
-    // one to be re-entered.
-    const apiKey = provider === 'openrouter' ? openrouterApiKey : anthropicApiKey
+    const { model, chatEnabled } = getConfig().buddy
+    let connected = false
+    try {
+      connected =
+        chatEnabled && Boolean(model) && getChatGptSession().state().verifiedModel === model
+    } catch {
+      /* Locked or unreadable credential storage gets Buddy's calm setup reply. */
+    }
     const result = await buddyChat(Array.isArray(req?.turns) ? req.turns : [], {
       chatEnabled,
-      apiKey,
-      provider,
-      model,
-      client: chatEnabled && apiKey ? getBuddyChatClient(provider, apiKey) : null,
+      ...(connected ? { generate: (messages) => chatGptBuddyReply(model, messages) } : {}),
       log: logActivity,
+      personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
+      contactButton: () => {
+        const contacts = getConfig().contacts
+        return contacts.enabled && contacts.preferred
+          ? `Ask ${contacts.preferred.name} to call`
+          : null
+      },
       resolveAction
     })
     // Log that a conversation happened, never what was said - the activity

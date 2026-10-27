@@ -1,7 +1,7 @@
 import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
 import type { BuddyCommand } from './buddy/commands'
-import type { BuddyProvider } from './buddy/providers'
+import type { ChatGptState } from './buddy/chatGpt'
 import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
 import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
@@ -22,6 +22,8 @@ import type {
   VoiceStart
 } from './checks/caregiverChecks'
 import type { BuiltinGameKey } from './games/gamesSchema'
+import type { ContactRequestSummary, HomeContactState } from './contacts'
+import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -81,7 +83,7 @@ export type BuddyChatResult =
   | { ok: true; reply: string; action?: BuddyActionPlan }
   | {
       ok: false
-      reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'
+      reason: 'disabled' | 'not-connected' | 'unavailable' | 'declined'
       reply: string
       choices?: BuddyTileChoice[]
     }
@@ -113,6 +115,21 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'chatgpt:state': { request: void; response: ChatGptState }
+  'chatgpt:connect': { request: { id?: string }; response: ChatGptState }
+  'chatgpt:cancel': { request: void; response: ChatGptState }
+  'chatgpt:select': { request: { id: string }; response: ChatGptState }
+  'chatgpt:models': { request: void; response: ChatGptState }
+  'chatgpt:test': { request: { model: string }; response: ChatGptState }
+  'chatgpt:welcome': { request: void; response: ChatGptState }
+  'chatgpt:signOut': { request: void; response: ChatGptState }
+  'chatgpt:usage': { request: void; response: void }
+  'contacts:list': { request: void; response: ContactRequestSummary[] }
+  'contacts:home': { request: void; response: HomeContactState }
+  'contacts:request': { request: void; response: HomeContactState }
+  'contacts:getSettings': { request: void; response: AdminContactSetup }
+  'contacts:saveSettings': { request: ContactSetup; response: AdminContactSetup }
+  'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }
     response: Photo['narration'] | null
@@ -205,13 +222,6 @@ export interface IpcApi {
   'admin:unlock': { request: { pin: string }; response: { ok: boolean; reason?: string } }
   'admin:lock': { request: void; response: void }
   'admin:isUnlocked': { request: void; response: boolean }
-  /** Provider-scoped: Anthropic and OpenRouter each keep their own key. */
-  'admin:hasApiKey': { request: { provider: BuddyProvider }; response: boolean }
-  /** Empty string clears that provider's key. Write-only: never read back to any renderer. */
-  'admin:setApiKey': {
-    request: { provider: BuddyProvider; apiKey: string }
-    response: { ok: boolean }
-  }
   'admin:previewOldLauncherImport': { request: void; response: OldLauncherImportPreview }
   'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
@@ -234,6 +244,11 @@ export interface IpcApi {
 
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
+  'browser:readerMode': { request: 'article' | 'page'; response: boolean }
+  'browser:videoCommand': {
+    request: import('./browser/videoControls').VideoCommand
+    response: boolean
+  }
   /** Caregiver-only, bounded domain history; never full addresses. */
   'browser:blockedSites': { request: void; response: string[] }
   'browser:goBack': { request: void; response: void }
@@ -254,6 +269,8 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'browser:reader': import('./news/reader').ReaderState
+  'browser:video': import('./browser/videoControls').VideoState
   'audio:changed': AudioUpdate
   'music:importProgress': MusicImportProgress
   'photos:changed': Record<string, never>

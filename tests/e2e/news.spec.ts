@@ -39,6 +39,13 @@ test.beforeAll(async () => {
     } else if (req.url === '/broken.xml') {
       res.statusCode = 500
       res.end()
+    } else if (req.url === '/story-garden') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      res.end(`<!doctype html><title>Library opens a reading garden</title>
+        <meta name="author" content="Local Times staff"><meta property="article:published_time" content="2026-10-01T12:00:00Z">
+        <article><h1>Library opens a reading garden</h1>
+        ${Array.from({ length: 8 }, (_, i) => `<p>The reading garden has roses and comfortable benches for everyone. Families can bring a book and enjoy the flowers together. The library staff planted the garden with help from their neighbors, and the paths are open every afternoon. This is paragraph ${i + 1}. <a href="https://example.com">More about gardens</a></p>`).join('')}
+        <h2>A place to rest</h2><blockquote>There is room for everyone here.</blockquote></article>`)
     } else {
       res.setHeader('Content-Type', 'text/html')
       res.end(`<!doctype html><title>Local Times</title><h1>${req.url}</h1>`)
@@ -122,6 +129,52 @@ test('Home cannot open an address the News tile did not serve', async () => {
     tileId
   )
   expect(result.ok).toBe(false)
+})
+
+test('a story opens as a safe article, toggles without losing Back, and returns to News', async () => {
+  await page.getByRole('button', { name: 'News', exact: true }).click()
+  await page.getByRole('button', { name: /Library opens a reading garden/ }).click()
+  const article = page.getByRole('region', { name: 'News article' })
+  await expect(
+    article.getByRole('heading', { name: 'Library opens a reading garden' })
+  ).toBeVisible()
+  await expect(article.getByText('A place to rest', { exact: true })).toBeVisible()
+  await expect(article.locator('a,script,iframe')).toHaveCount(0)
+  await expect(article.getByRole('button', { name: /Read aloud/ })).toBeVisible()
+  const home = page.getByRole('button', { name: '🏠 Home', exact: true })
+  const homeBounds = await home.boundingBox()
+  await page.getByRole('button', { name: 'Show page', exact: true }).click()
+  await expect(article).toHaveCount(0)
+  await page.getByRole('button', { name: 'Show article', exact: true }).click()
+  await expect(article).toBeVisible()
+  expect(await home.boundingBox()).toEqual(homeBounds)
+  await page.screenshot({ path: 'test-results/reader-article.png' })
+  await page.getByRole('button', { name: '← Back', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'News' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'News' }).getByRole('button', { name: /Home/ }).click()
+  const log = await admin.evaluate(() => window.admin.getActivityLog())
+  expect(JSON.stringify(log)).not.toContain('story-garden')
+})
+
+test('an ordinary web article offers reader mode at every text size', async () => {
+  await admin.getByLabel('Tile type').selectOption('web')
+  await admin.getByLabel('Tile label').fill('Reading')
+  await admin.getByLabel('Website address').fill(`${site}/story-garden`)
+  await admin.getByRole('button', { name: 'Add Tile', exact: true }).click()
+  await page.getByRole('button', { name: 'Reading', exact: true }).click()
+  await page.getByRole('button', { name: 'Show article', exact: true }).click()
+  const article = page.getByRole('region', { name: 'News article' })
+  await expect(article.getByText('A place to rest', { exact: true })).toBeVisible()
+  for (let step = 0; step < 5; step++) {
+    await admin.evaluate(async (fontStep) => {
+      const config = await window.admin.getConfig()
+      await window.admin.setConfig({ display: { ...config.display, fontStep } })
+    }, step)
+    await expect.poll(() => article.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await expect(page.getByRole('button', { name: '🏠 Home', exact: true })).toBeInViewport()
+  }
+  await page.screenshot({ path: 'test-results/reader-largest-text.png' })
+  await page.getByRole('button', { name: '🏠 Home', exact: true }).click()
 })
 
 test('a broken feed gets a calm line and the news website instead', async () => {

@@ -3,6 +3,7 @@ import { useConfigStore } from '../state/useConfigStore'
 import { applyPreviewThemeToElement } from '@shared/theme'
 import { TileGrid } from '../../../launcher/src/components/TileGrid'
 import { HomeHeader, timeParts } from '../../../launcher/src/components/HomeHeader'
+import { ContactButton } from '../../../launcher/src/contacts/ContactButton'
 
 /**
  * A scaled, non-interactive preview of the Home screen at the caregiver's
@@ -133,9 +134,12 @@ export function HomePreview() {
           >
             <div
               data-home-contact-slot
-              aria-hidden="true"
               style={{ width: 420, height: 112, flex: 'none', pointerEvents: 'none' }}
-            />
+            >
+              {config.contacts.enabled && config.contacts.preferred && (
+                <ContactButton name={config.contacts.preferred.name} onClick={() => {}} />
+              )}
+            </div>
             {/* Static placeholder where Buddy's floor is; never loads Three.js into admin */}
             <div
               data-home-buddy-placeholder

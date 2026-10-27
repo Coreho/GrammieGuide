@@ -82,7 +82,7 @@ describe('applyConfigPatch', () => {
     })
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.config.buddy.anthropicApiKey).toBe('sk-test')
+    expect(result.config.buddy).not.toHaveProperty('anthropicApiKey')
     expect(result.config.reliability.adminPinHash).toBe('hash')
     expect(result.config.reliability.adminPinSalt).toBe('salt')
   })

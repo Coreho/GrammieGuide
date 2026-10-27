@@ -14,6 +14,9 @@ import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { timeParts } from './components/HomeHeader'
 import { NavBar } from './components/NavBar'
+import { VideoControls } from './components/VideoControls'
+import { ReaderView } from './components/ReaderView'
+import { EMPTY_READER } from '@shared/news/reader'
 import { PageRecovery } from './components/PageRecovery'
 import type { PageProblem } from '@shared/browser/loadFailure'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
@@ -31,6 +34,9 @@ import { ACTION_REPLIES, type BuddyActionPlan } from '@shared/buddy/actions'
 import { openBuddyTile } from './buddy/openBuddyTile'
 import { IdleDimOverlay } from './components/IdleDimOverlay'
 import { useAudioHold, useIdleDim } from './components/useIdleDim'
+import { useContactFlow } from './contacts/useContactFlow'
+import { ContactButton } from './contacts/ContactButton'
+import { ContactOverlay } from './contacts/ContactOverlay'
 
 declare global {
   interface Window {
@@ -44,9 +50,12 @@ const WEATHER_REFRESH_MS = 15 * 60 * 1000
 export default function App() {
   const { player: music, state: musicState } = useMusicPlayer()
   const [config, setConfig] = useState<PublicConfig | null>(null)
+  const contactFlow = useContactFlow(config?.contacts)
   const configRef = useRef(config)
   configRef.current = config
   const [view, setView] = useState<View>('home')
+  const [reader, setReader] = useState(EMPTY_READER)
+  useEffect(() => window.launcher.onReader(setReader), [])
   /** A web page that failed or was blocked; Home's recovery screen stands in for it. */
   const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
   /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
@@ -55,7 +64,7 @@ export default function App() {
     () =>
       window.launcher.onNewsShelf(({ tileId }) => {
         const tile = configRef.current?.tiles.find((candidate) => candidate.id === tileId)
-        if (tile?.type === 'builtin' && tile.builtinKey === 'news' && tile.newsSources) {
+        if (tile?.type === 'builtin' && tile.builtinKey === 'news') {
           setOpenBuiltin(tile)
         }
         setView('home')
@@ -183,7 +192,12 @@ export default function App() {
   }, [view])
 
   const buddyMenuAvailable =
-    Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
+    Boolean(config) &&
+    view === 'home' &&
+    !openBuiltin &&
+    !showConfusion &&
+    !showBuddyChat &&
+    !contactFlow.open
   recoveryCheckAllowed.current = buddyMenuAvailable && !buddyMenuAnchor
 
   const audioHold = useAudioHold()
@@ -191,8 +205,7 @@ export default function App() {
     embeddedWebOpen: view === 'browser',
     buddyChatOpen: showBuddyChat,
     audioHold,
-    // TASK-22's help request will block dimming here once it exists.
-    contactFlow: false
+    contactFlow: contactFlow.open
   })
 
   useEffect(() => {
@@ -259,7 +272,7 @@ export default function App() {
       // Repeated pats and game taps are deliberate interaction, not a sign she is lost.
       if (
         (e.target as HTMLElement).closest(
-          '[data-buddy-tap], [data-buddy-chat-invite], [data-game-interactive]'
+          '[data-buddy-tap], [data-buddy-chat-invite], [data-game-interactive], [data-contact-control]'
         )
       )
         return
@@ -382,6 +395,20 @@ export default function App() {
             tiles={config.tiles}
             layout={config.display.homeLayout}
             nowPlaying={<NowPlayingChip state={musicState} onStop={() => music.stop()} />}
+            contact={
+              config.contacts.enabled && config.contacts.preferred ? (
+                <ContactButton
+                  name={contactFlow.state?.contact?.name ?? config.contacts.preferred.name}
+                  photoUrl={contactFlow.state?.contact?.photoUrl}
+                  onClick={() => {
+                    clearChatInvitation()
+                    closeBuddyMenu()
+                    setBuddyCommand(null)
+                    contactFlow.request()
+                  }}
+                />
+              ) : undefined
+            }
             onActivateTile={activateTile}
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return
@@ -465,6 +492,17 @@ export default function App() {
           />
         )}
         {toast && view === 'home' && !openBuiltin && <Toast message={toast} />}
+        {view === 'home' && contactFlow.open && (
+          <ContactOverlay
+            state={contactFlow.state}
+            busy={contactFlow.busy}
+            now={now.getTime()}
+            onClose={contactFlow.close}
+            onStopMusic={
+              musicState.currentId && musicState.state !== 'off' ? () => music.stop() : undefined
+            }
+          />
+        )}
       </Stage>
       {toast && openBuiltin && (
         <div style={{ position: 'fixed', inset: 0, zIndex: zLayers.toast, pointerEvents: 'none' }}>
@@ -472,8 +510,21 @@ export default function App() {
         </div>
       )}
 
+      {view === 'browser' && <VideoControls />}
+      {view === 'browser' && !pageProblem && <ReaderView state={reader} />}
       {view === 'browser' && (
         <NavBar
+          readerToggle={
+            reader.available || reader.mode === 'loading' || reader.mode === 'article'
+              ? {
+                  article: reader.mode === 'article' || reader.mode === 'loading',
+                  onToggle: () =>
+                    void window.launcher.readerMode(
+                      reader.mode === 'article' || reader.mode === 'loading' ? 'page' : 'article'
+                    )
+                }
+              : undefined
+          }
           message={toast}
           onHome={goHome}
           onBack={goBack}

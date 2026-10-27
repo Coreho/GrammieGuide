@@ -25,7 +25,8 @@ export default defineConfig({
         output: { format: 'cjs', entryFileNames: '[name].cjs' }
       }
     },
-    plugins: [externalizeDepsPlugin()]
+    // Sandboxed preloads can require Electron, but cannot require npm packages.
+    plugins: [externalizeDepsPlugin({ exclude: ['@mozilla/readability', 'dompurify'] })]
   },
   renderer: {
     resolve: { alias: sharedAlias },

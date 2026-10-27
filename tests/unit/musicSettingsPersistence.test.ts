@@ -11,7 +11,7 @@ describe('track references', () => {
   beforeEach(() => vi.resetAllMocks())
   it('removes a track from every playlist while retaining other tracks, order and settings', () => {
     const cfg = defaultConfig()
-    cfg.buddy.anthropicApiKey = 'private'
+    cfg.reliability.adminPinHash = 'private'
     cfg.music.playlists = [
       { id: 'one', label: 'One', shuffle: false, trackIds: ['keep', 'removed', 'last'] },
       { id: 'two', label: 'Two', shuffle: true, trackIds: ['removed'] }

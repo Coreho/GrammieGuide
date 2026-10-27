@@ -34,7 +34,7 @@ describe('admin backup IPC', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     device = defaultConfig()
-    device.buddy.anthropicApiKey = 'device-key'
+    Object.assign(device.buddy, { anthropicApiKey: 'device-key' })
     device.reliability = { adminPinHash: 'device-hash', adminPinSalt: 'device-salt' }
     mocks.get.mockImplementation(() => device)
     mocks.set.mockImplementation((config: Config) => {
@@ -83,13 +83,13 @@ describe('admin backup IPC', () => {
     const source = defaultConfig()
     source.display.fontStep = 3
     mocks.read.mockImplementation(async () => {
-      device.buddy.anthropicApiKey = 'latest-key'
+      device.reliability.adminPinHash = 'latest-hash'
       return buildConfigBackup(source)
     })
     expect(await invoke('backup:restore')).toEqual({ ok: true, config: toPublicConfig(source) })
     expect(device.display.fontStep).toBe(3)
-    expect(device.buddy.anthropicApiKey).toBe('latest-key')
-    expect(device.reliability).toEqual({ adminPinHash: 'device-hash', adminPinSalt: 'device-salt' })
+    expect(device.buddy).not.toHaveProperty('anthropicApiKey')
+    expect(device.reliability).toEqual({ adminPinHash: 'latest-hash', adminPinSalt: 'device-salt' })
     expect(mocks.send).toHaveBeenCalledWith('config:changed', toPublicConfig(source))
   })
 

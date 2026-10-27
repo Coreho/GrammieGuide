@@ -10,8 +10,10 @@ export const zLayers = {
   homeBackground: 0,
   homeContent: 10,
   buddyCanvas: 20,
+  contactControl: 21,
   /** Stands in for a web page that failed or was blocked, below the nav bar. */
   pageRecovery: 25,
+  readerView: 26,
   navBar: 30,
   tilePicker: 100,
   weatherOverlay: 200,

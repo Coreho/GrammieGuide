@@ -1,0 +1,51 @@
+.contacts-admin {
+  max-width: 820px;
+  line-height: 1.5;
+}
+.contacts-admin fieldset {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #b8c4d1;
+  border-radius: 8px;
+}
+.contacts-admin legend {
+  font-weight: 700;
+}
+.contacts-admin label:not(.contacts-check) {
+  display: block;
+  margin: 12px 0;
+}
+.contacts-admin label:not(.contacts-check) > input {
+  display: block;
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  padding: 10px;
+  margin-top: 4px;
+  font: inherit;
+}
+.contacts-admin .contacts-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.contacts-admin button {
+  min-height: 44px;
+  padding: 8px 16px;
+  margin: 4px 12px 4px 0;
+  cursor: pointer;
+}
+.contacts-admin button:disabled {
+  cursor: default;
+}
+.contacts-admin :focus-visible {
+  outline: 3px solid #267457;
+  outline-offset: 3px;
+}
+.contacts-credentials {
+  margin-top: 32px;
+}
+.contacts-credentials summary {
+  font-weight: 700;
+  cursor: pointer;
+  padding: 12px 0;
+}
