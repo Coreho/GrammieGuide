@@ -185,6 +185,24 @@ describe('admin library IPC', () => {
     }
   )
 
+  it.each([
+    ['import', 'patterns', 'Use the Knitting tab to change patterns'],
+    ['update', 'patterns', 'Use the Knitting tab to change patterns'],
+    ['remove', 'patterns', 'Use the Knitting tab to change patterns'],
+    ['import', 'knitted', 'Use the Knitting tab to change her finished pieces'],
+    ['update', 'knitted', 'Use the Knitting tab to change her finished pieces'],
+    ['remove', 'knitted', 'Use the Knitting tab to change her finished pieces']
+  ])(
+    'keeps generic %s out of the %s library, which changes only through the Knitting tab',
+    async (op, library, message) => {
+      await expect(invoke(`library:${op}`, { library, id: 'x', metadata: {} })).rejects.toThrow(
+        message
+      )
+      expect(mocks.dialog).not.toHaveBeenCalled()
+      expect(mocks.import).not.toHaveBeenCalled()
+    }
+  )
+
   it('does not expose source paths through import errors', async () => {
     mocks.dialog.mockResolvedValue({ canceled: false, filePaths: ['private/song.mp3'] })
     mocks.import.mockRejectedValue(new Error('ENOENT: private/song.mp3'))

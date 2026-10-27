@@ -80,6 +80,22 @@ const adminApi = {
     ipcRenderer.on('photos:changed', listener)
     return () => ipcRenderer.removeListener('photos:changed', listener)
   },
+  getKnitting: () => invoke('knitting:get'),
+  saveKnittingProject: (project: IpcRequest<'knitting:saveProject'>) =>
+    invoke('knitting:saveProject', project),
+  resetKnittingRows: () => invoke('knitting:resetRows'),
+  removeKnittingProject: () => invoke('knitting:removeProject'),
+  addKnittingPattern: (name: string) => invoke('knitting:addPattern', { name }),
+  removeKnittingPattern: (id: string) => invoke('knitting:removePattern', { id }),
+  addKnittingPiece: (piece: IpcRequest<'knitting:addPiece'>) => invoke('knitting:addPiece', piece),
+  moveKnittingPiece: (id: string, direction: IpcRequest<'knitting:movePiece'>['direction']) =>
+    invoke('knitting:movePiece', { id, direction }),
+  removeKnittingPiece: (id: string) => invoke('knitting:removePiece', { id }),
+  onKnittingChanged: (cb: () => void): (() => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('knitting:changed', listener)
+    return () => ipcRenderer.removeListener('knitting:changed', listener)
+  },
   listPhotos: () => invoke('photos:listAll'),
   importPhotos: () => invoke('photos:import'),
   updatePhoto: (request: IpcRequest<'photos:update'>) => invoke('photos:update', request),

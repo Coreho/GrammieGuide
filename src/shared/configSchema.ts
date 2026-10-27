@@ -26,7 +26,15 @@ import {
 export const CURRENT_SCHEMA_VERSION = 21
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
-export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music', 'games', 'calls'] as const
+export const BUILTIN_TILE_KEYS = [
+  'weather',
+  'news',
+  'photos',
+  'music',
+  'games',
+  'calls',
+  'knitting'
+] as const
 
 export const tileSchema = z.object({
   id: z.string(),

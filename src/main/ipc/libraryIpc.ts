@@ -48,6 +48,10 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     if (request.library === 'photos')
       throw new Error('Use the Photos tab to change the photo library')
     if (request.library === 'narration') throw new Error('Use the Photos tab to change stories')
+    if (request.library === 'patterns') throw new Error('Use the Knitting tab to change patterns')
+    if (request.library === 'knitted') {
+      throw new Error('Use the Knitting tab to change her finished pieces')
+    }
     return library(request)
   }
 
