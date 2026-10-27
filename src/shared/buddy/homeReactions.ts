@@ -27,7 +27,7 @@ export function reactionFor(event: HomeEvent): ClipName {
 export const REACTION_GAP_MS = 20_000
 
 /** His first idle moment of each morning; reduced motion skips it. */
-export const MORNING_CLIP: ClipName = 'stretch'
+export const MORNING_CLIP: ClipName = 'big_stretch'
 
 /** 6 AM to noon. Night ends at six (isNight), so the first morning hour counts. */
 export function isMorning(hour: number): boolean {

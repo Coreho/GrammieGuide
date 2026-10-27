@@ -50,6 +50,7 @@ const POOLS: Record<BuddyActivity, Weighted> = {
     ['idle_soft', 3],
     ['sway', 2],
     ['stretch', 2],
+    ['big_stretch', 1],
     ['dance', 1]
   ],
   // Always a forced clip (homeReactions.ts); this is only a fallback.
@@ -87,6 +88,7 @@ const POOLS: Record<BuddyActivity, Weighted> = {
     ['fist_pump', 2],
     ['happy_jump', 1],
     ['motivate', 1],
+    ['hooray', 1],
     ['dance', 1]
   ]
 }
@@ -94,13 +96,16 @@ const POOLS: Record<BuddyActivity, Weighted> = {
 // While her music plays he moves along with it; night still wins.
 const MUSIC_FIDGETS: Weighted = [
   ['sway', 3],
+  ['groove', 2],
   ['dance', 2],
+  ['funny_dance', 1],
   ['idle_soft', 1]
 ]
 
-// At night: nothing bouncy, just the quiet idles.
+// At night: nothing bouncy, just the quiet idles and a little doze.
 const NIGHT_FIDGETS: Weighted = [
   ['idle_soft', 3],
+  ['doze', 2],
   ['look_around', 1]
 ]
 

@@ -8,6 +8,9 @@
 #   rigged/basic_animations_*_glb.glb  walk + run from the rigging task (also the mesh)
 #   anims/<clip>/animation_glb.glb     library clips bought with `meshy animate create`
 #                                      (rig task 01a0dcaf-4f10-746b-86fa-75e22623504f)
+#   anims2/<clip>/animation_glb.glb    later clips, on a re-rig of the same mesh after the
+#                                      first rig task expired (01a17bbc-4c5f-70cc-bc5d-6280f0f69690);
+#                                      fixCatRig.py retargets them onto the first skeleton
 # Clip names here are the names the app plays them by (buddy/clips.ts).
 set -e
 cd "$(dirname "$0")/../.."
@@ -16,6 +19,7 @@ BLENDER="${BLENDER:-C:/Program Files/Blender Foundation/Blender 5.2/blender.exe}
 OUT=src/renderer/launcher/src/buddy/assets/buddy.glb
 R=CatModel/meshy/rigged
 A=CatModel/meshy/anims
+A2=CatModel/meshy/anims2
 
 # Meshy's plain "Idle" (anims/idle) turns his whole body around; not used.
 CLIPS="idle_calm idle_soft look_around sway stretch wave big_wave bow listen talk
@@ -24,6 +28,11 @@ CLIPS="idle_calm idle_soft look_around sway stretch wave big_wave bow listen tal
 set -- "walk=$R/basic_animations_walking_glb.glb" "run=$R/basic_animations_running_glb.glb"
 for c in $CLIPS; do
   set -- "$@" "$c=$A/$c/animation_glb.glb"
+done
+# Meshy library action ids: doze 38, hooray 417, big_stretch 412, funny_dance 23,
+# groove 78. (swing_dance, 75, was bought too but ends with his back to her.)
+for c in doze hooray big_stretch funny_dance groove; do
+  set -- "$@" "$c=$A2/$c/animation_glb.glb"
 done
 
 BUDDY_BLEND=CatModel/meshy/fixed/buddy.blend "$BLENDER" -b --factory-startup --python scripts/blender/fixCatRig.py -- "$OUT" "$@"

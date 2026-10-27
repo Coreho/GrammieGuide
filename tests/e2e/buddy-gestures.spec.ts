@@ -47,7 +47,7 @@ test('asking Buddy to dance plays the dance in chat, without a connection', asyn
   await page.getByRole('button', { name: 'Send' }).click()
   await expect(page.getByText("Here's a little dance for you!")).toBeVisible()
   await expect(floor).toHaveAttribute('data-buddy-activity', 'chat.gesturing')
-  await expect(floor).toHaveAttribute('data-buddy-clip', 'dance')
+  await expect(floor).toHaveAttribute('data-buddy-clip', /^(?:dance|groove|funny_dance)$/)
   await expect(page.getByPlaceholder('Say something...')).toBeVisible()
   await page.waitForTimeout(1500)
   await page.screenshot({ path: 'test-results/buddy-gesture-dance.png' })

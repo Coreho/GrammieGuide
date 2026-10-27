@@ -144,8 +144,12 @@ describe('fidgets with music', () => {
           pickClip('fidgeting', { random: () => i / 50, ...opts })
         )
       )
-    expect(picks({ music: true })).toEqual(new Set(['sway', 'dance', 'idle_soft']))
-    expect(picks({ music: true, night: true })).toEqual(new Set(['idle_soft', 'look_around']))
+    expect(picks({ music: true })).toEqual(
+      new Set(['sway', 'groove', 'dance', 'funny_dance', 'idle_soft'])
+    )
+    expect(picks({ music: true, night: true })).toEqual(
+      new Set(['idle_soft', 'doze', 'look_around'])
+    )
     expect(picks({})).toContain('stretch')
   })
 })

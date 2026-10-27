@@ -296,7 +296,7 @@ test('caregiver commands and quick messages persist without logging their conten
       queueMicrotask(() => utterance.dispatchEvent(new Event('end')))
     }
   })
-  await expect(admin.getByRole('group', { name: 'Animations' }).getByRole('button')).toHaveCount(25)
+  await expect(admin.getByRole('group', { name: 'Animations' }).getByRole('button')).toHaveCount(30)
   await admin.getByLabel('Say this').fill('A private greeting for you')
   await admin.getByLabel('Gesture', { exact: true }).selectOption('dance')
   await admin.getByLabel('Read this message aloud').check()

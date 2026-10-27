@@ -4,8 +4,10 @@ it: lower the hip/knee joints to where the legs actually are, redo the
 leg/belly skin weights, keep the arms out of his round belly, keep his feet
 on the floor, and export one GLB with every clip.
 
-All clips must come from the same Meshy rigging task (same skeleton). The
-first clip's file also supplies the mesh.
+The first clip's file supplies the mesh and the skeleton. Clips from the same
+Meshy rigging task are used as they are; a clip from another rigging task of
+the same mesh (Meshy's rig tasks expire, so new clips need a new rig) is
+retargeted onto that skeleton first, see retarget().
 
 Run headless from the repo root:
   blender -b --factory-startup --python scripts/blender/fixCatRig.py -- \
@@ -57,6 +59,94 @@ def key_times(act, data_path):
     return sorted({round(kp.co[0], 4) for fc in fcurves(act) if fc.data_path == data_path for kp in fc.keyframe_points})
 
 
+def world_rest(obj, name):
+    return obj.matrix_world @ obj.data.bones[name].matrix_local
+
+
+def same_rig(other):
+    """Whether `other` has arm's skeleton (same rigging task): same bones, same rest."""
+    for b in arm.data.bones:
+        if b.name not in other.data.bones:
+            return False
+        mine, theirs = world_rest(arm, b.name), world_rest(other, b.name)
+        if (mine.translation - theirs.translation).length > 1e-3:
+            return False
+        if mine.to_quaternion().rotation_difference(theirs.to_quaternion()).angle > 1e-3:
+            return False
+    return True
+
+
+def parent_first(armature):
+    order = []
+
+    def visit(b):
+        order.append(b.name)
+        for c in b.children:
+            visit(c)
+    for b in armature.data.bones:
+        if b.parent is None:
+            visit(b)
+    return order
+
+
+def retarget(other, src, name):
+    """
+    Bake `src` (animating `other`, a different Meshy rig of the same mesh) onto
+    arm. The two rigs put the joints in different places and orient the bones
+    differently at rest, so copying the keys would twist every limb. Instead,
+    frame by frame, each bone gets the same world-space rotation change from
+    its rest that it has in the source; the hips' movement is scaled by the
+    ratio of hip heights. The source rig's own foot heights become this clip's
+    foot profile (see foot_profile below), as they are for a native clip.
+    """
+    for o in bpy.data.objects:  # pose sampling only; skinning every frame is slow
+        if o.type == 'MESH':
+            for m in o.modifiers:
+                m.show_viewport = False
+    other.animation_data.action = src
+    if src.slots:
+        other.animation_data.action_slot = src.slots[0]
+    order = [n for n in parent_first(arm) if n in other.pose.bones]
+    to_w = arm.matrix_world.to_quaternion()
+    rest = {n: arm.data.bones[n].matrix_local.to_quaternion() for n in order}
+    src_rest = {n: world_rest(other, n).to_quaternion() for n in order}
+    src_hips0 = world_rest(other, 'Hips').translation
+    k = world_rest(arm, 'Hips').translation.z / src_hips0.z
+    hips_rest_inv = arm.data.bones['Hips'].matrix_local.to_3x3().inverted()
+    arm_inv3 = arm.matrix_world.inverted().to_3x3()
+
+    dst = bpy.data.actions.new(name)
+    arm.animation_data.action = dst
+    profile, last = {}, {}
+    f0, f1 = (int(round(v)) for v in src.frame_range)
+    for f in range(f0, f1 + 1):
+        bpy.context.scene.frame_set(f)
+        posed = {}
+        for n in order:
+            delta = (other.matrix_world @ other.pose.bones[n].matrix).to_quaternion() @ src_rest[n].inverted()
+            posed[n] = to_w.inverted() @ delta @ to_w @ rest[n]  # armature space
+            parent = arm.data.bones[n].parent
+            # pose = parent_pose @ parent_rest^-1 @ rest @ basis, solved for basis
+            base = posed[parent.name] @ rest[parent.name].inverted() @ rest[n] if parent else rest[n]
+            basis = base.inverted() @ posed[n]
+            if n in last:
+                basis.make_compatible(last[n])
+            last[n] = basis
+            pb = arm.pose.bones[n]
+            pb.rotation_mode = 'QUATERNION'
+            pb.rotation_quaternion = basis
+            pb.keyframe_insert('rotation_quaternion', frame=f)
+        hips_w = (other.matrix_world @ other.pose.bones['Hips'].matrix).translation
+        hips = arm.pose.bones['Hips']
+        hips.location = hips_rest_inv @ (arm_inv3 @ ((hips_w - src_hips0) * k))
+        hips.keyframe_insert('location', frame=f)
+        profile[round(float(f), 4)] = min((other.matrix_world @ other.pose.bones[b].head).z for b in FEET)
+    source_profile[name] = profile
+    bpy.data.actions.remove(src)
+    print(f'RETARGET {name}: frames {f0}-{f1}, hips scale {k:.2f}')
+    return dst
+
+
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # ---------------------------------------------------------------- import
@@ -64,12 +154,16 @@ bpy.ops.import_scene.gltf(filepath=clips[0][1])
 arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
 mesh = next(o for o in bpy.data.objects if o.type == 'MESH' and o.parent == arm)
 actions = [arm.animation_data.action]
+source_profile = {}
 for name, path in clips[1:]:
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=path)
     new_objs = set(bpy.data.objects) - before
     other = next(o for o in new_objs if o.type == 'ARMATURE')
-    actions.append(other.animation_data.action)
+    if same_rig(other):
+        actions.append(other.animation_data.action)
+    else:
+        actions.append(retarget(other, other.animation_data.action, name))
     for o in new_objs:
         bpy.data.objects.remove(o, do_unlink=True)
 for act, (name, _) in zip(actions, clips):
@@ -103,8 +197,10 @@ for m in mesh.modifiers:
 # steps. Record that height profile now; after the legs get shorter the Hips
 # are moved key by key to reproduce it.
 arm.data.pose_position = 'POSE'
-foot_profile = {}
+foot_profile = dict(source_profile)
 for act in actions:
+    if act.name in foot_profile:
+        continue
     use_action(act)
     prof = {}
     for t in key_times(act, 'pose.bones["Hips"].location'):

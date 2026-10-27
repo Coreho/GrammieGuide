@@ -114,7 +114,8 @@ describe('gesture requests in chat', () => {
     expect(log).not.toHaveBeenCalled()
 
     const offline = await buddyChat(ask('dance'), { chatEnabled: true, log })
-    expect(offline).toEqual({ ok: true, reply: "Here's a little dance for you!", gesture: 'dance' })
+    expect(offline).toMatchObject({ ok: true, reply: "Here's a little dance for you!" })
+    expect(['dance', 'groove', 'funny_dance']).toContain(offline.ok && offline.gesture)
   })
 
   it('respects the chat switch and reduced motion', async () => {

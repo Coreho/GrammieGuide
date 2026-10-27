@@ -17,7 +17,9 @@ export const TAP_REACTIONS: readonly TapReaction[] = [
   { text: 'Hooray for friends!', clip: 'fist_pump' },
   { text: 'You and me make a good team!', clip: 'motivate' },
   { text: 'A big stretch and a happy smile.', clip: 'stretch' },
-  { text: 'What a cozy spot we have here.', clip: 'look_around' }
+  { text: 'What a cozy spot we have here.', clip: 'look_around' },
+  { text: 'A big hooray for you!', clip: 'hooray' },
+  { text: 'Time for a little groove!', clip: 'groove' }
 ]
 
 export function pickTapReaction(

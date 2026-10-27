@@ -26,15 +26,15 @@ export const BUDDY_GESTURES = [
 export type BuddyGesture = (typeof BUDDY_GESTURES)[number]
 
 const GESTURES: Record<BuddyGesture, { clips: readonly ClipName[]; reply: string }> = {
-  dance: { clips: ['dance'], reply: "Here's a little dance for you!" },
+  dance: { clips: ['dance', 'groove', 'funny_dance'], reply: "Here's a little dance for you!" },
   wave: { clips: ['big_wave'], reply: 'A big wave, just for you!' },
   bow: { clips: ['bow'], reply: 'A little bow, just for you.' },
   jump: { clips: ['happy_jump'], reply: "Here's a happy hop!" },
-  cheer: { clips: ['cheer'], reply: 'Hooray! A big cheer for you!' },
+  cheer: { clips: ['cheer', 'hooray'], reply: 'Hooray! A big cheer for you!' },
   heart: { clips: ['heart'], reply: 'Sending you a big heart.' },
-  stretch: { clips: ['stretch'], reply: 'Ahh, a nice big stretch.' },
+  stretch: { clips: ['big_stretch', 'stretch'], reply: 'Ahh, a nice big stretch.' },
   trick: {
-    clips: ['happy_jump', 'fist_pump', 'motivate', 'cheer', 'dance'],
+    clips: ['happy_jump', 'hooray', 'funny_dance', 'fist_pump', 'motivate', 'cheer'],
     reply: "Here's a little trick for you!"
   }
 }
