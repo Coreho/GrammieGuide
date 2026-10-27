@@ -83,4 +83,49 @@ describe('configured app tiles', () => {
     expect(await invoke(launcher.webContents, { id: 'app' })).toEqual({ ok: false })
     expect(mocks.openPath).not.toHaveBeenCalled()
   })
+
+  it('launches caregiver-configured installed games only when a Games tile is on Home', async () => {
+    const invokeInstalled = (sender: unknown, req: unknown): Promise<{ ok: boolean }> =>
+      mocks.handle.mock.calls[1]![1]({ sender }, req)
+    const invokeReport = (sender: unknown, req: unknown): boolean =>
+      mocks.handle.mock.calls[2]![1]({ sender }, req)
+
+    const config = mocks.getConfig()
+    config.games.installedGames = [
+      {
+        id: 'solitaire',
+        label: 'Solitaire',
+        appPath: 'C:\\Games\\Solitaire.exe',
+        colorIndex: 1
+      }
+    ]
+    // No Games tile on Home yet -> rejected
+    expect(await invokeInstalled(launcher.webContents, { id: 'solitaire' })).toEqual({ ok: false })
+    expect(mocks.openPath).not.toHaveBeenCalled()
+
+    // Add a visible Games tile on Home
+    config.tiles.push({
+      id: 'games-tile',
+      label: 'Games',
+      type: 'builtin',
+      builtinKey: 'games',
+      size: 'normal',
+      slot: 1,
+      colorIndex: 2
+    })
+    expect(
+      await invokeInstalled(launcher.webContents, {
+        id: 'solitaire',
+        appPath: 'C:\\evil.exe'
+      })
+    ).toEqual({ ok: true })
+    expect(mocks.openPath).toHaveBeenCalledWith('C:\\Games\\Solitaire.exe')
+    expect(mocks.log).toHaveBeenCalledWith('games-app-opened', 'solitaire')
+
+    // Built-in game activity report logs only the game key
+    expect(invokeReport(launcher.webContents, { game: 'matching' })).toBe(true)
+    expect(mocks.log).toHaveBeenCalledWith('games-builtin-opened', 'matching')
+    expect(invokeReport({}, { game: 'matching' })).toBe(false)
+    expect(invokeReport(launcher.webContents, { game: 'unknown' })).toBe(false)
+  })
 })

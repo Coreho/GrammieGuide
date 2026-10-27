@@ -51,6 +51,17 @@ export default function App() {
   const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
   /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
   const [openBuiltin, setOpenBuiltin] = useState<TileType | null>(null)
+  useEffect(
+    () =>
+      window.launcher.onNewsShelf(({ tileId }) => {
+        const tile = configRef.current?.tiles.find((candidate) => candidate.id === tileId)
+        if (tile?.type === 'builtin' && tile.builtinKey === 'news' && tile.newsSources) {
+          setOpenBuiltin(tile)
+        }
+        setView('home')
+      }),
+    []
+  )
   const [showConfusion, setShowConfusion] = useState(false)
   const [showBuddyChat, setShowBuddyChat] = useState(false)
   const [buddyMenuAnchor, setBuddyMenuAnchor] = useState<BuddyMenuAnchor | null>(null)
@@ -125,10 +136,28 @@ export default function App() {
     return () => clearInterval(t)
   }, [refreshWeather])
 
+  const triggerConfusionRecovery = useCallback(() => {
+    clearTimeout(toastTimer.current)
+    setToast(null)
+    window.launcher.goHome()
+    setView('home')
+    setOpenBuiltin(null)
+    setShowBuddyChat(false)
+    setBuddyChatPhase('idle')
+    clearChatInvitation()
+    closeBuddyMenu()
+    setShowConfusion(true)
+    setBuddyCommand((previous) => ({
+      clip: 'wave',
+      text: 'Take your time — everything is right here on Home.',
+      speak: Boolean(configRef.current?.buddy.voiceEnabled),
+      sequence: (previous?.sequence ?? 0) + 1
+    }))
+  }, [clearChatInvitation, closeBuddyMenu])
+
   useEffect(() => {
     const offIdle = window.launcher.onIdleTimeout(() => {
-      setView('home')
-      setShowConfusion(true)
+      triggerConfusionRecovery()
     })
     const offProblem = window.launcher.onPageProblem(({ kind }) => setPageProblem(kind))
     // The caregiver's recovery check opens its page the way a tile does, but
@@ -146,7 +175,7 @@ export default function App() {
       offCheck()
       offReturn()
     }
-  }, [])
+  }, [triggerConfusionRecovery])
 
   // Whatever went wrong on the last page stays with that page.
   useEffect(() => {
@@ -224,17 +253,23 @@ export default function App() {
     }
   }, [clearChatInvitation])
 
-  const handlePointerDown = useCallback((e: ReactPointerEvent) => {
-    window.launcher.reportActivity()
-    // Repeated pats are deliberate interaction, not a sign she is lost.
-    if ((e.target as HTMLElement).closest('[data-buddy-tap], [data-buddy-chat-invite]')) return
-    const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
-    if (triggered) {
-      window.launcher.goHome()
-      setView('home')
-      setShowConfusion(true)
-    }
-  }, [])
+  const handlePointerDown = useCallback(
+    (e: ReactPointerEvent) => {
+      window.launcher.reportActivity()
+      // Repeated pats and game taps are deliberate interaction, not a sign she is lost.
+      if (
+        (e.target as HTMLElement).closest(
+          '[data-buddy-tap], [data-buddy-chat-invite], [data-game-interactive]'
+        )
+      )
+        return
+      const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
+      if (triggered) {
+        triggerConfusionRecovery()
+      }
+    },
+    [triggerConfusionRecovery]
+  )
 
   function flashToast(message: string): void {
     clearTimeout(toastTimer.current)
@@ -251,7 +286,12 @@ export default function App() {
     setBuddyCommand(null)
     clearChatInvitation()
     // Buddy's reply comes after the open; a tap gets this at once.
-    if (!viaBuddy) flashToast(`Opening ${tile.label}...`)
+    if (!viaBuddy) {
+      if (tile.type === 'builtin' && tile.builtinKey === 'news' && tile.newsSources) {
+        clearTimeout(toastTimer.current)
+        setToast(null)
+      } else flashToast(`Opening ${tile.label}...`)
+    }
     if (tile.type === 'web' && tile.url) {
       if (!viaBuddy) {
         const result = await window.launcher.openBrowser(tile.url)
@@ -474,7 +514,40 @@ export default function App() {
           }}
         />
       )}
-      {showConfusion && <ConfusionOverlay onClose={() => setShowConfusion(false)} />}
+      {showConfusion && (
+        <ConfusionOverlay
+          now={now}
+          chatEnabled={config.buddy.chatEnabled}
+          onClose={() => setShowConfusion(false)}
+          onPlayMusic={() => {
+            setShowConfusion(false)
+            void window.launcher.buddyAction('playMusic').then((result) => {
+              if (result.ok) {
+                void runBuddyAction(result.plan)
+              } else {
+                setOpenBuiltin(
+                  config.tiles.find(
+                    (tile) => tile.type === 'builtin' && tile.builtinKey === 'music'
+                  ) ?? {
+                    id: 'confusion-music',
+                    type: 'builtin',
+                    builtinKey: 'music',
+                    label: 'Music',
+                    size: 'normal',
+                    slot: null,
+                    colorIndex: 2
+                  }
+                )
+              }
+            })
+          }}
+          onShowPhotos={() => void runBuddyAction({ action: 'showPhotos' })}
+          onOpenChat={() => {
+            setShowConfusion(false)
+            if (config.buddy.chatEnabled) setShowBuddyChat(true)
+          }}
+        />
+      )}
       {view === 'home' &&
         (showConfusion || showBuddyChat) &&
         musicState.currentId &&

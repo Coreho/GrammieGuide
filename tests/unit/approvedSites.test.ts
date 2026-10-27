@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { defaultConfig, configSchema, type Tile } from '../../src/shared/configSchema'
+import {
+  CURRENT_SCHEMA_VERSION,
+  defaultConfig,
+  configSchema,
+  type Tile
+} from '../../src/shared/configSchema'
 import {
   MAX_APPROVED_SITES,
   normalizeSite,
@@ -206,7 +211,7 @@ describe('approved sites config and migration 014', () => {
     expect(migration.migrate(existing)).toEqual({ ...existing, schemaVersion: 14 })
     const result = runMigrations(existing)
     expect(result.ok).toBe(true)
-    expect(result.config).toEqual({ ...existing, schemaVersion: 14 })
+    expect(result.config).toEqual({ ...existing, schemaVersion: CURRENT_SCHEMA_VERSION })
     expect(runMigrations(result.config).config).toEqual(result.config)
   })
 })
