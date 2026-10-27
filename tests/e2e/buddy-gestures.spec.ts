@@ -1,14 +1,15 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from 'playwright'
-import { mkdtempSync } from 'fs'
+import { mkdtempSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { defaultConfig } from '../../src/shared/configSchema'
 
 /**
  * TASK-68: she can ask Buddy for a gesture in chat, with no ChatGPT
- * connection, and he performs it without the chat closing. TASK-70: a tap on
- * Home makes him glance that way (the screenshots are for a human eye; the
- * angle itself is unit tested).
+ * connection, and he performs it without the chat closing. TASK-69: closing
+ * her pictures gets a heart. TASK-70: a tap on Home makes him glance that way
+ * (the screenshots are for a human eye; the angle itself is unit tested).
  */
 
 let app: ElectronApplication
@@ -19,6 +20,22 @@ test.describe.configure({ mode: 'serial' })
 
 test.beforeAll(async () => {
   const userDataDir = mkdtempSync(join(tmpdir(), 'grammieguide-e2e-'))
+  const config = defaultConfig()
+  config.buddy.voiceEnabled = false
+  // No unprompted strolls: a reaction never interrupts a walk.
+  config.buddy.motion = 'still'
+  config.tiles = [
+    {
+      id: 'albums',
+      label: 'Family Albums',
+      type: 'builtin',
+      builtinKey: 'photos',
+      size: 'normal',
+      slot: 0,
+      colorIndex: 0
+    }
+  ]
+  writeFileSync(join(userDataDir, 'grammieguide-config.json'), JSON.stringify(config))
   app = await electron.launch({
     args: ['.', `--user-data-dir=${userDataDir}`],
     cwd: process.cwd(),
@@ -62,6 +79,20 @@ test('asking Buddy to dance plays the dance in chat, without a connection', asyn
   await expect(floor).not.toHaveAttribute('data-buddy-activity', 'chat.gesturing')
   await page.getByRole('button', { name: 'Close chat' }).click()
   expect(problems).toEqual([])
+})
+
+test('closing her pictures gets a heart', async () => {
+  const floor = page.locator('[data-buddy-activity]')
+  await expect(floor).not.toHaveAttribute('data-buddy-activity', /^(?:farewell|greeting)$/, {
+    timeout: 21_000
+  })
+  await page
+    .getByRole('button', { name: /Family Albums/ })
+    .first()
+    .click()
+  await page.getByRole('button', { name: '🏠 Home' }).click()
+  await expect(floor).toHaveAttribute('data-buddy-activity', 'reacting')
+  await expect(floor).toHaveAttribute('data-buddy-clip', 'heart')
 })
 
 test('a tap on Home makes him glance toward it', async () => {

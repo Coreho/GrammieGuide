@@ -21,6 +21,11 @@ import buddyUrl from './assets/buddy.glb?url'
  */
 
 const FADE_S = 0.35
+/**
+ * Clips that start or end in another pose blend slowly, so he sits down and
+ * gets up rather than dropping into the pose: doze is seated throughout.
+ */
+const SLOW_FADE_S: Partial<Record<ClipName, number>> = { doze: 1.2 }
 const ARRIVE_EPS = 0.01
 /** Walking yaw: a three-quarter turn, so she still sees his face on the way. */
 const WALK_YAW = 1.05
@@ -115,8 +120,9 @@ export function BuddyCat(props: BuddyCatProps) {
         live.current.night && (name === 'idle_calm' || name === 'idle_soft') ? 0.8 : 1
       )
       next.setEffectiveWeight(1)
-      next.fadeIn(FADE_S).play()
-      if (prev && prev.action !== next) prev.action.fadeOut(FADE_S)
+      const fade = Math.max(SLOW_FADE_S[name] ?? FADE_S, (prev && SLOW_FADE_S[prev.name]) ?? FADE_S)
+      next.fadeIn(fade).play()
+      if (prev && prev.action !== next) prev.action.fadeOut(fade)
       current.current = { name, action: next }
     },
     [actions]
