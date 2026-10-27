@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@claude'
 created_date: '2026-10-27 04:58'
-updated_date: '2026-10-27 06:08'
+updated_date: '2026-10-27 08:44'
 labels: []
 milestone: m-9
 dependencies: []
@@ -52,6 +52,8 @@ When the online Edge voice is unavailable (no internet, or Microsoft changing it
 
 <!-- SECTION:NOTES:BEGIN -->
 Found while testing: kokoro-js stream() given a plain string waits forever after the last sentence, and the utility process then exits (code 143); the worker passes a closed TextSplitterStream. Packaged build checked with dist/win-unpacked/GrammieGuide.exe (GRAMMIEGUIDE_E2E=1, GRAMMIEGUIDE_LOCAL_VOICE=1): first line 5.9 s including model load, next 1.4 s. Installer grew to 482 MB (model 311 MB; transformers/onnxruntime in the asar). Full e2e: 171 passed; the only remaining failure is contact-family.spec.ts (strict-mode clash with WhatsApp status messages from the parent branch), unrelated to this work. The Edge voice itself is still broken on msedge-tts 2.0.7 (403); 2.1.1 fixes it, not done here (owner chose the local voice only).
+
+2026-10-27: Rebuilt without the WhatsApp work underneath; the branch now sits directly on feat/buddy-chatgpt-plan (owner wants WhatsApp and Buddy kept separate). The online voice now defaults to off and migration 021 turns it off once on existing setups, because the owner chose the free local voice. Full e2e on this base: 166 passed, 1 failed, 4 skipped behind it; the failure (photo-viewer keyboard focus) and the 4 skipped tests all passed when photo-viewer.spec.ts ran alone (10/10), so it was a timing flake. The contact-family failure noted above came from the WhatsApp branch and is fixed there (eb1a077).
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
