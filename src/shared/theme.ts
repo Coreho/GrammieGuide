@@ -242,6 +242,150 @@ export const THEMES: Record<ThemeName, ThemeTokens> = {
   }
 }
 
+export type Tone = 'light' | 'dark'
+
+/** Light themes put dark text on their background; dark themes put light text on it. */
+export const THEME_TONES: Record<ThemeName, Tone> = {
+  clayCards: 'light',
+  mint: 'light',
+  butter: 'light',
+  sky: 'light',
+  tiles: 'dark',
+  tilesBold: 'dark',
+  evening: 'dark'
+}
+
+export const BACKGROUND_NAMES = [
+  'cream',
+  'sage',
+  'softBlue',
+  'blush',
+  'lavender',
+  'midnight',
+  'forest',
+  'plum',
+  'charcoal',
+  'deepTeal'
+] as const
+export type BackgroundName = (typeof BACKGROUND_NAMES)[number]
+
+export interface Background {
+  label: string
+  /** Only themes of the same tone can use it: their text color must stay readable on it. */
+  tone: Tone
+  /** The theme tokens it replaces: the letterbox around Home, and Home's gentle gradient. */
+  page: string
+  bgA: string
+  bgB: string
+  bgC: string
+}
+
+/**
+ * Calm presets the caregiver can put behind her Home and full-screen views
+ * instead of the theme's own. Presets rather than any color, because her text,
+ * cards and tiles keep the theme's colors and must stay easy to read on it.
+ */
+export const BACKGROUNDS: Record<BackgroundName, Background> = {
+  cream: {
+    label: 'Cream',
+    tone: 'light',
+    page: '#E8E0CF',
+    bgA: '#FFFBF1',
+    bgB: '#FBF4E4',
+    bgC: '#F4EBD8'
+  },
+  sage: {
+    label: 'Sage green',
+    tone: 'light',
+    page: '#D3DECD',
+    bgA: '#F2F7EE',
+    bgB: '#E7F0E1',
+    bgC: '#DCE8D5'
+  },
+  softBlue: {
+    label: 'Soft blue',
+    tone: 'light',
+    page: '#CFDCE9',
+    bgA: '#F1F6FB',
+    bgB: '#E5EEF7',
+    bgC: '#D9E5F1'
+  },
+  blush: {
+    label: 'Blush pink',
+    tone: 'light',
+    page: '#E8D3CF',
+    bgA: '#FCF3F1',
+    bgB: '#F7E8E5',
+    bgC: '#F0DCD8'
+  },
+  lavender: {
+    label: 'Lavender',
+    tone: 'light',
+    page: '#DAD4E8',
+    bgA: '#F6F3FB',
+    bgB: '#EDE8F6',
+    bgC: '#E3DCF0'
+  },
+  midnight: {
+    label: 'Midnight blue',
+    tone: 'dark',
+    page: '#0B1424',
+    bgA: '#1E2E4A',
+    bgB: '#16233A',
+    bgC: '#111C2F'
+  },
+  forest: {
+    label: 'Forest green',
+    tone: 'dark',
+    page: '#0A1914',
+    bgA: '#20402F',
+    bgB: '#183427',
+    bgC: '#122A20'
+  },
+  plum: {
+    label: 'Plum',
+    tone: 'dark',
+    page: '#170F1B',
+    bgA: '#3A2A42',
+    bgB: '#2E2034',
+    bgC: '#26192B'
+  },
+  charcoal: {
+    label: 'Charcoal',
+    tone: 'dark',
+    page: '#121212',
+    bgA: '#333333',
+    bgB: '#292929',
+    bgC: '#212121'
+  },
+  deepTeal: {
+    label: 'Deep teal',
+    tone: 'dark',
+    page: '#071A1E',
+    bgA: '#1C4248',
+    bgB: '#15353B',
+    bgC: '#102B30'
+  }
+}
+
+/** The presets her text stays readable on under this theme. */
+export function backgroundsFor(theme: ThemeName): BackgroundName[] {
+  const tone = THEME_TONES[theme] ?? 'dark'
+  return BACKGROUND_NAMES.filter((name) => BACKGROUNDS[name].tone === tone)
+}
+
+/**
+ * A theme's tokens with the caregiver's background in place of its own. A saved
+ * background that doesn't suit the theme is ignored but kept, so switching back
+ * to a theme it suits brings it back.
+ */
+export function themeTokens(theme: ThemeName, background?: BackgroundName): ThemeTokens {
+  const tokens = THEMES[theme] ?? THEMES.tilesBold
+  const chosen = background ? BACKGROUNDS[background] : undefined
+  if (!chosen || chosen.tone !== (THEME_TONES[theme] ?? 'dark')) return tokens
+  return { ...tokens, page: chosen.page, bgA: chosen.bgA, bgB: chosen.bgB, bgC: chosen.bgC }
+}
+
 /** Which tile-color var (if any) a theme defines for tile index i (0-based), cycling every 4. */
 export function tileColorVar(index: number): string {
   return `--tile${(index % 4) + 1}`
@@ -300,9 +444,10 @@ export const THEME_ONLY_KEYS = [
  */
 export function buildPreviewCssVariables(
   themeName: ThemeName,
-  fontStep: number
+  fontStep: number,
+  background?: BackgroundName
 ): Record<string, string> {
-  const tokens = THEMES[themeName] ?? THEMES.tilesBold
+  const tokens = themeTokens(themeName, background)
   const vars: Record<string, string> = {
     '--font-scale': String(fontScaleForStep(fontStep))
   }
@@ -324,12 +469,13 @@ export function applyPreviewThemeToElement(
     }
   },
   themeName: ThemeName,
-  fontStep: number
+  fontStep: number,
+  background?: BackgroundName
 ): void {
   for (const key of THEME_ONLY_KEYS) {
     target.style.removeProperty(`--${key}`)
   }
-  const vars = buildPreviewCssVariables(themeName, fontStep)
+  const vars = buildPreviewCssVariables(themeName, fontStep, background)
   for (const [key, value] of Object.entries(vars)) {
     target.style.setProperty(key, value)
   }
