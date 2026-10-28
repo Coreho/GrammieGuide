@@ -233,13 +233,18 @@ export function createAdminWindow(): BrowserWindow {
   }
 
   // The kiosk Home is always on top, so a plain admin window opened behind it
-  // and Ctrl+Shift+A looked dead. Owned by Home and on top itself, it stays
-  // above Home even when a click lands on Home around it.
-  const kioskHome = KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed() ? launcherWindow : undefined
+  // and Ctrl+Shift+A looked dead. Making admin always on top too only moved the
+  // problem: its file pickers and the ChatGPT sign-in browser then opened behind
+  // both. So while a caregiver has admin open, Home steps down from always on
+  // top, and admin, owned by Home, stays above it even when a click lands on
+  // Home. Home goes back on top when admin closes.
+  const kioskHome =
+    KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed() ? launcherWindow : undefined
+  kioskHome?.setAlwaysOnTop(false)
   adminWindow = new BrowserWindow({
     width: 1000,
     height: 720,
-    ...(kioskHome ? { parent: kioskHome, alwaysOnTop: true } : {}),
+    ...(kioskHome ? { parent: kioskHome } : {}),
     ...quietWindowOptions(),
     // Shown at once as before; under e2e, quietly once it can paint.
     show: !QUIET_E2E_WINDOWS,
@@ -261,6 +266,7 @@ export function createAdminWindow(): BrowserWindow {
   if (QUIET_E2E_WINDOWS) adminWindow.once('ready-to-show', () => showWindow(adminWindow))
   adminWindow.on('closed', () => {
     adminWindow = null
+    if (kioskHome && !kioskHome.isDestroyed()) kioskHome.setAlwaysOnTop(true)
   })
 
   return adminWindow
