@@ -46,14 +46,15 @@ test.afterAll(async () => {
 })
 
 test('Home steps down from always on top while admin is open, then goes back up', async () => {
-  expect(await stacking()).toEqual({ homeOnTop: true, adminOwnedByHome: null })
+  // Polled: Home may not have gone on top yet the moment its first window appears.
+  await expect.poll(stacking).toEqual({ homeOnTop: true, adminOwnedByHome: null })
 
   await app.evaluate(() => {
     ;(
       globalThis as unknown as { __e2e__: { createAdminWindow: () => void } }
     ).__e2e__.createAdminWindow()
   })
-  expect(await stacking()).toEqual({ homeOnTop: false, adminOwnedByHome: true })
+  await expect.poll(stacking).toEqual({ homeOnTop: false, adminOwnedByHome: true })
 
   await app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()

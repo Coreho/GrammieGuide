@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   openPath: vi.fn(),
   getConfig: vi.fn(),
   getLauncher: vi.fn(),
+  setHomeOnTop: vi.fn(),
   log: vi.fn()
 }))
 vi.mock('electron', () => ({
@@ -13,7 +14,10 @@ vi.mock('electron', () => ({
   shell: { openPath: mocks.openPath }
 }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.getConfig }))
-vi.mock('../../src/main/windows/windowManager', () => ({ getLauncherWindow: mocks.getLauncher }))
+vi.mock('../../src/main/windows/windowManager', () => ({
+  getLauncherWindow: mocks.getLauncher,
+  setHomeOnTop: mocks.setHomeOnTop
+}))
 vi.mock('../../src/main/services/activityLog/activityLog', () => ({ logActivity: mocks.log }))
 import { registerTileIpc } from '../../src/main/ipc/tileIpc'
 
@@ -21,7 +25,6 @@ describe('configured app tiles', () => {
   const launcher = {
     webContents: {},
     isAlwaysOnTop: () => true,
-    setAlwaysOnTop: vi.fn(),
     isDestroyed: () => false,
     once: vi.fn(),
     removeListener: vi.fn()
@@ -53,9 +56,9 @@ describe('configured app tiles', () => {
       { ok: true }
     )
     expect(mocks.openPath).toHaveBeenCalledWith('C:\\Apps\\Family.exe')
-    expect(launcher.setAlwaysOnTop).toHaveBeenCalledWith(false)
+    expect(mocks.setHomeOnTop).toHaveBeenCalledWith(launcher, false)
     launcher.once.mock.calls[0]![1]()
-    expect(launcher.setAlwaysOnTop).toHaveBeenLastCalledWith(true)
+    expect(mocks.setHomeOnTop).toHaveBeenLastCalledWith(launcher, true)
   })
 
   it('rejects other renderers and unknown tile IDs without opening anything', async () => {
@@ -71,7 +74,7 @@ describe('configured app tiles', () => {
       if (failure instanceof Error) mocks.openPath.mockRejectedValue(failure)
       else mocks.openPath.mockResolvedValue(failure)
       expect(await invoke(launcher.webContents, { id: 'app' })).toEqual({ ok: false })
-      expect(launcher.setAlwaysOnTop).toHaveBeenLastCalledWith(true)
+      expect(mocks.setHomeOnTop).toHaveBeenLastCalledWith(launcher, true)
     }
   )
   it('rechecks visibility at the actual launch, including overflow and layout changes', async () => {

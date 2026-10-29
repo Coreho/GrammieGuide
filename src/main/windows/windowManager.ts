@@ -59,6 +59,17 @@ function showWindow(win: BrowserWindow | null): void {
   win.showInactive()
 }
 
+/**
+ * Puts kiosk Home above other windows, or lets it step down. Electron's default
+ * always-on-top level on Windows ("floating") files the window just behind the
+ * taskbar, and Windows 11 takes the taskbar's own topmost flag away while a
+ * fullscreen window is in front, so Home lost always on top most of the time
+ * (7 tries in 8 on her laptop). The screen-saver level skips that step and holds.
+ */
+export function setHomeOnTop(win: BrowserWindow, onTop: boolean): void {
+  win.setAlwaysOnTop(onTop, 'screen-saver')
+}
+
 let launcherWindow: BrowserWindow | null = null
 let adminWindow: BrowserWindow | null = null
 export function getAdminWindow(): BrowserWindow | null {
@@ -72,7 +83,6 @@ export function createLauncherWindow(): BrowserWindow {
     ...quietWindowOptions(),
     show: false,
     fullscreen: KIOSK_ENABLED,
-    alwaysOnTop: KIOSK_ENABLED,
     autoHideMenuBar: true,
     webPreferences: {
       // CommonJS on purpose: a sandboxed preload can't load an ES module.
@@ -83,6 +93,8 @@ export function createLauncherWindow(): BrowserWindow {
     }
   })
 
+  // Not the alwaysOnTop constructor option: it uses the default level (see setHomeOnTop).
+  if (KIOSK_ENABLED) setHomeOnTop(launcherWindow, true)
   launcherWindow.on('ready-to-show', () => showWindow(launcherWindow))
   launcherWindow.setMenuBarVisibility(false)
   installHomeRecovery(launcherWindow)
@@ -240,7 +252,7 @@ export function createAdminWindow(): BrowserWindow {
   // Home. Home goes back on top when admin closes.
   const kioskHome =
     KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed() ? launcherWindow : undefined
-  kioskHome?.setAlwaysOnTop(false)
+  if (kioskHome) setHomeOnTop(kioskHome, false)
   adminWindow = new BrowserWindow({
     width: 1000,
     height: 720,
@@ -266,7 +278,7 @@ export function createAdminWindow(): BrowserWindow {
   if (QUIET_E2E_WINDOWS) adminWindow.once('ready-to-show', () => showWindow(adminWindow))
   adminWindow.on('closed', () => {
     adminWindow = null
-    if (kioskHome && !kioskHome.isDestroyed()) kioskHome.setAlwaysOnTop(true)
+    if (kioskHome && !kioskHome.isDestroyed()) setHomeOnTop(kioskHome, true)
   })
 
   return adminWindow
