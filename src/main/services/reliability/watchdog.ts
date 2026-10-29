@@ -49,11 +49,14 @@ export async function registerWatchdogTask(
   // -ExecutionPolicy Bypass: Windows client editions default to Restricted,
   // under which -File refuses to run the script at all - M1's registration
   // check passed while the watchdog itself could never have executed.
+  // conhost --headless: -WindowStyle Hidden alone still flashed a console on
+  // her screen every minute, and stayed up for the whole run where Windows
+  // Terminal is the default console, since Terminal ignores it.
   const result = await registerTask(
     {
       name: WATCHDOG_TASK,
-      execute: 'powershell.exe',
-      argument: `-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "${watchdogScriptPath}" -HeartbeatPath "${heartbeatPath}" -ExePath "${exePath}"`,
+      execute: 'conhost.exe',
+      argument: `--headless powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "${watchdogScriptPath}" -HeartbeatPath "${heartbeatPath}" -ExePath "${exePath}"`,
       trigger: 'every-minute',
       timeLimitMinutes: 2
     },

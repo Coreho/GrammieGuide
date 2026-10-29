@@ -1,6 +1,6 @@
 import { ipcMain, shell } from 'electron'
 import { getConfig } from '../config/store'
-import { getLauncherWindow } from '../windows/windowManager'
+import { getLauncherWindow, stepHomeDown } from '../windows/windowManager'
 import { logActivity } from '../services/activityLog/activityLog'
 import { tilesInHome } from '@shared/homeLayout'
 
@@ -19,17 +19,16 @@ export function registerTileIpc(): void {
     if (opening) return { ok: false }
     restoreFocus?.()
     opening = true
-    const wasOnTop = launcher.isAlwaysOnTop()
     const restore = (): void => {
       launcher.removeListener('focus', restore)
-      if (!launcher.isDestroyed()) launcher.setAlwaysOnTop(wasOnTop)
+      stepHomeDown('app', false)
       restoreFocus = null
     }
     restoreFocus = restore
     try {
-      // A configured native app needs to appear above the kiosk. Restore the
-      // kiosk's previous stacking policy when she returns to its window.
-      launcher.setAlwaysOnTop(false)
+      // A configured native app needs to appear above the kiosk. Home goes back
+      // on top when she returns to its window, unless admin is still open.
+      stepHomeDown('app', true)
       launcher.once('focus', restore)
       const error = await shell.openPath(tile.appPath)
       if (error) restore()
