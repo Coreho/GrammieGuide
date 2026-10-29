@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   openPath: vi.fn(),
   getConfig: vi.fn(),
   getLauncher: vi.fn(),
-  setHomeOnTop: vi.fn(),
+  stepHomeDown: vi.fn(),
   log: vi.fn()
 }))
 vi.mock('electron', () => ({
@@ -16,7 +16,7 @@ vi.mock('electron', () => ({
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.getConfig }))
 vi.mock('../../src/main/windows/windowManager', () => ({
   getLauncherWindow: mocks.getLauncher,
-  setHomeOnTop: mocks.setHomeOnTop
+  stepHomeDown: mocks.stepHomeDown
 }))
 vi.mock('../../src/main/services/activityLog/activityLog', () => ({ logActivity: mocks.log }))
 import { registerTileIpc } from '../../src/main/ipc/tileIpc'
@@ -24,7 +24,6 @@ import { registerTileIpc } from '../../src/main/ipc/tileIpc'
 describe('configured app tiles', () => {
   const launcher = {
     webContents: {},
-    isAlwaysOnTop: () => true,
     isDestroyed: () => false,
     once: vi.fn(),
     removeListener: vi.fn()
@@ -56,9 +55,9 @@ describe('configured app tiles', () => {
       { ok: true }
     )
     expect(mocks.openPath).toHaveBeenCalledWith('C:\\Apps\\Family.exe')
-    expect(mocks.setHomeOnTop).toHaveBeenCalledWith(launcher, false)
+    expect(mocks.stepHomeDown).toHaveBeenCalledWith('app', true)
     launcher.once.mock.calls[0]![1]()
-    expect(mocks.setHomeOnTop).toHaveBeenLastCalledWith(launcher, true)
+    expect(mocks.stepHomeDown).toHaveBeenLastCalledWith('app', false)
   })
 
   it('rejects other renderers and unknown tile IDs without opening anything', async () => {
@@ -74,7 +73,7 @@ describe('configured app tiles', () => {
       if (failure instanceof Error) mocks.openPath.mockRejectedValue(failure)
       else mocks.openPath.mockResolvedValue(failure)
       expect(await invoke(launcher.webContents, { id: 'app' })).toEqual({ ok: false })
-      expect(mocks.setHomeOnTop).toHaveBeenLastCalledWith(launcher, true)
+      expect(mocks.stepHomeDown).toHaveBeenLastCalledWith('app', false)
     }
   )
   it('rechecks visibility at the actual launch, including overflow and layout changes', async () => {

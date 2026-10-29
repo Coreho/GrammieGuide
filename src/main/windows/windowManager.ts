@@ -66,12 +66,30 @@ function showWindow(win: BrowserWindow | null): void {
  * fullscreen window is in front, so Home lost always on top most of the time
  * (7 tries in 8 on her laptop). The screen-saver level skips that step and holds.
  */
-export function setHomeOnTop(win: BrowserWindow, onTop: boolean): void {
+function setHomeOnTop(win: BrowserWindow, onTop: boolean): void {
   win.setAlwaysOnTop(onTop, 'screen-saver')
 }
 
 let launcherWindow: BrowserWindow | null = null
 let adminWindow: BrowserWindow | null = null
+
+export type HomeStepDownReason = 'admin' | 'app'
+const homeStepDowns = new Set<HomeStepDownReason>()
+
+/**
+ * Kiosk Home steps down from always on top while something must show above it:
+ * the caregiver's admin window, or a native app she launched. Each reason is
+ * held on its own and Home goes back on top only when none is left. When each
+ * caller restored its own saved state, admin closing and her return from an app
+ * could undo each other and leave Home off top until a restart.
+ */
+export function stepHomeDown(reason: HomeStepDownReason, down: boolean): void {
+  if (down) homeStepDowns.add(reason)
+  else homeStepDowns.delete(reason)
+  if (KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed()) {
+    setHomeOnTop(launcherWindow, homeStepDowns.size === 0)
+  }
+}
 export function getAdminWindow(): BrowserWindow | null {
   return adminWindow
 }
@@ -252,7 +270,7 @@ export function createAdminWindow(): BrowserWindow {
   // Home. Home goes back on top when admin closes.
   const kioskHome =
     KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed() ? launcherWindow : undefined
-  if (kioskHome) setHomeOnTop(kioskHome, false)
+  stepHomeDown('admin', true)
   adminWindow = new BrowserWindow({
     width: 1000,
     height: 720,
@@ -278,7 +296,7 @@ export function createAdminWindow(): BrowserWindow {
   if (QUIET_E2E_WINDOWS) adminWindow.once('ready-to-show', () => showWindow(adminWindow))
   adminWindow.on('closed', () => {
     adminWindow = null
-    if (kioskHome && !kioskHome.isDestroyed()) setHomeOnTop(kioskHome, true)
+    stepHomeDown('admin', false)
   })
 
   return adminWindow
