@@ -136,7 +136,10 @@ export default function App() {
     return () => clearInterval(t)
   }, [refreshWeather])
 
-  const triggerConfusionRecovery = useCallback(() => {
+  // `taps`: rapid taps, so she is at the screen. `idle`: a page sat untouched for
+  // the whole timeout, so she may have walked away and the line stays bubble-only
+  // like any other unprompted remark.
+  const triggerConfusionRecovery = useCallback((cause: 'taps' | 'idle') => {
     clearTimeout(toastTimer.current)
     setToast(null)
     window.launcher.goHome()
@@ -150,14 +153,14 @@ export default function App() {
     setBuddyCommand((previous) => ({
       clip: 'wave',
       text: 'Take your time — everything is right here on Home.',
-      speak: Boolean(configRef.current?.buddy.voiceEnabled),
+      speak: cause === 'taps' && Boolean(configRef.current?.buddy.voiceEnabled),
       sequence: (previous?.sequence ?? 0) + 1
     }))
   }, [clearChatInvitation, closeBuddyMenu])
 
   useEffect(() => {
     const offIdle = window.launcher.onIdleTimeout(() => {
-      triggerConfusionRecovery()
+      triggerConfusionRecovery('idle')
     })
     const offProblem = window.launcher.onPageProblem(({ kind }) => setPageProblem(kind))
     // The caregiver's recovery check opens its page the way a tile does, but
@@ -265,7 +268,7 @@ export default function App() {
         return
       const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
       if (triggered) {
-        triggerConfusionRecovery()
+        triggerConfusionRecovery('taps')
       }
     },
     [triggerConfusionRecovery]
@@ -521,9 +524,15 @@ export default function App() {
           onClose={() => setShowConfusion(false)}
           onPlayMusic={() => {
             setShowConfusion(false)
-            void window.launcher.buddyAction('playMusic').then((result) => {
-              if (result.ok) {
-                void runBuddyAction(result.plan)
+            // Her button, not Buddy's: buddy:action refuses everything while chat is
+            // switched off, so start her first playlist that has a track directly.
+            void window.launcher.getMusicPlaylists().then(async ({ tracks, settings }) => {
+              const known = new Set(tracks.map((track) => track.id))
+              const playlist = settings.playlists.find((list) =>
+                list.trackIds.some((id) => known.has(id))
+              )
+              if (playlist && (await music.playAndConfirm(playlist.id))) {
+                flashToast(ACTION_REPLIES.musicPlaying)
               } else {
                 setOpenBuiltin(
                   config.tiles.find(
