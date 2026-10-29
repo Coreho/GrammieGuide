@@ -141,7 +141,8 @@ test('the caregiver adds finished pieces with what each is and who it was for', 
   ])
   // Home is only ever given media URLs, never where the photos came from.
   const home = JSON.stringify(await page.evaluate(() => window.launcher.getKnitting()))
-  expect(home).not.toContain(root)
+  // Compared as JSON: a leaked Windows path appears there with doubled backslashes.
+  expect(home).not.toContain(JSON.stringify(root).slice(1, -1))
   expect(home).toMatch(/grammie-media:\/\/knitted\//)
 })
 
@@ -278,7 +279,7 @@ test('removing every piece takes her back to the shelf, and nothing personal is 
   await page.getByRole('button', { name: 'Back to Home', exact: true }).click()
   const log = JSON.stringify(await admin.evaluate(() => window.admin.getActivityLog(1000)))
   for (const detail of ['cardigan', 'Ella', 'Mittens', 'Aran', 'Tea cosy', 'Mum', root]) {
-    expect(log).not.toContain(detail)
+    expect(log).not.toContain(JSON.stringify(detail).slice(1, -1))
   }
   expect(errors).toEqual([])
 })
