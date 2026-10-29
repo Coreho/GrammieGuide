@@ -149,10 +149,12 @@ export function PatternViewer({
         )}
       </div>
       <footer className="knitting-pattern-controls">
+        {/* aria-disabled, not disabled: a disabled button drops the keyboard focus it
+            holds to the page body, and the arrow keys and Esc stop reaching the viewer. */}
         <button
           className="knitting-pattern-turn"
           aria-label="Previous page"
-          disabled={shown === 0}
+          aria-disabled={shown === 0}
           onClick={() => go(shown - 1)}
         >
           ← Back
@@ -163,7 +165,7 @@ export function PatternViewer({
         <button
           className="knitting-pattern-turn"
           aria-label="Next page"
-          disabled={shown === count - 1}
+          aria-disabled={shown === count - 1}
           onClick={() => go(shown + 1)}
         >
           Next →

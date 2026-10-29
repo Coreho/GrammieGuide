@@ -281,11 +281,11 @@
     inset 0 3px 1px rgba(255, 255, 255, 0.6);
   cursor: pointer;
 }
-.knitting-pattern-turn:disabled {
+.knitting-pattern-turn[aria-disabled='true'] {
   opacity: 0.45;
   cursor: default;
 }
-.knitting-pattern-turn:active:not(:disabled) {
+.knitting-pattern-turn:active:not([aria-disabled='true']) {
   translate: 0 3px;
 }
 .knitting-pattern-position {
