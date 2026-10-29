@@ -59,8 +59,37 @@ function showWindow(win: BrowserWindow | null): void {
   win.showInactive()
 }
 
+/**
+ * Puts kiosk Home above other windows, or lets it step down. Electron's default
+ * always-on-top level on Windows ("floating") files the window just behind the
+ * taskbar, and Windows 11 takes the taskbar's own topmost flag away while a
+ * fullscreen window is in front, so Home lost always on top most of the time
+ * (7 tries in 8 on her laptop). The screen-saver level skips that step and holds.
+ */
+function setHomeOnTop(win: BrowserWindow, onTop: boolean): void {
+  win.setAlwaysOnTop(onTop, 'screen-saver')
+}
+
 let launcherWindow: BrowserWindow | null = null
 let adminWindow: BrowserWindow | null = null
+
+export type HomeStepDownReason = 'admin' | 'app'
+const homeStepDowns = new Set<HomeStepDownReason>()
+
+/**
+ * Kiosk Home steps down from always on top while something must show above it:
+ * the caregiver's admin window, or a native app she launched. Each reason is
+ * held on its own and Home goes back on top only when none is left. When each
+ * caller restored its own saved state, admin closing and her return from an app
+ * could undo each other and leave Home off top until a restart.
+ */
+export function stepHomeDown(reason: HomeStepDownReason, down: boolean): void {
+  if (down) homeStepDowns.add(reason)
+  else homeStepDowns.delete(reason)
+  if (KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed()) {
+    setHomeOnTop(launcherWindow, homeStepDowns.size === 0)
+  }
+}
 export function getAdminWindow(): BrowserWindow | null {
   return adminWindow
 }
@@ -72,7 +101,6 @@ export function createLauncherWindow(): BrowserWindow {
     ...quietWindowOptions(),
     show: false,
     fullscreen: KIOSK_ENABLED,
-    alwaysOnTop: KIOSK_ENABLED,
     autoHideMenuBar: true,
     webPreferences: {
       // CommonJS on purpose: a sandboxed preload can't load an ES module.
@@ -83,6 +111,8 @@ export function createLauncherWindow(): BrowserWindow {
     }
   })
 
+  // Not the alwaysOnTop constructor option: it uses the default level (see setHomeOnTop).
+  if (KIOSK_ENABLED) setHomeOnTop(launcherWindow, true)
   launcherWindow.on('ready-to-show', () => showWindow(launcherWindow))
   launcherWindow.setMenuBarVisibility(false)
   installHomeRecovery(launcherWindow)
@@ -225,13 +255,26 @@ export function getLauncherWindow(): BrowserWindow | null {
 
 export function createAdminWindow(): BrowserWindow {
   if (adminWindow && !adminWindow.isDestroyed()) {
-    if (!QUIET_E2E_WINDOWS) adminWindow.focus()
+    if (!QUIET_E2E_WINDOWS) {
+      adminWindow.moveTop()
+      adminWindow.focus()
+    }
     return adminWindow
   }
 
+  // The kiosk Home is always on top, so a plain admin window opened behind it
+  // and Ctrl+Shift+A looked dead. Making admin always on top too only moved the
+  // problem: its file pickers and the ChatGPT sign-in browser then opened behind
+  // both. So while a caregiver has admin open, Home steps down from always on
+  // top, and admin, owned by Home, stays above it even when a click lands on
+  // Home. Home goes back on top when admin closes.
+  const kioskHome =
+    KIOSK_ENABLED && launcherWindow && !launcherWindow.isDestroyed() ? launcherWindow : undefined
+  stepHomeDown('admin', true)
   adminWindow = new BrowserWindow({
     width: 1000,
     height: 720,
+    ...(kioskHome ? { parent: kioskHome } : {}),
     ...quietWindowOptions(),
     // Shown at once as before; under e2e, quietly once it can paint.
     show: !QUIET_E2E_WINDOWS,
@@ -253,6 +296,7 @@ export function createAdminWindow(): BrowserWindow {
   if (QUIET_E2E_WINDOWS) adminWindow.once('ready-to-show', () => showWindow(adminWindow))
   adminWindow.on('closed', () => {
     adminWindow = null
+    stepHomeDown('admin', false)
   })
 
   return adminWindow
