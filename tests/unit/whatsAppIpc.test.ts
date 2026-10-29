@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   home: { webContents: { mainFrame: {}, isDestroyed: () => false, send: vi.fn() } },
   quit: vi.fn(),
   watchLock: vi.fn(),
+  dispatch: vi.fn(),
   setup: {
     state: vi.fn(() => ({ open: false, phase: 'closed' })),
     open: vi.fn(() => ({ open: true, phase: 'loading' })),
@@ -41,7 +42,7 @@ vi.mock('../../src/main/services/whatsapp/whatsAppSession', () => ({
   }
 }))
 vi.mock('../../src/main/services/audio/audioRuntime', () => ({
-  getAudioCoordinator: () => ({ dispatch: vi.fn() })
+  getAudioCoordinator: () => ({ dispatch: mocks.dispatch })
 }))
 vi.mock('../../src/main/windows/windowManager', () => ({
   getAdminWindow: () => mocks.admin,
@@ -145,6 +146,14 @@ describe('WhatsApp IPC boundary', () => {
       mode: 'voice'
     })
     expect(result).toMatchObject({ ok: false, problem: 'unavailable', state: { call: null } })
+  })
+  it('sends call state and the audio hold only when something changed', async () => {
+    await handler('whatsapp:state')(event())
+    await handler('whatsapp:state')(event())
+    await handler('whatsapp:state')(event())
+    expect(mocks.home.webContents.send).toHaveBeenCalledTimes(1)
+    // No call has started, so there is no hold to start or end.
+    expect(mocks.dispatch).not.toHaveBeenCalled()
   })
   it('never pushes call state into the locked admin window', async () => {
     mocks.isUnlocked.mockReturnValue(false)

@@ -47,6 +47,11 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
       /* A reloaded panel reads state. */
     }
   })
+  // The session reports every second while WhatsApp is open, which is always
+  // when a Family calls tile exists. Only real changes go out; otherwise the
+  // audio coordinator rebroadcast and Home re-rendered every second for nothing.
+  let holdingAudio = false
+  let lastPushed = ''
   const controller = new WhatsAppController(
     adapter ?? createWhatsAppSessionAdapter(setup),
     () => {
@@ -54,12 +59,20 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
       return [preferred, fallback].filter((person): person is ContactPerson => person !== null)
     },
     (state) => {
-      getAudioCoordinator().dispatch(
-        state.call || state.pending
-          ? { type: 'start', source: 'call', id: 'whatsapp-call' }
-          : { type: 'end', id: 'whatsapp-call' }
-      )
-      push(state)
+      const inCall = Boolean(state.call || state.pending)
+      if (inCall !== holdingAudio) {
+        holdingAudio = inCall
+        getAudioCoordinator().dispatch(
+          inCall
+            ? { type: 'start', source: 'call', id: 'whatsapp-call' }
+            : { type: 'end', id: 'whatsapp-call' }
+        )
+      }
+      const serialized = JSON.stringify(state)
+      if (serialized !== lastPushed) {
+        lastPushed = serialized
+        push(state)
+      }
       connection.check()
     }
   )
