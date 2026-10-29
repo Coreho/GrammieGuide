@@ -102,7 +102,8 @@ test('a theme of the other tone shows its own background, and the choice comes b
   await expect(
     admin.getByRole('status').filter({ hasText: "The saved Plum background doesn't suit" })
   ).toBeVisible()
-  await expect(choice('Theme default')).toBeChecked()
+  // Not checked while Plum is still saved, so choosing it really clears Plum.
+  await expect(choice('Theme default')).not.toBeChecked()
   await expect(choice('Cream')).toBeVisible()
   await expect(choice('Plum')).toHaveCount(0)
   // Still saved, so a dark theme brings it straight back.
@@ -118,4 +119,15 @@ test('Theme default puts the theme background back', async () => {
   await expect.poll(() => homeToken('bgB')).toBe(THEMES.tilesBold.bgB)
   await expect.poll(() => previewToken('bgB')).toBe(THEMES.tilesBold.bgB)
   expect(await savedBackground()).toBeUndefined()
+})
+
+test('Theme default also clears a saved background the current theme hides', async () => {
+  await choice('Plum').check()
+  await expect.poll(savedBackground).toBe('plum')
+  await admin.getByLabel('Theme:').selectOption({ label: 'Butter' })
+  await choice('Theme default').check()
+  await expect.poll(savedBackground).toBeUndefined()
+  await admin.getByLabel('Theme:').selectOption({ label: 'Tiles Bold' })
+  await expect(choice('Theme default')).toBeChecked()
+  await expect.poll(() => homeToken('bgB')).toBe(THEMES.tilesBold.bgB)
 })

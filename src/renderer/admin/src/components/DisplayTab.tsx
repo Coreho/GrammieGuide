@@ -72,7 +72,10 @@ export function DisplayTab() {
                 <input
                   type="radio"
                   name="background"
-                  checked={shown === name}
+                  // Theme default is checked only when nothing is saved: with a saved
+                  // background this theme hides, a checked radio fires no change, so
+                  // choosing it couldn't clear the saved one.
+                  checked={name ? shown === name : !background}
                   onChange={() => save({ display: { ...config.display, background: name } })}
                 />
                 <span
