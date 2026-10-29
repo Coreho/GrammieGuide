@@ -58,6 +58,7 @@ vi.mock('../../src/main/config/store', () => ({
 }))
 
 import { registerWhatsAppIpc } from '../../src/main/ipc/whatsAppIpc'
+import { unverifiedWhatsAppAdapter } from '../../src/main/services/whatsapp/whatsAppAdapter'
 import type { IpcResponse } from '../../src/shared/ipcContract'
 
 describe('WhatsApp IPC boundary', () => {
@@ -147,13 +148,27 @@ describe('WhatsApp IPC boundary', () => {
     })
     expect(result).toMatchObject({ ok: false, problem: 'unavailable', state: { call: null } })
   })
-  it('sends call state and the audio hold only when something changed', async () => {
+  it('sends call state on the session poll only when something changed', async () => {
+    let poll = (): void => {}
+    vi.clearAllMocks()
+    registerWhatsAppIpc({
+      ...unverifiedWhatsAppAdapter(),
+      subscribe: (changed) => {
+        poll = changed
+        return () => {}
+      }
+    })
     await handler('whatsapp:state')(event())
-    await handler('whatsapp:state')(event())
-    await handler('whatsapp:state')(event())
+    expect(mocks.home.webContents.send).toHaveBeenCalledTimes(1)
+    for (let i = 0; i < 3; i++) poll()
+    // Let the polled refreshes run through the controller's queue.
+    await new Promise((resolve) => setTimeout(resolve, 20))
     expect(mocks.home.webContents.send).toHaveBeenCalledTimes(1)
     // No call has started, so there is no hold to start or end.
     expect(mocks.dispatch).not.toHaveBeenCalled()
+    // A window that asks (a Home that just loaded) always gets the current state.
+    await handler('whatsapp:state')(event())
+    expect(mocks.home.webContents.send).toHaveBeenCalledTimes(2)
   })
   it('never pushes call state into the locked admin window', async () => {
     mocks.isUnlocked.mockReturnValue(false)

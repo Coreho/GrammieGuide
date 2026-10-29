@@ -113,6 +113,9 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
     const home = getLauncherWindow()
     if (!home) throw new Error('Home is unavailable')
     connection.prepare(home)
+    // A Home that just loaded (or reloaded mid-call) opens the call view only
+    // from a push, so it must get the current state even when nothing changed.
+    lastPushed = ''
     return controller.refresh()
   })
   ipcMain.handle('whatsapp:closeCalls', async (event) => {
@@ -147,6 +150,7 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
   })
   ipcMain.handle('whatsapp:state', (event) => {
     requireControlWindow(event)
+    lastPushed = ''
     return controller.refresh()
   })
   ipcMain.handle('whatsapp:videoBounds', (event, value: unknown) => {
