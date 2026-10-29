@@ -83,6 +83,8 @@ export type BuddyInput = {
   chattiness: Chattiness
   hour: number
   weather?: RemarkWeather | null
+  /** He already stretched this morning: a remounted Home doesn't stretch again. */
+  stretchedToday?: boolean
   /** Where he starts, 0..1. */
   position?: number
 }
@@ -227,7 +229,7 @@ export const buddyMachine = setup({
       replyGesture: null,
       openingClip: null,
       lastReactionAt: -Infinity,
-      morningStretch: isMorning(input.hour),
+      morningStretch: isMorning(input.hour) && !input.stretchedToday,
       commandSpeak: false,
       recentRemarks: [],
       nextStrollAt: now() + strollGap(random),

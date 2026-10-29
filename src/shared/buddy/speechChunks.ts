@@ -35,7 +35,9 @@ export function speechChunks(text: string): string[] {
   const line = text.replace(/\s+/g, ' ').trim()
   if (!line) return []
   if (line.length <= WHOLE_MAX) return [line]
-  const sentences = (line.match(/[^.!?]+(?:[.!?]+["')\]]*|$)/g) ?? [line])
+  // A sentence ends at . ! or ? followed by a space or the end, so "2.5 miles",
+  // "3.30" and "bbc.co.uk" stay whole instead of being read as "two. five".
+  const sentences = (line.match(/.+?(?:[.!?]+["')\]]*(?=\s|$)|$)/g) ?? [line])
     .map((sentence) => sentence.trim())
     .filter(Boolean)
     .flatMap((sentence, i) => splitLong(sentence, i === 0 ? FIRST_MAX : REST_MAX))

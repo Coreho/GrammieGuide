@@ -51,6 +51,19 @@ export type LocalVoice = {
 const UNAVAILABLE: BuddySpeakResult = { ok: false, reason: 'unavailable' }
 const MAX_CRASHES = 3
 const CRASH_WINDOW_MS = 10 * 60_000
+/**
+ * Lines waiting behind the one being made. The renderer asks for the next piece
+ * of a reply while one plays, so two can be real; a line still waiting when two
+ * newer ones arrive was almost certainly abandoned (a new message, more pats).
+ */
+const MAX_WAITING = 2
+
+type Line = {
+  id: number
+  request: VoiceWorkerRequest
+  proc: VoiceProcess
+  resolve: (result: BuddySpeakResult) => void
+}
 
 /** Measured at about a third of real time on a 12-thread PC; her PC gets room for being slower. */
 export function lineTimeoutMs(chars: number): number {
@@ -67,6 +80,38 @@ export function createLocalVoice(deps: LocalVoiceDeps): LocalVoice {
   let nextId = 1
   const pending = new Map<number, (result: BuddySpeakResult) => void>()
   let readyWaiters: ((ok: boolean) => void)[] = []
+  // The worker makes one line at a time, so main hands it one at a time and a
+  // line's timeout starts only when the worker starts on it. Counting time spent
+  // queued behind other lines killed a healthy voice as hung.
+  const waiting: Line[] = []
+  let busy = false
+
+  function sendNext(): void {
+    if (busy) return
+    const line = waiting.shift()
+    if (!line) return
+    if (child !== line.proc) {
+      line.resolve(UNAVAILABLE)
+      sendNext()
+      return
+    }
+    busy = true
+    const timer = setTimeout(() => {
+      if (!pending.delete(line.id)) return
+      busy = false
+      line.resolve(UNAVAILABLE)
+      // A line that never comes back is a hang: treat it like a crash.
+      if (child === line.proc) crashed()
+      sendNext()
+    }, timeoutMs(line.request.text.length))
+    pending.set(line.id, (result) => {
+      clearTimeout(timer)
+      busy = false
+      line.resolve(result)
+      sendNext()
+    })
+    line.proc.postMessage(line.request)
+  }
 
   function settleWaiters(ok: boolean): void {
     const waiters = readyWaiters
@@ -169,22 +214,20 @@ export function createLocalVoice(deps: LocalVoiceDeps): LocalVoice {
       if (!proc) return UNAVAILABLE
       const id = nextId++
       return new Promise<BuddySpeakResult>((resolve) => {
-        const timer = setTimeout(() => {
-          if (!pending.delete(id)) return
-          resolve(UNAVAILABLE)
-          // A line that never comes back is a hang: treat it like a crash.
-          if (child === proc) crashed()
-        }, timeoutMs(plain.length))
-        pending.set(id, (result) => {
-          clearTimeout(timer)
-          resolve(result)
-        })
-        proc.postMessage({
+        // Falls back rather than making the newest line wait behind abandoned ones.
+        while (waiting.length >= MAX_WAITING) waiting.shift()!.resolve(UNAVAILABLE)
+        waiting.push({
           id,
-          text: plain,
-          voice: isLocalVoice(voice) ? voice : DEFAULT_LOCAL_VOICE,
-          speed: LOCAL_VOICE_SPEED
+          proc,
+          resolve,
+          request: {
+            id,
+            text: plain,
+            voice: isLocalVoice(voice) ? voice : DEFAULT_LOCAL_VOICE,
+            speed: LOCAL_VOICE_SPEED
+          }
         })
+        sendNext()
       })
     },
     dispose() {

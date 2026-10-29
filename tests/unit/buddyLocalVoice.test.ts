@@ -150,6 +150,44 @@ describe('the voice on this computer', () => {
     }
   })
 
+  it('times a line from when the worker starts on it, not while it waits its turn', async () => {
+    vi.useFakeTimers()
+    try {
+      const { voice, processes } = setup()
+      voice.warm()
+      const proc = processes[0]!
+      proc.reply({ type: 'ready' })
+      const first = voice.speak('First line', 'am_michael')
+      const second = voice.speak('Second line', 'am_michael')
+      expect(proc.sent).toHaveLength(1)
+      vi.advanceTimersByTime(900)
+      proc.reply({ type: 'audio', id: proc.sent[0]!.id, wav: WAV })
+      expect((await first).ok).toBe(true)
+      expect(proc.sent).toHaveLength(2)
+      // 1800ms after it was asked for, but only 900ms after the worker started on it.
+      vi.advanceTimersByTime(900)
+      proc.reply({ type: 'audio', id: proc.sent[1]!.id, wav: WAV })
+      expect((await second).ok).toBe(true)
+      expect(proc.killed).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('lets an abandoned waiting line fall back instead of delaying the newest', async () => {
+    const { voice, processes } = setup()
+    voice.warm()
+    const proc = processes[0]!
+    proc.reply({ type: 'ready' })
+    void voice.speak('Being made', 'am_michael')
+    const oldest = voice.speak('Waiting longest', 'am_michael')
+    void voice.speak('Waiting', 'am_michael')
+    void voice.speak('Newest', 'am_michael')
+    expect(await oldest).toEqual(UNAVAILABLE)
+    proc.reply({ type: 'audio', id: proc.sent[0]!.id, wav: WAV })
+    expect(proc.sent.map((request) => request.text)).toEqual(['Being made', 'Waiting'])
+  })
+
   it('gives up after three crashes in ten minutes, but not for crashes spread out', () => {
     const { voice, processes, log, clock } = setup()
     for (let i = 0; i < 2; i++) {
@@ -245,6 +283,19 @@ describe('speaking a long line in pieces', () => {
     const pieces = speechChunks(sentence)
     for (const piece of pieces) expect(piece.length).toBeLessThanOrEqual(240)
     expect(pieces.join(' ')).toBe(sentence)
+  })
+
+  it('keeps decimals, times and web addresses whole', () => {
+    const text =
+      'It is about 2.5 miles to the shop, and the bus leaves at 3.30 from the corner. ' +
+      'You can read more at bbc.co.uk if you like, it has the whole timetable and every stop. ' +
+      'Take your coat, because it may rain later today.'
+    const pieces = speechChunks(text)
+    expect(pieces.length).toBeGreaterThan(1)
+    expect(pieces.join(' ')).toBe(text)
+    expect(pieces.some((piece) => piece.includes('2.5 miles'))).toBe(true)
+    expect(pieces.some((piece) => piece.includes('3.30 from'))).toBe(true)
+    expect(pieces.some((piece) => piece.includes('bbc.co.uk if'))).toBe(true)
   })
 })
 

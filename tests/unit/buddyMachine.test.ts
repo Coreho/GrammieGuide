@@ -131,6 +131,12 @@ describe('live motion changes', () => {
     }
   )
 
+  it('stretches on a morning start, but not again when Home remounts after it', () => {
+    expect(start({ hour: 8 }).ctx().morningStretch).toBe(true)
+    expect(start({ hour: 8, stretchedToday: true }).ctx().morningStretch).toBe(false)
+    expect(start({ hour: 15 }).ctx().morningStretch).toBe(false)
+  })
+
   it('stops a fidget immediately, cancels its timeout, and resumes fidgets when switched back', () => {
     // An afternoon start, so no morning stretch comes first.
     const { actor, clock, activity } = start({ motion: 'still', hour: 15 })

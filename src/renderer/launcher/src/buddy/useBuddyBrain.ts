@@ -14,6 +14,12 @@ import type { RemarkWeather } from '@shared/buddy/remarks'
 import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import { speak, stopSpeaking } from './speech'
 
+// HomeView, and with it Buddy's floor and this actor, remounts each time she
+// comes back from a web page, and a new actor would stretch again every time.
+// The stretch is once a morning, so the day it last happened lives out here.
+let lastStretchDay: string | null = null
+const today = (): string => new Date().toDateString()
+
 type BrainInput = {
   getPosition: () => number | undefined
   motion: BuddyMotion
@@ -45,10 +51,17 @@ export function useBuddyBrain(input: BrainInput): {
 
   useEffect(() => {
     const { motion, chattiness, hour, weather } = initial.current
-    const a = createActor(buddyMachine, { input: { motion, chattiness, hour, weather } })
+    const stretchedToday = lastStretchDay === today()
+    const a = createActor(buddyMachine, {
+      input: { motion, chattiness, hour, weather, stretchedToday }
+    })
     a.start()
     let sequence = 0
+    let stretchDue = a.getSnapshot().context.morningStretch
     const speech = a.subscribe((state) => {
+      // Due goes false once he stretched (or reduced motion skipped it).
+      if (stretchDue && !state.context.morningStretch) lastStretchDay = today()
+      stretchDue = state.context.morningStretch
       if (sequence !== state.context.commandSequence) {
         sequence = state.context.commandSequence
         stopSpeaking()
