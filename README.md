@@ -119,7 +119,7 @@ The model (`src/renderer/launcher/src/buddy/assets/buddy.glb`) is generated. The
 
 ## Installing on the kiosk
 
-Build the installer with `npm run package` (output in `dist/`), then follow [docs/kiosk-install.md](docs/kiosk-install.md). In short, from an administrator PowerShell on the kiosk:
+Her computer runs the production build of `main` installed on 2026-10-30 (`2b5b38a`). Installers are built from `main`, not from a separate test branch. Build one with `npm run package` (output in `dist/`), then follow [docs/kiosk-install.md](docs/kiosk-install.md). In short, from an administrator PowerShell on the kiosk:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\kiosk\switch-to-grammieguide.ps1 -Installer "GrammieGuide Setup 0.1.0.exe"
