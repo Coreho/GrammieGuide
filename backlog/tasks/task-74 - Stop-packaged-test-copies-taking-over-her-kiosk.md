@@ -1,11 +1,11 @@
 ---
 id: TASK-74
 title: Stop packaged test copies taking over her kiosk
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-10-30T21:21:00Z'
-updated_date: '2026-10-30T21:36:00Z'
+updated_date: '2026-10-30T23:20:00Z'
 labels: []
 milestone: m-4
 dependencies: []
@@ -27,7 +27,7 @@ On 2026-10-30, running the end-to-end tests on her computer launched packaged co
 - [x] #3 A full npm run test:e2e with an old dist/win-unpacked present launches no packaged copy
 - [x] #4 The stacking test only runs against a package named in GRAMMIEGUIDE_PACKAGED_EXE, and refuses a package that asks for admin rights before launching it
 - [x] #5 The docs say how to build the safe test package and why the default one must not be launched on her computer
-- [ ] #6 After the next real install on her computer, both tasks still point at Program Files and the watchdog runs
+- [x] #6 After the next real install on her computer, both tasks still point at Program Files and the watchdog runs
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -42,4 +42,12 @@ On 2026-10-30, running the end-to-end tests on her computer launched packaged co
 Second route found while researching: the admin Re-register button (reliabilityIpc.ts) calls registerSystemTasks directly, so the guard sits inside that function rather than at the startup call. Tests were mutation-checked: removing the guard or restoring the old rule fails the stray-copy cases. On her computer: the spec skipped with the variable unset and an old dist/win-unpacked present; refused a named file with no asInvoker marker; passed 3 of 3 on an asInvoker package. A packaged copy saw ProgramFiles as C:\Program Files, which the guard depends on. A real packaged copy without the E2E switch was deliberately never started on her computer, so the positive path through the real installer is only proven after the next install.
 
 Full e2e on this branch: 187 of 187 including the stacking test on an asInvoker package, with the kiosk tasks unchanged throughout. kiosk-stacking.spec.ts is the only spec that sets executablePath, so skipping it is what makes a full run launch no packaged copy. AC 6 stays open until the next real install, so this task stays In Progress.
+
+Installed the production build from main (2b5b38a) on her computer on 2026-10-30, over the top, with the silent installer. app.asar and the exe hash-match the build. Started through the GrammieGuide task, as at boot. The installed copy re-registered the watchdog at 19:18:48, which shows isInstalledExe accepts the real path. The startup task's file wasn't rewritten but its definition is identical to before: Highest, Interactive, no time limit, Program Files. The watchdog completed a run at 19:19:49, result 0. Home reported visible and topmost.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Packaged copies can no longer take over her startup and watchdog tasks. registerSystemTasks now only acts when running as Program Files\GrammieGuide\GrammieGuide.exe, which covers startup and admin's Re-register button; a packaged copy elsewhere logs system-tasks-skipped. kiosk-stacking.spec.ts no longer falls back to dist/win-unpacked: it needs a named package built with asInvoker and refuses anything else before launching. Verified with mutation-checked unit tests, a full e2e run (187 of 187), and a real install on her computer. Not addressed here: the app's unexplained silent stops, which predate this work and which the watchdog recovers from.
+<!-- SECTION:FINAL_SUMMARY:END -->
