@@ -131,18 +131,25 @@ describe('live motion changes', () => {
     }
   )
 
+  it('stretches on a morning start, but not again when Home remounts after it', () => {
+    expect(start({ hour: 8 }).ctx().morningStretch).toBe(true)
+    expect(start({ hour: 8, stretchedToday: true }).ctx().morningStretch).toBe(false)
+    expect(start({ hour: 15 }).ctx().morningStretch).toBe(false)
+  })
+
   it('stops a fidget immediately, cancels its timeout, and resumes fidgets when switched back', () => {
-    const { actor, clock, activity } = start({ motion: 'still' })
+    // An afternoon start, so no morning stretch comes first.
+    const { actor, clock, activity } = start({ motion: 'still', hour: 15 })
     actor.send({ type: 'CLIP_DONE' })
     clock.increment(26_000)
     expect(activity()).toBe('fidgeting')
-    actor.send({ type: 'SETTINGS', motion: 'reduced', chattiness: 'off', hour: 10, weather: null })
+    actor.send({ type: 'SETTINGS', motion: 'reduced', chattiness: 'off', hour: 15, weather: null })
     expect(activity()).toBe('resting')
     for (let i = 0; i < 30; i++) {
       clock.increment(26_000)
       expect(activity()).toBe('resting')
     }
-    actor.send({ type: 'SETTINGS', motion: 'still', chattiness: 'off', hour: 10, weather: null })
+    actor.send({ type: 'SETTINGS', motion: 'still', chattiness: 'off', hour: 15, weather: null })
     clock.increment(26_000)
     expect(activity()).toBe('fidgeting')
   })
@@ -270,7 +277,7 @@ describe('buddy machine', () => {
   })
 
   it('fidgets after an idle stretch and goes back to resting when the clip ends', () => {
-    const { actor, clock, activity } = start()
+    const { actor, clock, activity } = start({ hour: 15 })
     actor.send({ type: 'CLIP_DONE' })
     clock.increment(11_000)
     expect(activity()).toBe('resting')

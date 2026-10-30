@@ -271,19 +271,25 @@ export class ChatGptSession {
           if (identity.sub !== profile.subject || identity.iss !== profile.issuer)
             throw new PlanError('unauthorized')
         }
-        if (generation !== this.generation) throw new PlanError('unavailable')
-        const updated = {
-          ...profile,
-          access: value.access_token,
-          refresh: value.refresh_token ?? profile.refresh,
-          idToken: value.id_token ?? profile.idToken,
-          expires: Date.now() + value.expires_in * 1000,
-          scopes: value.scope.split(/\s+/)
+        // The server retired the old refresh token when it answered, so keep the new
+        // one even after an account switch, or that account would need reconnecting.
+        // Only a sign-out or a newer sign-in outranks it, and those change what's stored.
+        const stored = this.data.profiles.find((p) => p.clientId === profile.clientId)
+        if (stored && !this.signingOut && stored.refresh === profile.refresh) {
+          const updated = {
+            ...stored,
+            access: value.access_token,
+            refresh: value.refresh_token ?? stored.refresh,
+            idToken: value.id_token ?? stored.idToken,
+            expires: Date.now() + value.expires_in * 1000,
+            scopes: value.scope.split(/\s+/)
+          }
+          this.save({
+            ...this.data,
+            profiles: this.data.profiles.map((p) => (p.clientId === profile.clientId ? updated : p))
+          })
         }
-        this.save({
-          ...this.data,
-          profiles: this.data.profiles.map((p) => (p.clientId === profile.clientId ? updated : p))
-        })
+        if (generation !== this.generation) throw new PlanError('unavailable')
       })().finally(() => {
         this.refreshes.delete(profile.clientId)
       })

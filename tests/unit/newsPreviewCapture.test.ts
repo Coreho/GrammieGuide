@@ -8,10 +8,14 @@ const mock = vi.hoisted(() => ({
   construct: vi.fn(),
   muted: vi.fn(),
   capture: vi.fn(),
-  harden: vi.fn()
+  harden: vi.fn(),
+  // Controllable, so the guards are tested too: they are all that keeps this
+  // hidden, unattended window off sites the caregiver never approved.
+  allowed: vi.fn<(url: string, config: unknown, kind: string) => boolean>(),
+  handlers: new Map<string, (event: { preventDefault: () => void }, target: string) => void>()
 }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: () => ({}) }))
-vi.mock('../../src/shared/browser/approvedSites', () => ({ navigationAllowed: () => true }))
+vi.mock('../../src/shared/browser/approvedSites', () => ({ navigationAllowed: mock.allowed }))
 vi.mock('../../src/main/services/browser/webSession', () => ({
   WEB_PARTITION: 'persist:web',
   hardenWebSession: mock.harden
@@ -24,7 +28,12 @@ vi.mock('electron', () => ({
     webContents = {
       setAudioMuted: mock.muted,
       setWindowOpenHandler: vi.fn(),
-      on: vi.fn(),
+      on: (
+        event: string,
+        handler: (event: { preventDefault: () => void }, target: string) => void
+      ) => {
+        mock.handlers.set(event, handler)
+      },
       once: (_event: string, callback: () => void) => {
         mock.ready = callback
       },
@@ -39,6 +48,8 @@ vi.mock('electron', () => ({
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  mock.allowed.mockReturnValue(true)
+  mock.handlers.clear()
   mock.ready = undefined
 })
 afterEach(() => vi.useRealTimers())
@@ -84,6 +95,40 @@ describe('News preview renderer lifetime', () => {
   it('closes the page after a navigation failure, too', async () => {
     mock.load.mockRejectedValue(new Error('offline'))
     await expect(captureNewsPreview('https://example.test/')).rejects.toThrow('offline')
+    expect(mock.destroy).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('News preview approved-site guard', () => {
+  it('refuses a source the caregiver never approved without loading it', async () => {
+    mock.allowed.mockReturnValue(false)
+    await expect(captureNewsPreview('https://unapproved.test/')).rejects.toThrow(
+      'Unapproved source'
+    )
+    expect(mock.allowed).toHaveBeenCalledWith('https://unapproved.test/', {}, 'open')
+    expect(mock.load).not.toHaveBeenCalled()
+    expect(mock.capture).not.toHaveBeenCalled()
+    expect(mock.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops the page navigating or redirecting to a site that is not approved', async () => {
+    mock.allowed.mockImplementation((url) => url.startsWith('https://approved.test/'))
+    mock.load.mockImplementation(() => new Promise(() => {}))
+    const result = captureNewsPreview('https://approved.test/').catch(
+      (error: Error) => error.message
+    )
+    for (const name of ['will-navigate', 'will-redirect']) {
+      const guard = mock.handlers.get(name)!
+      const away = { preventDefault: vi.fn() }
+      guard(away, 'https://elsewhere.test/landing')
+      expect(away.preventDefault).toHaveBeenCalledTimes(1)
+      const stay = { preventDefault: vi.fn() }
+      guard(stay, 'https://approved.test/story')
+      expect(stay.preventDefault).not.toHaveBeenCalled()
+    }
+    expect(mock.allowed).toHaveBeenCalledWith('https://elsewhere.test/landing', {}, 'redirect')
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(await result).toBe('Preview timed out')
     expect(mock.destroy).toHaveBeenCalledTimes(1)
   })
 })

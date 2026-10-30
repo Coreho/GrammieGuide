@@ -430,3 +430,23 @@ describe('audio policy: Stop works in every audio state (AC #4, the rule)', () =
     expect(h.decision()).toMatchObject({ music: 'off', showStopMusic: false })
   })
 })
+
+it('gives a family call priority over music, voices and listening, and restores music after quiet', () => {
+  let state = audioStep(initialAudioState, { type: 'musicPlay' }, 0).state
+  state = audioStep(state, { type: 'start', source: 'listening', id: 'ears' }, 1).state
+  const call = audioStep(state, { type: 'start', source: 'call', id: 'call' }, 2)
+  expect(call.stop).toEqual(['ears'])
+  expect(decideAudio(call.state, 2)).toMatchObject({
+    music: 'held',
+    muteWebPage: true,
+    hasHold: true
+  })
+  expect(
+    audioStep(call.state, { type: 'start', source: 'buddyVoice', id: 'voice' }, 3).stop
+  ).toEqual(['voice'])
+  expect(
+    audioStep(call.state, { type: 'start', source: 'listening', id: 'ears2' }, 3).stop
+  ).toEqual(['ears2'])
+  const ended = audioStep(call.state, { type: 'end', id: 'call' }, 4).state
+  expect(decideAudio(ended, 4 + RESUME_DELAY_MS).music).toBe('playing')
+})

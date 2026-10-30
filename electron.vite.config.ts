@@ -9,6 +9,15 @@ const sharedAlias = {
 export default defineConfig({
   main: {
     resolve: { alias: sharedAlias },
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/main/index.ts'),
+          // Buddy's local voice runs in its own utility process (services/speech/localVoice.ts).
+          localVoiceWorker: resolve('src/main/services/speech/localVoiceWorker.ts')
+        }
+      }
+    },
     plugins: [externalizeDepsPlugin()]
   },
   preload: {

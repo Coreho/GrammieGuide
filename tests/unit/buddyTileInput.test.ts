@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 // A small hook host lets these event tests run in the project's node environment.
 // Both inputs must reach the real panel handler, not duplicate its chat logic here.
 const host = vi.hoisted(() => ({
+  audioAllowed: true,
   slots: [] as unknown[],
   cursor: 0,
   effects: [] as Array<() => void | (() => void)>
@@ -30,7 +31,7 @@ vi.mock('react', async (original) => ({
   }
 }))
 vi.mock('../../src/renderer/audio/audioBridge', () => ({
-  holdAudio: async () => ({ release: vi.fn() })
+  holdAudio: async () => ({ allowed: host.audioAllowed, release: vi.fn() })
 }))
 vi.mock('../../src/renderer/launcher/src/buddy/speech', () => ({
   speak: vi.fn(),
@@ -71,6 +72,7 @@ describe('typed and spoken saved-tile panel wiring', () => {
     vi.useFakeTimers()
     vi.clearAllMocks()
     host.slots = []
+    host.audioAllowed = true
     vi.stubGlobal('window', { launcher: api })
     api.buddyChat.mockResolvedValue({
       ok: true,
@@ -81,6 +83,20 @@ describe('typed and spoken saved-tile panel wiring', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
+  })
+  it('does not acquire the microphone when a family call holds audio', async () => {
+    host.audioAllowed = false
+    render()
+    for (const effect of host.effects) effect()
+    await Promise.resolve()
+    const tree = render()
+    ;(
+      find(tree, (props) => props['aria-label'] === 'Talk to Buddy out loud')!.props
+        .onClick as () => void
+    )()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(api.buddyListen).not.toHaveBeenCalled()
+    expect(api.buddyChat).not.toHaveBeenCalled()
   })
   it.each(['typed', 'spoken'])(
     'routes %s input through buddy:chat and the existing action callback',

@@ -84,7 +84,7 @@ describe('buddy clips', () => {
 
   it('keeps night fidgets quiet', () => {
     for (let r = 0; r < 1; r += 0.01) {
-      expect(['idle_soft', 'look_around']).toContain(
+      expect(['idle_soft', 'doze', 'look_around']).toContain(
         pickClip('fidgeting', { random: () => r, night: true })
       )
     }
@@ -93,5 +93,23 @@ describe('buddy clips', () => {
   it('settles into listening during chat and idling otherwise', () => {
     expect(restingLoop('chat.talking')).toBe('listen')
     expect(restingLoop('fidgeting')).toBe('idle_calm')
+  })
+
+  it('puts the TASK-71 clips to use', () => {
+    const reach = (
+      activity: BuddyActivity,
+      opts: { night?: boolean; music?: boolean } = {}
+    ): Set<string> =>
+      new Set(
+        Array.from({ length: 200 }, (_, i) =>
+          pickClip(activity, { random: () => i / 200, ...opts })
+        )
+      )
+    expect(reach('fidgeting', { night: true })).toContain('doze')
+    expect(reach('fidgeting')).toContain('big_stretch')
+    expect(reach('fidgeting', { music: true })).toEqual(
+      new Set(['sway', 'groove', 'dance', 'funny_dance', 'idle_soft'])
+    )
+    expect(reach('chat.petted')).toContain('hooray')
   })
 })

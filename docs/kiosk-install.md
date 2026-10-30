@@ -12,7 +12,8 @@ Allow about 30 minutes. You need:
 - grandma's Windows account, signed in. It should be an administrator
   account: Wi-Fi self-healing and a UAC-free start both need that (see
   [Limits](#limits))
-- her Anthropic API key, if Buddy should chat
+- the sign-in for the ChatGPT account Buddy should use, if he should chat
+  (see [Buddy with a ChatGPT plan](buddy-chatgpt.md))
 
 ## 1. Get to the desktop
 
@@ -63,9 +64,14 @@ Press **Ctrl+Shift+A** to open the caregiver panel.
    only read, never changed.
 3. **Tiles** → set up her Home tiles fresh. The old launcher's tiles are
    deliberately not copied.
-4. **Buddy** → paste the Anthropic API key (the old OpenRouter key doesn't
-   work here). Choose a voice and click **Try this voice**. Leave roaming and
-   read-aloud on unless there's a reason not to.
+4. **Buddy** → under **Use your ChatGPT plan**, choose **Continue with
+   ChatGPT** and sign in, then **Load ChatGPT models**, pick one and run
+   **Test ChatGPT reply**. He chats only after **Use this model for Buddy**
+   (details in [Buddy with a ChatGPT plan](buddy-chatgpt.md)). Under
+   **Voice**, choose a **Voice on this computer** and click **Try this
+   computer's voice**: it needs no internet. The natural online voice stays
+   off unless you tick it. Leave his movement and read-aloud as they are
+   unless there's a reason to change them.
 5. **Weather** → add her town if the import didn't bring one.
 6. Close the caregiver panel.
 

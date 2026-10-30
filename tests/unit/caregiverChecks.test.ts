@@ -44,8 +44,19 @@ function harness(overrides: Partial<CaregiverChecksDeps> = {}): Harness {
     sleep: async (ms) => {
       time += ms
     },
-    voiceSettings: () => ({ cloudTtsEnabled: true, ttsVoice: 'en-US-AriaNeural' }),
-    synthesize: async () => ({ ok: true, audioBase64: 'AAAA', mime: 'audio/mpeg' }),
+    voiceSettings: () => ({
+      cloudTtsEnabled: true,
+      ttsVoice: 'en-US-AriaNeural',
+      localVoice: 'am_michael'
+    }),
+    synthesize: async () => ({
+      ok: true,
+      audioBase64: 'AAAA',
+      mime: 'audio/mpeg',
+      source: 'online'
+    }),
+    // The voice on this computer is missing unless a test provides it.
+    synthesizeLocal: async () => ({ ok: false, reason: 'unavailable' }),
     listen: async () => ({ ok: true, text: 'hello buddy' }),
     holdListening: () => {
       holds.active++
@@ -413,7 +424,9 @@ describe('caregiver checks: voice', () => {
   })
 
   it('says honestly when the Windows voice is used instead', async () => {
-    const off = harness({ voiceSettings: () => ({ cloudTtsEnabled: false, ttsVoice: 'x' }) })
+    const off = harness({
+      voiceSettings: () => ({ cloudTtsEnabled: false, ttsVoice: 'x', localVoice: 'am_michael' })
+    })
     const offStart = await off.checks.startVoice()
     expect(offStart).toMatchObject({ kind: 'windows', fallback: false })
     expect(off.checks.reportVoice(offStart.runId, 'played').voice?.message).toBe(
@@ -426,6 +439,41 @@ describe('caregiver checks: voice', () => {
     broken.checks.reportVoice(brokenStart.runId, 'heard')
     expect(broken.checks.results().voice?.message).toBe(M.voiceHeard)
     expect(broken.checks.lastHeardSound()?.path).toBe('windows')
+  })
+
+  it('uses the voice on this computer next, and says when it stands in for the online voice', async () => {
+    const synthesizeLocal = vi.fn(async () => ({
+      ok: true as const,
+      audioBase64: 'BBBB',
+      mime: 'audio/wav' as const,
+      source: 'local' as const
+    }))
+    const off = harness({
+      voiceSettings: () => ({ cloudTtsEnabled: false, ttsVoice: 'x', localVoice: 'bm_george' }),
+      synthesizeLocal
+    })
+    const offStart = await off.checks.startVoice()
+    expect(offStart).toMatchObject({ kind: 'audio', audioBase64: 'BBBB', mime: 'audio/wav' })
+    expect(synthesizeLocal).toHaveBeenCalledWith(expect.any(String), 'bm_george')
+    expect(off.checks.reportVoice(offStart.runId, 'played').voice?.message).toBe(M.voicePlayedLocal)
+    off.checks.reportVoice(offStart.runId, 'heard')
+    expect(off.checks.lastHeardSound()?.path).toBe('local')
+
+    const broken = harness({
+      synthesize: async () => ({ ok: false, reason: 'unavailable' }),
+      synthesizeLocal
+    })
+    const brokenStart = await broken.checks.startVoice()
+    expect(broken.checks.reportVoice(brokenStart.runId, 'played').voice?.message).toBe(
+      M.voicePlayedLocalFallback
+    )
+
+    const neither = harness({ synthesize: async () => ({ ok: false, reason: 'unavailable' }) })
+    const neitherStart = await neither.checks.startVoice()
+    expect(neitherStart).toMatchObject({ kind: 'windows', fallback: true })
+    expect(neither.checks.reportVoice(neitherStart.runId, 'played').voice?.message).toBe(
+      M.voicePlayedFallback
+    )
   })
 
   it('a report for an older run is ignored', async () => {

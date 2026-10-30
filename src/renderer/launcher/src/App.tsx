@@ -23,9 +23,10 @@ import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
-import type { BuddyCommand } from '@shared/buddy/commands'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import { BuddyMenu, type BuddyMenuAnchor } from './buddy/BuddyMenu'
 import { pickTapReaction, type TapReaction } from '@shared/buddy/tapReactions'
+import { reactionFor } from '@shared/buddy/homeReactions'
 import { builtinFor } from './tiles/builtins'
 import { useMusicPlayer } from './music/useMusicPlayer'
 import { NowPlayingChip } from './music/NowPlayingChip'
@@ -37,6 +38,7 @@ import { useAudioHold, useIdleDim } from './components/useIdleDim'
 import { useContactFlow } from './contacts/useContactFlow'
 import { ContactButton } from './contacts/ContactButton'
 import { ContactOverlay } from './contacts/ContactOverlay'
+import { tilesInHome } from '@shared/homeLayout'
 
 declare global {
   interface Window {
@@ -60,6 +62,45 @@ export default function App() {
   const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
   /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
   const [openBuiltin, setOpenBuiltin] = useState<TileType | null>(null)
+  const presentedCall = useRef<string | null>(null)
+  const callsEnabled =
+    !!config &&
+    tilesInHome(config.display.homeLayout, config.tiles).some(
+      (tile) => tile.type === 'builtin' && tile.builtinKey === 'calls'
+    )
+  useEffect(() => {
+    if (callsEnabled) void window.launcher.prepareWhatsApp().catch(() => {})
+    // Removing the calling tile must release any hidden microphone/backend.
+    else if (configRef.current) void window.launcher.closeWhatsAppCalls().catch(() => {})
+  }, [callsEnabled])
+  useEffect(
+    () =>
+      window.launcher.onWhatsAppChanged((state) => {
+        // Present each local call once. Late status events during hang-up must
+        // not reopen a dialog she has just closed with End call and go Home.
+        if (!state.call || presentedCall.current === state.call.id) return
+        presentedCall.current = state.call.id
+        setShowBuddyChat(false)
+        setShowConfusion(false)
+        setBuddyMenuAnchor(null)
+        void window.launcher.goHome().catch(() => {})
+        setView('home')
+        setOpenBuiltin((current) =>
+          current?.builtinKey === 'calls'
+            ? current
+            : {
+                id: 'active-family-call',
+                type: 'builtin',
+                builtinKey: 'calls',
+                label: 'Family calls',
+                colorIndex: 0,
+                size: 'normal',
+                slot: null
+              }
+        )
+      }),
+    []
+  )
   useEffect(
     () =>
       window.launcher.onNewsShelf(({ tileId }) => {
@@ -87,6 +128,25 @@ export default function App() {
     null
   )
   const [buddyChatPhase, setBuddyChatPhase] = useState<ChatPhase>('idle')
+  const [buddyReplyGesture, setBuddyReplyGesture] = useState<ClipName | null>(null)
+  const [buddyGesture, setBuddyGesture] = useState<{ clip: ClipName; sequence: number } | null>(
+    null
+  )
+  const [buddyReaction, setBuddyReaction] = useState<{ clip: ClipName; sequence: number } | null>(
+    null
+  )
+  const [buddyLookAt, setBuddyLookAt] = useState<{ x: number; at: number } | null>(null)
+  // Closing a built-in view (it covers Home without unmounting Buddy) gets a
+  // small welcome back. Coming back from a web page rebuilds his floor, which
+  // greets her already.
+  const lastBuiltin = useRef<TileType | null>(null)
+  useEffect(() => {
+    const closed = lastBuiltin.current
+    lastBuiltin.current = openBuiltin
+    if (!closed || openBuiltin) return
+    const clip = reactionFor(closed.builtinKey === 'photos' ? 'photosClosed' : 'builtinClosed')
+    setBuddyReaction((previous) => ({ clip, sequence: (previous?.sequence ?? 0) + 1 }))
+  }, [openBuiltin])
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -145,7 +205,10 @@ export default function App() {
     return () => clearInterval(t)
   }, [refreshWeather])
 
-  const triggerConfusionRecovery = useCallback(() => {
+  // `taps`: rapid taps, so she is at the screen. `idle`: a page sat untouched for
+  // the whole timeout, so she may have walked away and the line stays bubble-only
+  // like any other unprompted remark.
+  const triggerConfusionRecovery = useCallback((cause: 'taps' | 'idle') => {
     clearTimeout(toastTimer.current)
     setToast(null)
     window.launcher.goHome()
@@ -159,14 +222,14 @@ export default function App() {
     setBuddyCommand((previous) => ({
       clip: 'wave',
       text: 'Take your time — everything is right here on Home.',
-      speak: Boolean(configRef.current?.buddy.voiceEnabled),
+      speak: cause === 'taps' && Boolean(configRef.current?.buddy.voiceEnabled),
       sequence: (previous?.sequence ?? 0) + 1
     }))
   }, [clearChatInvitation, closeBuddyMenu])
 
   useEffect(() => {
     const offIdle = window.launcher.onIdleTimeout(() => {
-      triggerConfusionRecovery()
+      triggerConfusionRecovery('idle')
     })
     const offProblem = window.launcher.onPageProblem(({ kind }) => setPageProblem(kind))
     // The caregiver's recovery check opens its page the way a tile does, but
@@ -276,9 +339,17 @@ export default function App() {
         )
       )
         return
+      // Buddy glances toward where she tapped. The Stage is scaled, so convert
+      // to its own pixels (his floor spans its width).
+      const stage = stageRef.current
+      if (stage && stage.offsetWidth > 0) {
+        const box = stage.getBoundingClientRect()
+        const scale = box.width / stage.offsetWidth
+        setBuddyLookAt({ x: (e.clientX - box.x) / scale, at: performance.now() })
+      }
       const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
       if (triggered) {
-        triggerConfusionRecovery()
+        triggerConfusionRecovery('taps')
       }
     },
     [triggerConfusionRecovery]
@@ -454,6 +525,11 @@ export default function App() {
               command: buddyCommand,
               chatOpen: config.buddy.chatEnabled && showBuddyChat,
               chatPhase: buddyChatPhase,
+              replyGesture: buddyReplyGesture,
+              gesture: buddyGesture,
+              reaction: buddyReaction,
+              musicPlaying: musicState.state === 'playing' || musicState.state === 'lowered',
+              lookAt: buddyLookAt,
               motion: config.buddy.motion,
               chattiness: config.buddy.chattiness,
               hour: now.getHours(),
@@ -489,7 +565,13 @@ export default function App() {
           <BuddyChatPanel
             onAction={runBuddyAction}
             voiceEnabled={config.buddy.voiceEnabled}
-            onPhaseChange={setBuddyChatPhase}
+            onPhaseChange={(phase, gesture) => {
+              setBuddyChatPhase(phase)
+              setBuddyReplyGesture(gesture ?? null)
+            }}
+            onGesture={(clip) =>
+              setBuddyGesture((previous) => ({ clip, sequence: (previous?.sequence ?? 0) + 1 }))
+            }
             onClose={() => {
               setShowBuddyChat(false)
               setBuddyChatPhase('idle')
@@ -577,9 +659,15 @@ export default function App() {
           onClose={() => setShowConfusion(false)}
           onPlayMusic={() => {
             setShowConfusion(false)
-            void window.launcher.buddyAction('playMusic').then((result) => {
-              if (result.ok) {
-                void runBuddyAction(result.plan)
+            // Her button, not Buddy's: buddy:action refuses everything while chat is
+            // switched off, so start her first playlist that has a track directly.
+            void window.launcher.getMusicPlaylists().then(async ({ tracks, settings }) => {
+              const known = new Set(tracks.map((track) => track.id))
+              const playlist = settings.playlists.find((list) =>
+                list.trackIds.some((id) => known.has(id))
+              )
+              if (playlist && (await music.playAndConfirm(playlist.id))) {
+                flashToast(ACTION_REPLIES.musicPlaying)
               } else {
                 setOpenBuiltin(
                   config.tiles.find(

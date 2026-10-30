@@ -527,6 +527,84 @@ describe('renewable session and proof', () => {
       refresh: 'rotated-refresh'
     })
   })
+  describe('when something changes while a refresh is answering', () => {
+    const rotated = {
+      access_token: 'rotated-access',
+      refresh_token: 'rotated-refresh',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      scope: scopes
+    }
+    function refreshing(initial: ChatGptCredentials): ReturnType<typeof fixture> & {
+      answer: () => void
+      pending: Promise<unknown>
+    } {
+      const setup = fixture(initial)
+      let release!: (value: Response) => void
+      setup.fetcher.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = resolve
+          })
+      )
+      const pending = setup.session.loadModels()
+      return { ...setup, pending, answer: () => release(json(rotated)) }
+    }
+    const expired = (): ChatGptCredentials => {
+      const initial = structuredClone(active)
+      initial.profiles[0]!.expires = Date.now() - 1
+      return initial
+    }
+
+    it('keeps the rotated token when the caregiver switched accounts, without using it', async () => {
+      const initial = expired()
+      initial.profiles.push({ ...initial.profiles[0]!, clientId: 'oaiapp_other' })
+      const { session, fetcher, saved, pending, answer } = refreshing(initial)
+      await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+      session.select('oaiapp_other')
+      answer()
+      await pending
+      expect(saved().activeId).toBe('oaiapp_other')
+      expect(saved().profiles[0]).toMatchObject({
+        clientId: 'oaiapp_test',
+        access: 'rotated-access',
+        refresh: 'rotated-refresh'
+      })
+      // The switch still cancels the request that was waiting on this refresh.
+      expect(fetcher).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not bring tokens back after a sign-out has finished', async () => {
+      const { session, fetcher, saved, pending, answer } = refreshing(expired())
+      await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+      fetcher.mockResolvedValueOnce(new Response('', { status: 200 }))
+      await session.signOut()
+      answer()
+      await pending
+      expect(saved().profiles[0]!.refresh).toBeUndefined()
+      expect(JSON.stringify(saved())).not.toContain('rotated')
+    })
+
+    it('does not save tokens while a sign-out is still revoking', async () => {
+      const { session, fetcher, saved, pending, answer } = refreshing(expired())
+      await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+      let revoked!: (value: Response) => void
+      fetcher.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            revoked = resolve
+          })
+      )
+      const signingOut = session.signOut()
+      await vi.waitFor(() => expect(revoked).toBeDefined())
+      answer()
+      await pending
+      expect(JSON.stringify(saved())).not.toContain('rotated')
+      revoked(new Response('', { status: 200 }))
+      await signingOut
+      expect(saved().profiles[0]!.refresh).toBeUndefined()
+    })
+  })
   it('does not infer with identity-only permission', async () => {
     const initial = structuredClone(active)
     initial.profiles[0]!.scopes = ['openid', 'email']

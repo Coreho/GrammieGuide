@@ -4,6 +4,7 @@ import { useConfigStore } from '../state/useConfigStore'
 import { BuddyCommands } from './BuddyCommands'
 import { BuddyFacts } from './BuddyFacts'
 import { ChatGptConnection } from './ChatGptConnection'
+import { LOCAL_VOICE_IDS, LOCAL_VOICE_LABELS } from '@shared/buddy/localVoices'
 
 // Edge neural voices. Aria first: it's the voice the old app used, so it's the one she knows.
 const VOICES: { id: string; label: string }[] = [
@@ -39,20 +40,27 @@ export function BuddyTab() {
   const saveBuddy = (patch: Partial<typeof buddy>): void =>
     void save({ buddy: { ...buddy, ...patch } })
 
-  const previewVoice = async (): Promise<void> => {
+  const previewVoice = async (path: 'online' | 'local'): Promise<void> => {
     stopPreview.current()
     const generation = ++previewGeneration.current
-    setVoiceStatus('Playing…')
-    const result = await window.admin.previewVoice(PREVIEW_LINE, buddy.ttsVoice)
+    // The voice on this computer loads its model the first time, which takes a few seconds.
+    setVoiceStatus(path === 'local' ? 'Getting the voice on this computer ready…' : 'Playing…')
+    const result =
+      path === 'local'
+        ? await window.admin.previewLocalVoice(PREVIEW_LINE, buddy.localVoice)
+        : await window.admin.previewVoice(PREVIEW_LINE, buddy.ttsVoice)
     if (generation !== previewGeneration.current) return
     if (!result.ok) {
       setVoiceStatus(
-        result.reason === 'disabled'
-          ? 'The online voice is switched off, so Buddy uses the Windows voice instead.'
-          : "Couldn't reach the online voice right now (no internet?). Buddy falls back to the Windows voice."
+        path === 'local'
+          ? "The voice on this computer isn't available, so Buddy falls back to the Windows voice."
+          : result.reason === 'disabled'
+            ? 'The online voice is switched off, so Buddy uses the voice on this computer instead.'
+            : "Couldn't reach the online voice right now (no internet?). Buddy uses the voice on this computer instead."
       )
       return
     }
+    setVoiceStatus('Playing…')
     const hold = await holdAudio('buddyVoice', () => {
       if (generation === previewGeneration.current) stopPreview.current()
     })
@@ -146,7 +154,7 @@ export function BuddyTab() {
           checked={buddy.cloudTtsEnabled}
           onChange={(e) => saveBuddy({ cloudTtsEnabled: e.target.checked })}
         />
-        Use the natural online voice (needs internet; otherwise the Windows voice is used)
+        Use the natural online voice (needs internet; otherwise the voice on this computer is used)
       </label>
       <br />
       <select value={buddy.ttsVoice} onChange={(e) => saveBuddy({ ttsVoice: e.target.value })}>
@@ -156,8 +164,27 @@ export function BuddyTab() {
           </option>
         ))}
       </select>{' '}
-      <button onClick={() => void previewVoice()}>Try this voice</button>
+      <button onClick={() => void previewVoice('online')}>Try this voice</button>
+      <br />
+      <label>
+        Voice on this computer (works without internet){' '}
+        <select
+          value={buddy.localVoice}
+          onChange={(e) => saveBuddy({ localVoice: e.target.value as typeof buddy.localVoice })}
+        >
+          {LOCAL_VOICE_IDS.map((id) => (
+            <option key={id} value={id}>
+              {LOCAL_VOICE_LABELS[id]}
+            </option>
+          ))}
+        </select>
+      </label>{' '}
+      <button onClick={() => void previewVoice('local')}>Try this computer&apos;s voice</button>
       {voiceStatus && <p>{voiceStatus}</p>}
+      <p style={{ fontSize: '.85rem', color: '#666' }}>
+        Buddy uses the online voice when it is on and working, then the voice on this computer, and
+        the Windows voice only if neither can speak.
+      </p>
       <p style={{ fontSize: '.85rem', color: '#666' }}>
         She can also talk to Buddy instead of typing (the Talk button in the chat), using this
         computer&apos;s microphone. The button only appears when a microphone is found.

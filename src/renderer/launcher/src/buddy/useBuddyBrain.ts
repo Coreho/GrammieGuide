@@ -11,8 +11,14 @@ import {
   type BuddyMotion
 } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
-import type { BuddyCommand } from '@shared/buddy/commands'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import { speak, stopSpeaking } from './speech'
+
+// HomeView, and with it Buddy's floor and this actor, remounts each time she
+// comes back from a web page, and a new actor would stretch again every time.
+// The stretch is once a morning, so the day it last happened lives out here.
+let lastStretchDay: string | null = null
+const today = (): string => new Date().toDateString()
 
 type BrainInput = {
   getPosition: () => number | undefined
@@ -22,6 +28,9 @@ type BrainInput = {
   weather: RemarkWeather | null
   chatOpen: boolean
   chatPhase: ChatPhase
+  replyGesture: ClipName | null
+  gesture: { clip: ClipName; sequence: number } | null
+  reaction: { clip: ClipName; sequence: number } | null
   command: (BuddyCommand & { sequence: number }) | null
 }
 
@@ -42,10 +51,17 @@ export function useBuddyBrain(input: BrainInput): {
 
   useEffect(() => {
     const { motion, chattiness, hour, weather } = initial.current
-    const a = createActor(buddyMachine, { input: { motion, chattiness, hour, weather } })
+    const stretchedToday = lastStretchDay === today()
+    const a = createActor(buddyMachine, {
+      input: { motion, chattiness, hour, weather, stretchedToday }
+    })
     a.start()
     let sequence = 0
+    let stretchDue = a.getSnapshot().context.morningStretch
     const speech = a.subscribe((state) => {
+      // Due goes false once he stretched (or reduced motion skipped it).
+      if (stretchDue && !state.context.morningStretch) lastStretchDay = today()
+      stretchDue = state.context.morningStretch
       if (sequence !== state.context.commandSequence) {
         sequence = state.context.commandSequence
         stopSpeaking()
@@ -74,7 +90,17 @@ export function useBuddyBrain(input: BrainInput): {
   )
   const snapshot = useSyncExternalStore(subscribe, () => actor?.getSnapshot() ?? null)
 
-  const { motion, chattiness, hour, weather, chatOpen, chatPhase } = input
+  const {
+    motion,
+    chattiness,
+    hour,
+    weather,
+    chatOpen,
+    chatPhase,
+    replyGesture,
+    gesture,
+    reaction
+  } = input
   const weatherCategory = weather?.category
   const weatherTemp = weather ? Math.round(weather.temp) : null
   const weatherUnit = weather?.unit
@@ -103,8 +129,16 @@ export function useBuddyBrain(input: BrainInput): {
   }, [actor, chatOpen])
 
   useEffect(() => {
-    actor?.send({ type: 'CHAT_PHASE', phase: chatPhase })
-  }, [actor, chatPhase])
+    actor?.send({ type: 'CHAT_PHASE', phase: chatPhase, gesture: replyGesture })
+  }, [actor, chatPhase, replyGesture])
+
+  useEffect(() => {
+    if (gesture) actor?.send({ type: 'GESTURE', clip: gesture.clip })
+  }, [actor, gesture])
+
+  useEffect(() => {
+    if (reaction) actor?.send({ type: 'REACT', clip: reaction.clip })
+  }, [actor, reaction])
 
   useEffect(() => {
     if (input.command)

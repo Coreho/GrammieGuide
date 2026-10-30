@@ -303,6 +303,8 @@ test('closing the viewer cancels its pending slideshow timer', async () => {
 test('keyboard focus stays inside the viewer and Escape returns focus to her tile', async () => {
   await openViewer()
   await expect(page.getByRole('button', { name: '🏠 Home', exact: true })).toBeFocused()
+  // Until her photos load, Back is the last control and Shift+Tab rightly wraps there.
+  await expect(page.getByRole('button', { name: 'Next photo', exact: true })).toBeVisible()
   await page.keyboard.press('Shift+Tab')
   await expect(page.getByRole('button', { name: 'Next photo', exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
