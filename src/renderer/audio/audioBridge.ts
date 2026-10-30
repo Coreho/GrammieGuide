@@ -44,7 +44,7 @@ export async function sendAudio(event: ClientAudioEvent): Promise<AudioUpdate> {
 
 /** Register the stop callback before invoking: a newer voice may cancel this one during IPC. */
 export async function holdAudio(
-  source: Exclude<AudioSource, 'webPage'>,
+  source: Exclude<AudioSource, 'webPage' | 'call'>,
   stop?: () => void
 ): Promise<{
   allowed: boolean

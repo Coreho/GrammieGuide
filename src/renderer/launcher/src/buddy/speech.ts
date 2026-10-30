@@ -1,13 +1,17 @@
 /**
- * Buddy's voice in the renderer. Asks main for the online Edge voice and
- * plays it; if that's off or unavailable (no internet, service down), uses
- * the Windows voice through speechSynthesis instead - she always hears him,
- * and never hears or sees why one voice was used over the other.
+ * Buddy's voice in the renderer. Asks main for the line as audio (the
+ * online Edge voice, or the voice on this computer) and plays it; if neither
+ * is available, uses the Windows voice through speechSynthesis instead - she
+ * always hears him, and never hears or sees why one voice was used.
+ *
+ * A long line is said in pieces (speechChunks), each made while the one
+ * before plays, so a long reply doesn't start with a long silence.
  *
  * Only one line plays at a time: a new line (or stopSpeaking) cuts off the
  * one before, and the cut-off line's promise resolves right away.
  */
 
+import { speechChunks } from '@shared/buddy/speechChunks'
 import { holdAudio } from '../../../audio/audioBridge'
 
 let generation = 0
@@ -59,10 +63,10 @@ function speakLocally(text: string, isCurrent: () => boolean): Promise<void> {
   })
 }
 
-function playMp3(base64: string): Promise<void> {
+function playAudio(base64: string, mime: string): Promise<void> {
   return new Promise((resolve) => {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-    audioUrl = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }))
+    audioUrl = URL.createObjectURL(new Blob([bytes], { type: mime }))
     audio = new Audio(audioUrl)
     audio.onended = () => resolve()
     audio.onerror = () => resolve()
@@ -84,16 +88,23 @@ export async function speak(text: string): Promise<void> {
     return
   }
   releaseHold = hold.release
-  let result: Awaited<ReturnType<typeof window.launcher.buddySpeak>> | null = null
+  const fetchAudio = (
+    piece: string
+  ): Promise<Awaited<ReturnType<typeof window.launcher.buddySpeak>> | null> =>
+    window.launcher.buddySpeak(piece).catch(() => null)
   try {
-    try {
-      result = await window.launcher.buddySpeak(text)
-    } catch {
-      result = null
+    const pieces = speechChunks(text)
+    let next = pieces.length ? fetchAudio(pieces[0]!) : null
+    for (let i = 0; i < pieces.length; i++) {
+      const result = await next
+      if (!isCurrent()) return
+      // The next piece is made while this one plays.
+      next = i + 1 < pieces.length ? fetchAudio(pieces[i + 1]!) : null
+      if (result?.ok) await playAudio(result.audioBase64, result.mime)
+      else await speakLocally(pieces[i]!, isCurrent)
+      if (!isCurrent()) return
+      releaseAudio()
     }
-    if (!isCurrent()) return
-    if (result?.ok) await playMp3(result.audioBase64)
-    else await speakLocally(text, isCurrent)
   } finally {
     // Even a malformed audio result must not leave an invisible hold behind.
     hold.release()

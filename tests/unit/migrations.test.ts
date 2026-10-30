@@ -27,7 +27,7 @@ describe('ChatGPT-only migration 020', () => {
       }
       const before = structuredClone(previous),
         result = runMigrations(previous)
-      expect(CURRENT_SCHEMA_VERSION).toBe(20)
+      expect(CURRENT_SCHEMA_VERSION).toBe(21)
       expect(result.ok).toBe(true)
       expect(result.config.buddy).toEqual({
         ...defaultConfig().buddy,

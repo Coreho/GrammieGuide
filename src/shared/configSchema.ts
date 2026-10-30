@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
+import { BACKGROUND_NAMES, THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
 import { TILE_COLOR_COUNT } from './tileColors'
 import { quickMessageSchema } from './buddy/commands'
 import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
@@ -10,6 +10,7 @@ import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
 import { newsSourceSchema } from './news/sources'
 import { personalFactsSchema } from './buddy/personalFacts'
+import { DEFAULT_LOCAL_VOICE, LOCAL_VOICE_IDS } from './buddy/localVoices'
 import {
   contactConfigSchema,
   defaultContactSetup,
@@ -22,7 +23,7 @@ import {
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 20
+export const CURRENT_SCHEMA_VERSION = 21
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
 export const BUILTIN_TILE_KEYS = [
@@ -31,6 +32,7 @@ export const BUILTIN_TILE_KEYS = [
   'photos',
   'music',
   'games',
+  'calls',
   'knitting'
 ] as const
 
@@ -97,12 +99,21 @@ export const buddyConfigSchema = z.object({
   /** Discovered and verified against the signed-in ChatGPT account. */
   model: z.string().default(''),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
-  /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
-  cloudTtsEnabled: z.boolean().default(true),
+  /**
+   * Online Edge voice for speech; off (or offline) falls back to the voice on this computer.
+   * Off by default: the free voice on this computer needs no internet, and Microsoft's unofficial
+   * endpoint has refused every request for weeks at a time.
+   */
+  cloudTtsEnabled: z.boolean().default(false),
   /** Read chat replies and tap reactions aloud. Unprompted remarks stay silent either way. */
   voiceEnabled: z.boolean().default(true),
   /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
   ttsVoice: z.string().default('en-US-AriaNeural'),
+  /**
+   * The voice on this computer (Kokoro), used when the online one is off or
+   * failing. Lenient: a voice dropped from the list must not fail her config.
+   */
+  localVoice: z.enum(LOCAL_VOICE_IDS).default(DEFAULT_LOCAL_VOICE).catch(DEFAULT_LOCAL_VOICE),
   /** Caregivers choose how much movement helps her, rather than assuming more is better. */
   motion: z.enum(['still', 'roam', 'reduced']).default('roam'),
   tapAction: z.enum(['reaction', 'chat']).default('reaction'),
@@ -127,6 +138,10 @@ export const displayConfigSchema = z.object({
     .max(FONT_STEP_COUNT - 1)
     .default(DEFAULT_FONT_STEP),
   theme: z.enum(THEME_NAMES).default('tilesBold'),
+  // Unset is the theme's own background, so existing setups need no migration.
+  // An unknown name (from a newer or older build) is dropped rather than failing
+  // the whole config at boot and resetting her Home.
+  background: z.enum(BACKGROUND_NAMES).optional().catch(undefined),
   homeLayout: z.enum(HOME_LAYOUT_NAMES).default('simple4'),
   ambientBackground: z.boolean().default(true),
   volumeCeiling: z.number().min(0).max(100).default(70),
@@ -230,9 +245,10 @@ export function defaultConfig(): Config {
     buddy: {
       model: '',
       chattiness: 'off',
-      cloudTtsEnabled: true,
+      cloudTtsEnabled: false,
       voiceEnabled: true,
       ttsVoice: 'en-US-AriaNeural',
+      localVoice: DEFAULT_LOCAL_VOICE,
       motion: 'roam',
       tapAction: 'reaction'
     },

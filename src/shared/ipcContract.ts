@@ -1,6 +1,6 @@
 import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
-import type { BuddyCommand } from './buddy/commands'
+import type { BuddyCommand, ClipName } from './buddy/commands'
 import type { ChatGptState } from './buddy/chatGpt'
 import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
@@ -24,6 +24,13 @@ import type {
 import type { BuiltinGameKey } from './games/gamesSchema'
 import type { ContactRequestSummary, HomeContactState } from './contacts'
 import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
+import type {
+  WhatsAppCallState,
+  WhatsAppCommand,
+  WhatsAppCommandResult,
+  WhatsAppSetupState,
+  WhatsAppVideoBounds
+} from './whatsAppCalls'
 import type {
   AdminKnitting,
   HomeKnitting,
@@ -90,7 +97,8 @@ export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
  * has to invent error copy. `reason` is for logging/tests only.
  */
 export type BuddyChatResult =
-  | { ok: true; reply: string; action?: BuddyActionPlan }
+  /** `gesture`: a gesture she asked for, played in chat alongside the fixed reply. */
+  | { ok: true; reply: string; action?: BuddyActionPlan; gesture?: ClipName }
   | {
       ok: false
       reason: 'disabled' | 'not-connected' | 'unavailable' | 'declined'
@@ -98,9 +106,10 @@ export type BuddyChatResult =
       choices?: BuddyTileChoice[]
     }
 
-/** Base64 MP3 of Buddy's line, or why there's none (the renderer then uses the Windows voice). */
+/** Buddy's line as audio, or why there's none (the renderer then uses the Windows voice). */
 export type BuddySpeakResult =
-  | { ok: true; audioBase64: string; mime: 'audio/mpeg' }
+  /** `source`: the online Edge voice, or the voice on this computer (Kokoro, a WAV). */
+  | { ok: true; audioBase64: string; mime: 'audio/mpeg' | 'audio/wav'; source: 'online' | 'local' }
   | { ok: false; reason: 'disabled' | 'empty' | 'unavailable' }
 
 /**
@@ -125,6 +134,14 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'whatsapp:prepare': { request: void; response: WhatsAppCallState }
+  'whatsapp:closeCalls': { request: void; response: WhatsAppCallState }
+  'whatsapp:setupState': { request: void; response: WhatsAppSetupState }
+  'whatsapp:openSetup': { request: void; response: WhatsAppSetupState }
+  'whatsapp:closeSetup': { request: void; response: WhatsAppSetupState }
+  'whatsapp:state': { request: void; response: WhatsAppCallState }
+  'whatsapp:command': { request: WhatsAppCommand; response: WhatsAppCommandResult }
+  'whatsapp:videoBounds': { request: WhatsAppVideoBounds; response: void }
   'chatgpt:state': { request: void; response: ChatGptState }
   'chatgpt:connect': { request: { id?: string }; response: ChatGptState }
   'chatgpt:cancel': { request: void; response: ChatGptState }
@@ -258,8 +275,15 @@ export interface IpcApi {
   'buddy:cancelListen': { request: void; response: void }
   /** Buddy opening a saved web tile by ID; resolves once the page loads or fails. */
   'browser:openTile': { request: { tileId: string }; response: PageOutcome }
-  /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */
-  'buddy:speak': { request: { text: string; voice?: string }; response: BuddySpeakResult }
+  /**
+   * Buddy's line: the online Edge voice if it's on, then the voice on this
+   * computer. `path` asks for just one of them and `voice`/`localVoice`
+   * override the saved choice - the admin panel's "Try this voice".
+   */
+  'buddy:speak': {
+    request: { text: string; voice?: string; localVoice?: string; path?: 'online' | 'local' }
+    response: BuddySpeakResult
+  }
   /** One spoken phrase through Windows' offline recognizer; returns once she pauses. */
   'buddy:listen': { request: void; response: BuddyListenResult }
   /** Whether there's a recognizer and a microphone at all, so the panel can hide its mic button. */
@@ -297,6 +321,8 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'whatsapp:setupChanged': WhatsAppSetupState
+  'whatsapp:changed': WhatsAppCallState
   'browser:reader': import('./news/reader').ReaderState
   'browser:video': import('./browser/videoControls').VideoState
   'audio:changed': AudioUpdate

@@ -15,6 +15,25 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  prepareWhatsApp: () => invoke('whatsapp:prepare'),
+  closeWhatsAppCalls: () => invoke('whatsapp:closeCalls'),
+  getWhatsAppSetup: () => invoke('whatsapp:setupState'),
+  openWhatsAppSetup: () => invoke('whatsapp:openSetup'),
+  closeWhatsAppSetup: () => invoke('whatsapp:closeSetup'),
+  onWhatsAppSetupChanged: (
+    cb: (state: IpcEvents['whatsapp:setupChanged']) => void
+  ): (() => void) => {
+    const listener = (_event: unknown, state: IpcEvents['whatsapp:setupChanged']): void => cb(state)
+    ipcRenderer.on('whatsapp:setupChanged', listener)
+    return () => ipcRenderer.removeListener('whatsapp:setupChanged', listener)
+  },
+  getWhatsAppState: () => invoke('whatsapp:state'),
+  controlWhatsApp: (command: IpcRequest<'whatsapp:command'>) => invoke('whatsapp:command', command),
+  onWhatsAppChanged: (cb: (state: IpcEvents['whatsapp:changed']) => void): (() => void) => {
+    const listener = (_event: unknown, state: IpcEvents['whatsapp:changed']): void => cb(state)
+    ipcRenderer.on('whatsapp:changed', listener)
+    return () => ipcRenderer.removeListener('whatsapp:changed', listener)
+  },
   chatGptState: () => invoke('chatgpt:state'),
   chatGptConnect: (id?: string) => invoke('chatgpt:connect', { id }),
   chatGptCancel: () => invoke('chatgpt:cancel'),
@@ -102,7 +121,11 @@ const adminApi = {
   lock: () => invoke('admin:lock'),
   isUnlocked: () => invoke('admin:isUnlocked'),
   /** "Try this voice": same synthesis Buddy uses, so what the caregiver hears is what she'll hear. */
-  previewVoice: (text: string, voice: string) => invoke('buddy:speak', { text, voice }),
+  previewVoice: (text: string, voice: string) =>
+    invoke('buddy:speak', { text, voice, path: 'online' }),
+  /** The voice on this computer; waits for it to load the first time. */
+  previewLocalVoice: (text: string, localVoice: string) =>
+    invoke('buddy:speak', { text, localVoice, path: 'local' }),
   previewOldLauncherImport: () => invoke('admin:previewOldLauncherImport'),
   applyOldLauncherImport: () => invoke('admin:applyOldLauncherImport'),
 

@@ -49,8 +49,13 @@ export function HomePreview() {
   useLayoutEffect(() => {
     const el = stageRef.current
     if (!el || !config) return
-    applyPreviewThemeToElement(el, config.display.theme, config.display.fontStep)
-  }, [config?.display.theme, config?.display.fontStep])
+    applyPreviewThemeToElement(
+      el,
+      config.display.theme,
+      config.display.fontStep,
+      config.display.background
+    )
+  }, [config?.display.theme, config?.display.fontStep, config?.display.background])
 
   if (!config) return null
 
