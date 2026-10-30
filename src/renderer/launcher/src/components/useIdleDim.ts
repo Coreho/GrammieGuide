@@ -9,8 +9,11 @@ import { audioSnapshot, subscribeAudio } from '../../../audio/audioBridge'
 
 const TICK_MS = 1_000
 const WAKE_EVENTS = ['pointerdown', 'touchstart', 'keydown', 'wheel'] as const
-/** Stopping her music is never a wake-up tap: Stop works on the first touch, dimmed or not. */
-const PASS_THROUGH = '[data-music-stop]'
+/**
+ * Never a wake-up tap, so they work on the first touch, dimmed or not: stopping her music,
+ * and her knitting row counter, which she taps minutes apart (a swallowed tap is a lost row).
+ */
+const PASS_THROUGH = '[data-music-stop], [data-dim-pass-through]'
 
 /** Whether the audio coordinator holds sound for something in use (a voice, listening, narration, a chat). */
 export function useAudioHold(): boolean {

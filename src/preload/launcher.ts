@@ -32,6 +32,10 @@ const launcherApi = {
   listPhotos: () => invoke('photos:listVisible'),
   getTileImages: () => invoke('photos:tileImages'),
   onPhotosChanged: (cb: () => void) => on('photos:changed', cb),
+  getKnitting: () => invoke('knitting:home'),
+  changeKnittingRows: (direction: IpcRequest<'knitting:changeRows'>['direction']) =>
+    invoke('knitting:changeRows', { direction }),
+  onKnittingChanged: (cb: () => void) => on('knitting:changed', cb),
   openAppTile: (id: string) => invoke('tile:openApp', { id }),
   openInstalledGame: (id: string) => invoke('games:openInstalled', { id }),
   reportBuiltinGame: (game: IpcRequest<'games:reportBuiltin'>['game']) =>
