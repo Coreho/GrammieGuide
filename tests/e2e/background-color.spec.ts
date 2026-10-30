@@ -125,8 +125,13 @@ test('Theme default also clears a saved background the current theme hides', asy
   await choice('Plum').check()
   await expect.poll(savedBackground).toBe('plum')
   await admin.getByLabel('Theme:').selectOption({ label: 'Butter' })
+  // Admin's save isn't optimistic: a click before Butter comes back would save
+  // Tiles Bold with no background, so it would pass without the hidden case.
+  await expect(choice('Cream')).toBeVisible()
+  await expect(choice('Theme default')).not.toBeChecked()
   await choice('Theme default').check()
   await expect.poll(savedBackground).toBeUndefined()
+  await expect(admin.getByLabel('Theme:')).toHaveValue('butter')
   await admin.getByLabel('Theme:').selectOption({ label: 'Tiles Bold' })
   await expect(choice('Theme default')).toBeChecked()
   await expect.poll(() => homeToken('bgB')).toBe(THEMES.tilesBold.bgB)
