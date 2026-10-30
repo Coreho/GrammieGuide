@@ -167,6 +167,13 @@ test('she pages through them large, with what it is and who it went to underneat
   await expect(caption()).toHaveText('Blue cardiganFor Ella')
   expect(await shownWidth()).toBe(700)
   await expect(page.getByRole('button', { name: 'Next piece' })).toBeDisabled()
+  // Reaching the last piece from the keyboard keeps focus in the viewer, so the
+  // arrow keys still turn pieces.
+  await expect(page.getByRole('button', { name: 'Next piece' })).toBeFocused()
+  await page.keyboard.press('ArrowLeft')
+  await expect(position()).toHaveText('2 of 3')
+  await page.keyboard.press('ArrowRight')
+  await expect(position()).toHaveText('3 of 3')
   const area = await page.locator('.knitting-piece-picture').boundingBox()
   const height = await page.evaluate(() => innerHeight)
   expect(area!.height).toBeGreaterThan(height * 0.4)
