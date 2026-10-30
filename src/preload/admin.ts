@@ -61,6 +61,16 @@ const adminApi = {
     ipcRenderer.on('photos:changed', listener)
     return () => ipcRenderer.removeListener('photos:changed', listener)
   },
+  getKnitting: () => invoke('knitting:get'),
+  saveKnittingProject: (project: IpcRequest<'knitting:saveProject'>) =>
+    invoke('knitting:saveProject', project),
+  resetKnittingRows: () => invoke('knitting:resetRows'),
+  removeKnittingProject: () => invoke('knitting:removeProject'),
+  onKnittingChanged: (cb: () => void): (() => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('knitting:changed', listener)
+    return () => ipcRenderer.removeListener('knitting:changed', listener)
+  },
   listPhotos: () => invoke('photos:listAll'),
   importPhotos: () => invoke('photos:import'),
   updatePhoto: (request: IpcRequest<'photos:update'>) => invoke('photos:update', request),

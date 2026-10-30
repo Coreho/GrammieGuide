@@ -21,6 +21,7 @@ export const zLayers = {
   photoViewer: 220,
   musicOverlay: 230,
   gamesOverlay: 240,
+  knittingOverlay: 250,
   musicStop: 450,
   toast: 460,
   confusionOverlay: 300,
