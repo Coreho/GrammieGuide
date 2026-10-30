@@ -1,4 +1,5 @@
 import type { BuddyChatTurn, BuddyChatResult } from '@shared/ipcContract'
+import type { ClipName } from '@shared/buddy/commands'
 import type { BuddyMessage, BuddyCompletion } from './buddyCompletion'
 import { directContactGuidance, contactGuidanceContext } from '@shared/buddy/contactGuidance'
 import {
@@ -13,6 +14,8 @@ import {
   type PersonalFact,
   type PersonalHistory
 } from '@shared/buddy/personalFacts'
+import { explicitGestureRequest, gestureFromTool, performGesture } from '@shared/buddy/gestures'
+import type { BuddyMotion } from '@shared/buddy/buddyMachine'
 
 /**
  * Buddy's real conversation (M4). The renderer owns the on-screen history
@@ -62,10 +65,20 @@ export function toApiMessages(turns: BuddyChatTurn[]): BuddyMessage[] {
   return messages
 }
 
+function gestureResult(
+  gesture: Parameters<typeof performGesture>[0],
+  motion: BuddyMotion = 'roam'
+): { reply: string; gesture: ClipName } {
+  const { clip, reply } = performGesture(gesture, motion)
+  return { reply, gesture: clip }
+}
+
 export async function buddyChat(
   turns: BuddyChatTurn[],
   opts: {
     chatEnabled: boolean
+    /** Reduced motion swaps a requested dance for a calm wave. */
+    motion?: BuddyMotion
     generate?: (messages: BuddyMessage[]) => Promise<BuddyCompletion>
     log: (type: string, detail?: string) => void
     resolveAction?: (action: BuddyActionRequest) => Promise<BuddyActionResult>
@@ -89,6 +102,13 @@ export async function buddyChat(
       ? directContactGuidance(last.text, contactButton)
       : null
   if (contactReply) return { ok: true, reply: contactReply }
+  // "Buddy, dance!" needs no model either. Checked before Home actions, so
+  // "show me a trick" is a trick rather than a search for a tile.
+  const gesture =
+    last?.role === 'user' && typeof last.text === 'string'
+      ? explicitGestureRequest(last.text)
+      : null
+  if (gesture) return { ok: true, ...gestureResult(gesture, opts.motion) }
   const direct =
     last?.role === 'user' && typeof last.text === 'string' ? explicitBuddyAction(last.text) : null
   const toChatResult = (result: BuddyActionResult): BuddyChatResult =>
@@ -160,6 +180,8 @@ export async function buddyChat(
     const tools = completion.tools
     if (tools.length) {
       const tool = tools[0]!
+      const requested = tools.length === 1 ? gestureFromTool(tool.name, tool.input) : null
+      if (requested) return { ok: true, ...gestureResult(requested, opts.motion) }
       const action = tools.length === 1 ? actionFromTool(tool.name, tool.input) : null
       if (!action || !opts.resolveAction)
         return { ok: false, reason: 'unavailable', reply: REPLIES.unavailable }

@@ -15,6 +15,7 @@ import { registerBackupIpc } from './backupIpc'
 import { registerNarrationIpc } from './narrationIpc'
 import { registerChecksIpc } from './checksIpc'
 import { registerContactIpc } from './contactIpc'
+import { registerWhatsAppIpc } from './whatsAppIpc'
 import { registerKnittingIpc } from './knittingIpc'
 import { isSafeMediaFileName } from '@shared/media/mediaPath'
 
@@ -24,6 +25,7 @@ import { isSafeMediaFileName } from '@shared/media/mediaPath'
  * each domain gets its own module here instead.
  */
 export function registerAllIpc(): void {
+  registerWhatsAppIpc()
   registerAudioIpc()
   registerConfigIpc()
   registerAdminIpc()

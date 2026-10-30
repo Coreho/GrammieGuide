@@ -106,3 +106,57 @@
   gap: 20px;
   flex-wrap: wrap;
 }
+.call-dialog {
+  width: min(980px, 95vw);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.call-start {
+  background: linear-gradient(180deg, #e6f2df, #c9dfbd);
+  color: #253b20;
+}
+.call-end {
+  background: linear-gradient(180deg, #f8e5df, #ebc3b8);
+  color: #62251e;
+}
+.call-dialog button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.call-contact {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+.call-dialog-video {
+  width: 100%;
+  height: calc(100vh - 24px);
+  max-height: none;
+  overflow: hidden;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.call-backdrop-video {
+  padding: 12px;
+}
+.call-dialog-video h1 {
+  margin: 0 0 12px;
+}
+.call-dialog-video p {
+  margin-bottom: 16px;
+}
+.call-video {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin-bottom: 16px;
+  background: var(--ink, #30291f);
+  color: var(--s1, #fffcf5);
+  display: grid;
+  place-items: center;
+}
+.call-dialog-video .contact-actions {
+  flex-shrink: 0;
+}

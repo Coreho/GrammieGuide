@@ -6,8 +6,10 @@ import {
   PhotoIcon,
   MusicIcon,
   GamesIcon,
+  PhoneIcon,
   KnittingIcon
 } from '../icons'
+import { CallsOverlay } from './CallsOverlay'
 import { WeatherOverlay } from '../components/WeatherOverlay'
 import { NewsOverlay } from './NewsOverlay'
 import { PhotoViewer } from './PhotoViewer'
@@ -50,6 +52,7 @@ const BUILTINS: Record<BuiltinKey, Builtin> = {
   photos: { icon: () => <PhotoIcon />, View: PhotoViewer },
   music: { icon: () => <MusicIcon />, View: MusicOverlay },
   games: { icon: () => <GamesIcon />, View: GamesOverlay },
+  calls: { icon: () => <PhoneIcon color="currentColor" />, View: CallsOverlay },
   knitting: { icon: () => <KnittingIcon />, View: KnittingShelf }
 }
 

@@ -1,5 +1,14 @@
 import { useConfigStore } from '../state/useConfigStore'
-import { THEME_NAMES, THEME_LABELS, FONT_STEPS, type ThemeName } from '@shared/theme'
+import {
+  BACKGROUNDS,
+  THEME_NAMES,
+  THEME_LABELS,
+  FONT_STEPS,
+  backgroundsFor,
+  themeTokens,
+  type BackgroundName,
+  type ThemeName
+} from '@shared/theme'
 import { HomePreview } from './HomePreview'
 
 export function DisplayTab() {
@@ -10,6 +19,10 @@ export function DisplayTab() {
   const saveIdleDim = (patch: Partial<typeof idleDim>): void => {
     void save({ display: { ...config.display, idleDim: { ...idleDim, ...patch } } })
   }
+  const { theme, background } = config.display
+  const offered = backgroundsFor(theme)
+  // A background saved under a theme of the other tone stays saved but isn't shown.
+  const shown = background && offered.includes(background) ? background : undefined
 
   return (
     <div>
@@ -28,7 +41,59 @@ export function DisplayTab() {
           ))}
         </select>
       </label>
-      <br />
+      <fieldset style={{ border: 0, padding: 0, margin: '16px 0' }}>
+        <legend>Background</legend>
+        <p style={{ fontSize: '.85rem', color: '#666', margin: '4px 0 8px' }}>
+          Shown behind Home and her full-screen views. Only colors her text stays easy to read on
+          with this theme are offered; cards and tiles keep the theme&apos;s colors.
+        </p>
+        {background && !shown && (
+          <p role="status" style={{ fontSize: '.85rem' }}>
+            The saved {BACKGROUNDS[background].label} background doesn&apos;t suit the{' '}
+            {THEME_LABELS[theme]} theme, so the theme&apos;s own background is showing. It comes
+            back with a {BACKGROUNDS[background].tone} theme, or pick one below.
+          </p>
+        )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          {[undefined, ...offered].map((name: BackgroundName | undefined) => {
+            const tokens = themeTokens(theme, name)
+            return (
+              <label
+                key={name ?? 'theme'}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 10px',
+                  border: '1px solid #ccc',
+                  borderRadius: 10
+                }}
+              >
+                <input
+                  type="radio"
+                  name="background"
+                  // Theme default is checked only when nothing is saved: with a saved
+                  // background this theme hides, a checked radio fires no change, so
+                  // choosing it couldn't clear the saved one.
+                  checked={name ? shown === name : !background}
+                  onChange={() => save({ display: { ...config.display, background: name } })}
+                />
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    border: '1px solid rgba(0,0,0,.25)',
+                    background: `linear-gradient(180deg, ${tokens.bgA}, ${tokens.bgC})`
+                  }}
+                />
+                {name ? BACKGROUNDS[name].label : 'Theme default'}
+              </label>
+            )
+          })}
+        </div>
+      </fieldset>
       <label>
         Text size: step {config.display.fontStep + 1} of {FONT_STEPS.length} ({FONT_STEPS[config.display.fontStep]}x)
         <input

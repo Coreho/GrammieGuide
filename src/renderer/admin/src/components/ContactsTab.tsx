@@ -7,6 +7,7 @@ import {
 } from '@shared/contactSettings'
 import { TilePhotoPicker } from './TilePhotoPicker'
 import { useConfigStore } from '../state/useConfigStore'
+import { WhatsAppControlsPanel } from './WhatsAppControls'
 import './ContactsTab.css'
 
 const emptyPerson = (id: ContactPerson['id']): ContactPerson => ({ id, name: '', phone: '' })
@@ -81,6 +82,7 @@ export function ContactsTab() {
   return (
     <div className="contacts-admin">
       <h2>Contact family</h2>
+      <WhatsAppControlsPanel />
       <p>
         Home can ask one person to call her back by text, then try a second person if needed. It
         does not place a live call or guarantee a reply. Keep her telephone available.

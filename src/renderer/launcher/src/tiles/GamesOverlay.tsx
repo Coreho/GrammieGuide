@@ -410,17 +410,24 @@ function PicturePuzzleView({
     () => buildPuzzlePictures(photos, useFamilyPhotos),
     [photos, useFamilyPhotos]
   )
-  const [pictureIndex, setPictureIndex] = useState(0)
+  // The picture is held by its id, not its place in the list: the list is rebuilt
+  // whenever her photos reload, and a puzzle she is partway through must not
+  // reshuffle or switch to another picture because a photo was added or hidden.
+  const [pictureId, setPictureId] = useState(pictures[0]!.id)
   const [columns, setColumns] = useState<2 | 3>(2)
   const [pieceStyle, setPieceStyle] = useState<PuzzlePieceStyle>('jigsaw')
-  const currentPicture = pictures[pictureIndex % pictures.length]!
+  const pictureIndex = Math.max(0, pictures.findIndex((picture) => picture.id === pictureId))
+  const currentPicture = pictures[pictureIndex]!
   const [state, setState] = useState<PuzzleState>(() =>
     createPuzzleGame({ columns: 2, picture: currentPicture })
   )
 
+  // Keyed on the id, so a reload that rebuilds the same picture doesn't reset her puzzle.
+  const currentPictureRef = useRef(currentPicture)
+  currentPictureRef.current = currentPicture
   useEffect(() => {
-    setState(createPuzzleGame({ columns, picture: currentPicture }))
-  }, [columns, currentPicture])
+    setState(createPuzzleGame({ columns, picture: currentPictureRef.current }))
+  }, [columns, currentPicture.id])
 
   return (
     <div className="games-board-area">
@@ -464,7 +471,7 @@ function PicturePuzzleView({
           <button
             className="games-nav-btn"
             data-game-interactive
-            onClick={() => setPictureIndex((i) => (i + 1) % pictures.length)}
+            onClick={() => setPictureId(pictures[(pictureIndex + 1) % pictures.length]!.id)}
           >
             Next Picture
           </button>

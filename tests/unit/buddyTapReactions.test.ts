@@ -39,6 +39,13 @@ describe('tap reactions', () => {
     }
   })
 
+  it('uses the calm happy clips that taps used to leave out', () => {
+    const clips = TAP_REACTIONS.map((reaction) => reaction.clip)
+    for (const clip of ['agree', 'fist_pump', 'motivate', 'stretch', 'look_around'] as const)
+      expect(clips).toContain(clip)
+    expect(new Set(clips).size).toBe(clips.length)
+  })
+
   it('can select every reaction', () => {
     const picked = TAP_REACTIONS.map((_, i) =>
       pickTapReaction(null, () => i / TAP_REACTIONS.length)

@@ -16,6 +16,7 @@ import { createCaregiverChecks } from '../services/checks/caregiverChecks'
 import { runPowerShell } from '../services/reliability/shellExec'
 import { listenOnce } from '../services/speech/sttService'
 import { createTtsService } from '../services/speech/ttsService'
+import { getLocalVoice } from '../services/speech/localVoiceRuntime'
 import { getAdminWindow, getLauncherWindow } from '../windows/windowManager'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 
@@ -52,6 +53,7 @@ export const caregiverChecks = createCaregiverChecks({
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   voiceSettings: () => getConfig().buddy,
   synthesize: (text, voice) => tts.speak(text, voice),
+  synthesizeLocal: (text, voice) => getLocalVoice().speak(text, voice, { wait: true }),
   listen: (signal) => listenOnce(runPowerShell, signal),
   holdListening: () => {
     // Main owns this hold, so it ends in a finally even if the admin window is gone.

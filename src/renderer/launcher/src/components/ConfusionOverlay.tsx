@@ -40,14 +40,21 @@ export function ConfusionOverlay({
 }) {
   const homeBtnRef = useRef<HTMLButtonElement>(null)
   const parts = timeParts(now)
+  // App passes a new onClose on every render, and it re-renders every 10s for
+  // the clock. Depending on onClose restarted the 15s timer before it could
+  // fire and pulled focus back to Home each time, so read it through a ref.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
   useEffect(() => {
     homeBtnRef.current?.focus()
-    const t = setTimeout(onClose, AUTO_DISMISS_MS)
+    const t = setTimeout(() => onCloseRef.current(), AUTO_DISMISS_MS)
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -55,7 +62,7 @@ export function ConfusionOverlay({
       clearTimeout(t)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [onClose])
+  }, [])
 
   return (
     <OverlayShell zIndex={zLayers.confusionOverlay} onClose={onClose}>
