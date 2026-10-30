@@ -6,6 +6,8 @@ out
 *.log
 .DS_Store
 resources/reliability/VolumeHelper.dll
+# Buddy's local voice model (~325 MB); `npm run fetch:voice` downloads it.
+resources/voice-model/
 test-results
 playwright-report
 blob-report

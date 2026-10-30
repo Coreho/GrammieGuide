@@ -63,6 +63,7 @@ describe('migration 002 (Buddy voice + roaming)', () => {
       cloudTtsEnabled: false,
       voiceEnabled: true,
       ttsVoice: 'en-US-AriaNeural',
+      localVoice: 'am_michael',
       motion: 'roam',
       tapAction: 'reaction',
       quickMessages: [],

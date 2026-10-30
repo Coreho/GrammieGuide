@@ -96,7 +96,11 @@ const adminApi = {
   lock: () => invoke('admin:lock'),
   isUnlocked: () => invoke('admin:isUnlocked'),
   /** "Try this voice": same synthesis Buddy uses, so what the caregiver hears is what she'll hear. */
-  previewVoice: (text: string, voice: string) => invoke('buddy:speak', { text, voice }),
+  previewVoice: (text: string, voice: string) =>
+    invoke('buddy:speak', { text, voice, path: 'online' }),
+  /** The voice on this computer; waits for it to load the first time. */
+  previewLocalVoice: (text: string, localVoice: string) =>
+    invoke('buddy:speak', { text, localVoice, path: 'local' }),
   previewOldLauncherImport: () => invoke('admin:previewOldLauncherImport'),
   applyOldLauncherImport: () => invoke('admin:applyOldLauncherImport'),
 

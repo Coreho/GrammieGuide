@@ -53,7 +53,7 @@ const WEATHER_REMARKS: Record<WeatherCategory, string[]> = {
   clear: ['It looks sunny outside today.'],
   cloudy: ["It's a bit cloudy outside today."],
   fog: ["It's a little foggy outside."],
-  rain: ["It looks rainy outside. A good day to stay cozy."],
+  rain: ['It looks rainy outside. A good day to stay cozy.'],
   snow: ["There's snow outside. It's nice and warm in here!"],
   storm: ["It's stormy outside, but we're safe and cozy in here."]
 }

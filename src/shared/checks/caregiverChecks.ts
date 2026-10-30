@@ -30,7 +30,7 @@ export function isCheckId(value: unknown): value is CheckId {
 }
 
 /** Which voice path the voice check used, so a fallback is never passed off as the chosen voice. */
-export type VoicePath = 'online' | 'windows'
+export type VoicePath = 'online' | 'local' | 'windows'
 
 /**
  * What the panel reports back about the voice it played: playback finished,
@@ -68,10 +68,14 @@ export const CHECK_LABELS: Record<CheckId, string> = {
 export const CHECK_MESSAGES = {
   voiceChecking: 'Getting the voice ready...',
   voicePlayedOnline: "Buddy's online voice finished playing. Did you hear it?",
+  voicePlayedLocal:
+    "The voice on this computer finished playing (Buddy's online voice is off). Did you hear it?",
+  voicePlayedLocalFallback:
+    "Buddy's online voice isn't working right now, so this used the voice on this computer instead. Did you hear it?",
   voicePlayedWindows:
-    "The Windows voice finished playing (Buddy's online voice is off). Did you hear it?",
+    "The voice on this computer isn't available, so this used the Windows voice instead. Did you hear it?",
   voicePlayedFallback:
-    "Buddy's online voice isn't working right now, so this used the Windows voice instead. Did you hear it?",
+    'Neither the online voice nor the voice on this computer is working right now, so this used the Windows voice instead. Did you hear it?',
   voiceHeard: 'You heard Buddy speak.',
   voiceNotHeard:
     "Buddy's voice played, but you didn't hear it. Check the volume and which speaker Windows is using.",
