@@ -295,6 +295,54 @@
   white-space: nowrap;
 }
 
+/* A finished piece is shown whole (never cropped), with what it is and who it went to underneath. */
+.knitting-piece {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.knitting-piece-picture {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 28px;
+  background: linear-gradient(180deg, var(--s1, #fffcf5), var(--s2, #ece6da));
+  box-shadow: 0 12px 24px rgba(var(--sh, 60, 55, 45), 0.18);
+}
+.knitting-piece-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.knitting-piece-caption {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 24px;
+  text-align: center;
+}
+.knitting-piece-what {
+  font-size: calc(40px * var(--font-scale, 1));
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.knitting-piece-for {
+  font-size: calc(30px * var(--font-scale, 1));
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink2, #504738);
+  overflow-wrap: anywhere;
+}
+
 .knitting-shelf button:focus-visible {
   outline: 4px solid currentColor;
   outline-offset: -6px;

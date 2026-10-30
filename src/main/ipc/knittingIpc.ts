@@ -4,23 +4,29 @@ import { join } from 'node:path'
 import type { IpcResponse } from '@shared/ipcContract'
 import {
   MAX_KNITTING_PATTERNS,
+  MAX_KNITTING_PIECES,
+  PIECE_PICTURE_EDGE,
   changeRows,
+  knittingPieceInputSchema,
   knittingProjectInputSchema,
+  movePiece,
   patternNameSchema,
   type AdminKnitting,
   type HomeKnitting,
   type KnittingFile,
-  type KnittingPattern
+  type KnittingPattern,
+  type KnittingPiece
 } from '@shared/knitting/knitting'
 import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { isSafeMediaFileName } from '@shared/media/mediaPath'
 import type { LibraryEntry } from '@shared/media/libraryTypes'
 import { KnittingStore } from '../services/knitting/knittingStore'
+import { importPatternPages } from '../services/knitting/knittingPatterns'
 import {
-  importPatternPages,
-  removePatternPages,
-  type PatternLibrary
-} from '../services/knitting/knittingPatterns'
+  encodePicture,
+  removePictures,
+  type KnittingLibrary
+} from '../services/knitting/knittingPictures'
 import { createNativePhotoCodec } from '../services/photos/nativePhotoCodec'
 import type { PhotoCodec } from '../services/photos/photoLibrary'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
@@ -32,13 +38,16 @@ export type KnittingPhoto = { url: string; thumbnailUrl: string }
 
 export interface KnittingIpcOptions {
   /** The one shared store for the patterns media library (see registerLibraryIpc). */
-  patterns: () => PatternLibrary
+  patterns: () => KnittingLibrary
+  /** The one shared store for the knitted media library: photos of her finished pieces. */
+  gallery: () => KnittingLibrary
   photo?: (id: string | undefined) => Promise<KnittingPhoto | undefined>
   folder?: () => string
   now?: () => number
   codec?: () => PhotoCodec
-  /** The native picker; null when the caregiver cancels. */
+  /** The native pickers; null when the caregiver cancels. */
   pickPages?: () => Promise<string[] | null>
+  pickPicture?: () => Promise<string | null>
 }
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -62,19 +71,23 @@ function requireHome(event: IpcMainInvokeEvent): void {
   }
 }
 
-function mediaUrl(fileName: string | undefined): string | undefined {
+function mediaUrl(
+  library: 'patterns' | 'knitted',
+  fileName: string | undefined
+): string | undefined {
   return fileName && isSafeMediaFileName(fileName)
-    ? `grammie-media://patterns/${fileName}`
+    ? `grammie-media://${library}/${fileName}`
     : undefined
 }
 
 /**
- * Logs say that the counter, a pattern or the project changed, never what she is
- * making, who it is for or a pattern's name: those are family details, and the
- * activity log reaches admin.
+ * Logs say that the counter, a pattern, a piece or the project changed, never what
+ * she is making or made, who it is for or a pattern's name: those are family
+ * details, and the activity log reaches admin.
  */
 export function registerKnittingIpc({
   patterns,
+  gallery,
   photo = async () => undefined,
   folder = () => join(app.getPath('userData'), 'knitting'),
   now = Date.now,
@@ -85,6 +98,13 @@ export function registerKnittingIpc({
       filters: [{ name: 'Pattern pages', extensions: [...PHOTO_EXTENSIONS] }]
     })
     return selected.canceled ? null : selected.filePaths
+  },
+  pickPicture = async () => {
+    const selected = await dialog.showOpenDialog({
+      properties: ['openFile', 'dontAddToRecent'],
+      filters: [{ name: 'Photos', extensions: [...PHOTO_EXTENSIONS] }]
+    })
+    return selected.canceled ? null : (selected.filePaths[0] ?? null)
   }
 }: KnittingIpcOptions): void {
   // Lazy so registration itself never touches disk.
@@ -94,13 +114,24 @@ export function registerKnittingIpc({
       logReliabilityEvent({ op: 'knitting-reset', ok: false, detail: backupName })
     ))
 
-  const pageEntries = async (): Promise<Map<string, LibraryEntry>> => {
-    // An unreadable library shows each page's calm missing line, never an error on Home.
-    const entries: LibraryEntry[] = await patterns()
-      .list()
-      .catch(() => [])
+  const entriesOf = async (
+    library: KnittingLibrary,
+    wanted: boolean
+  ): Promise<Map<string, LibraryEntry>> => {
+    if (!wanted) return new Map()
+    // An unreadable library shows each picture's calm missing line, never an error on Home.
+    const entries: LibraryEntry[] = await library.list().catch(() => [])
     return new Map(entries.map((entry) => [entry.id, entry] as const))
   }
+  const pageEntries = (file: KnittingFile): Promise<Map<string, LibraryEntry>> =>
+    entriesOf(patterns(), file.patterns.length > 0)
+  const pieceEntries = (file: KnittingFile): Promise<Map<string, LibraryEntry>> =>
+    entriesOf(gallery(), file.pieces.length > 0)
+  const thumbnail = (
+    library: 'patterns' | 'knitted',
+    entry: LibraryEntry | undefined
+  ): { thumbnailUrl?: string } =>
+    entry ? { thumbnailUrl: mediaUrl(library, entry.thumbFileName ?? entry.fileName) } : {}
   const linkedPattern = (file: KnittingFile): string | undefined => {
     const id = file.project?.patternId
     return id && file.patterns.some((pattern) => pattern.id === id) ? id : undefined
@@ -108,18 +139,25 @@ export function registerKnittingIpc({
 
   const forHome = async (file: KnittingFile): Promise<HomeKnitting> => {
     const project = file.project
-    const entries = file.patterns.length ? await pageEntries() : new Map<string, LibraryEntry>()
-    const patternsForHome = file.patterns.map((pattern) => {
-      const first = entries.get(pattern.pages[0]!)
+    const [pages, pictures] = await Promise.all([pageEntries(file), pieceEntries(file)])
+    const patternsForHome = file.patterns.map((pattern) => ({
+      id: pattern.id,
+      name: pattern.name,
+      lastPage: pattern.lastPage,
+      ...thumbnail('patterns', pages.get(pattern.pages[0]!)),
+      pages: pattern.pages.map((id) => ({ url: mediaUrl('patterns', pages.get(id)?.fileName) }))
+    }))
+    const piecesForHome = file.pieces.map((piece) => {
+      const entry = pictures.get(piece.picture)
       return {
-        id: pattern.id,
-        name: pattern.name,
-        lastPage: pattern.lastPage,
-        ...(first && { thumbnailUrl: mediaUrl(first.thumbFileName ?? first.fileName) }),
-        pages: pattern.pages.map((id) => ({ url: mediaUrl(entries.get(id)?.fileName) }))
+        id: piece.id,
+        what: piece.what,
+        forWhom: piece.forWhom,
+        ...(entry && { url: mediaUrl('knitted', entry.fileName) }),
+        ...thumbnail('knitted', entry)
       }
     })
-    if (!project) return { project: null, patterns: patternsForHome }
+    if (!project) return { project: null, patterns: patternsForHome, pieces: piecesForHome }
     // A photo removed from the library just leaves the yarn icon in its place.
     const picture = await photo(project.photoId).catch(() => undefined)
     const patternId = linkedPattern(file)
@@ -131,13 +169,14 @@ export function registerKnittingIpc({
         ...(picture && { photoUrl: picture.url, thumbnailUrl: picture.thumbnailUrl }),
         ...(patternId && { patternId })
       },
-      patterns: patternsForHome
+      patterns: patternsForHome,
+      pieces: piecesForHome
     }
   }
 
   const forAdmin = async (file: KnittingFile): Promise<AdminKnitting> => {
     const project = file.project
-    const entries = file.patterns.length ? await pageEntries() : new Map<string, LibraryEntry>()
+    const [pages, pictures] = await Promise.all([pageEntries(file), pieceEntries(file)])
     return {
       project: project && {
         name: project.name,
@@ -146,15 +185,18 @@ export function registerKnittingIpc({
         patternId: linkedPattern(file),
         rows: project.rows
       },
-      patterns: file.patterns.map((pattern) => {
-        const first = entries.get(pattern.pages[0]!)
-        return {
-          id: pattern.id,
-          name: pattern.name,
-          pageCount: pattern.pages.length,
-          ...(first && { thumbnailUrl: mediaUrl(first.thumbFileName ?? first.fileName) })
-        }
-      })
+      patterns: file.patterns.map((pattern) => ({
+        id: pattern.id,
+        name: pattern.name,
+        pageCount: pattern.pages.length,
+        ...thumbnail('patterns', pages.get(pattern.pages[0]!))
+      })),
+      pieces: file.pieces.map((piece) => ({
+        id: piece.id,
+        what: piece.what,
+        forWhom: piece.forWhom,
+        ...thumbnail('knitted', pictures.get(piece.picture))
+      }))
     }
   }
 
@@ -319,7 +361,7 @@ export function registerKnittingIpc({
           })
         } catch (error) {
           // Pages with no pattern record would be unreachable files; take them back out.
-          await removePatternPages(patterns(), pages)
+          await removePictures(patterns(), pages)
           throw error
         }
         logActivity('knitting-pattern-added')
@@ -353,8 +395,110 @@ export function registerKnittingIpc({
         }
       })
       if (removed) {
-        await removePatternPages(patterns(), removed.pages)
+        await removePictures(patterns(), removed.pages)
         logActivity('knitting-pattern-removed')
+        announce()
+      }
+      return forAdmin(file)
+    }
+  )
+
+  let addingPiece = false
+  ipcMain.handle(
+    'knitting:addPiece',
+    async (event, value: unknown): Promise<IpcResponse<'knitting:addPiece'>> => {
+      requireCaregiver(event)
+      const input = knittingPieceInputSchema.parse(value)
+      if (addingPiece) throw new Error('A photo is already being added.')
+      addingPiece = true
+      try {
+        if ((await knitting().read()).pieces.length >= MAX_KNITTING_PIECES) {
+          throw new Error(`Up to ${MAX_KNITTING_PIECES} pieces can be saved.`)
+        }
+        const source = await pickPicture()
+        // The lock or the window may have changed while the picker was open.
+        requireCaregiver(event)
+        if (!source) return { knitting: await forAdmin(await knitting().read()), added: false }
+        const id = randomUUID()
+        let encoded: { jpeg: Buffer; thumbnail: Buffer }
+        try {
+          encoded = await encodePicture(source, codec(), PIECE_PICTURE_EDGE)
+        } catch {
+          throw new Error("That photo couldn't be read. Try a JPEG or PNG photo.")
+        }
+        let picture: string
+        try {
+          picture = (await gallery().addImage(encoded.jpeg, encoded.thumbnail, { pieceId: id })).id
+        } catch {
+          // The store's errors can name userData paths.
+          throw new Error('Could not save the photo. Try again.')
+        }
+        let file: KnittingFile
+        try {
+          requireCaregiver(event)
+          file = await knitting().update((current) => {
+            if (current.pieces.length >= MAX_KNITTING_PIECES) {
+              throw new Error(`Up to ${MAX_KNITTING_PIECES} pieces can be saved.`)
+            }
+            const piece: KnittingPiece = { id, what: input.what, forWhom: input.forWhom, picture }
+            // Newest first: what she made last is what she'll want to show.
+            return { ...current, pieces: [piece, ...current.pieces] }
+          })
+        } catch (error) {
+          // A photo with no piece record would be an unreachable file; take it back out.
+          await removePictures(gallery(), [picture])
+          throw error
+        }
+        logActivity('knitting-piece-added')
+        announce()
+        return { knitting: await forAdmin(file), added: true }
+      } finally {
+        addingPiece = false
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'knitting:movePiece',
+    async (
+      event,
+      req: { id?: unknown; direction?: unknown }
+    ): Promise<IpcResponse<'knitting:movePiece'>> => {
+      requireCaregiver(event)
+      const { id, direction } = req ?? {}
+      if (typeof id !== 'string' || !uuid.test(id)) throw new Error('Unknown piece')
+      if (direction !== 'earlier' && direction !== 'later') throw new Error('Unknown move')
+      let moved = false
+      const file = await knitting().update((current) => {
+        const pieces = movePiece(current.pieces, id, direction)
+        if (pieces === current.pieces) return current
+        moved = true
+        return { ...current, pieces }
+      })
+      if (moved) {
+        logActivity('knitting-piece-moved')
+        announce()
+      }
+      return forAdmin(file)
+    }
+  )
+
+  ipcMain.handle(
+    'knitting:removePiece',
+    async (event, req: { id?: unknown }): Promise<IpcResponse<'knitting:removePiece'>> => {
+      requireCaregiver(event)
+      const id = req?.id
+      if (typeof id !== 'string' || !uuid.test(id)) throw new Error('Unknown piece')
+      let removed: KnittingPiece | undefined
+      // The record goes first: an interrupted removal leaves an unused file, never a broken piece.
+      const file = await knitting().update((current) => {
+        removed = current.pieces.find((piece) => piece.id === id)
+        if (!removed) return current
+        return { ...current, pieces: current.pieces.filter((piece) => piece.id !== id) }
+      })
+      if (removed) {
+        await removePictures(gallery(), [removed.picture])
+        logActivity('knitting-piece-removed')
         announce()
       }
       return forAdmin(file)

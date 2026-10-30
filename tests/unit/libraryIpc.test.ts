@@ -185,12 +185,19 @@ describe('admin library IPC', () => {
     }
   )
 
-  it.each(['import', 'update', 'remove'])(
-    'keeps generic %s out of knitting patterns, which change only through the Knitting tab',
-    async (op) => {
-      await expect(
-        invoke(`library:${op}`, { library: 'patterns', id: 'x', metadata: {} })
-      ).rejects.toThrow('Use the Knitting tab to change patterns')
+  it.each([
+    ['import', 'patterns', 'Use the Knitting tab to change patterns'],
+    ['update', 'patterns', 'Use the Knitting tab to change patterns'],
+    ['remove', 'patterns', 'Use the Knitting tab to change patterns'],
+    ['import', 'knitted', 'Use the Knitting tab to change her finished pieces'],
+    ['update', 'knitted', 'Use the Knitting tab to change her finished pieces'],
+    ['remove', 'knitted', 'Use the Knitting tab to change her finished pieces']
+  ])(
+    'keeps generic %s out of the %s library, which changes only through the Knitting tab',
+    async (op, library, message) => {
+      await expect(invoke(`library:${op}`, { library, id: 'x', metadata: {} })).rejects.toThrow(
+        message
+      )
       expect(mocks.dialog).not.toHaveBeenCalled()
       expect(mocks.import).not.toHaveBeenCalled()
     }

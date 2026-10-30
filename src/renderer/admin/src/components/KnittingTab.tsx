@@ -18,14 +18,15 @@ function mainMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * Her project and patterns live in their own main-process file, not in config: Home
- * updates the row count and her pattern page as she goes, and only this tab can set
- * them up, reset or remove them.
+ * Her project, patterns and finished pieces live in their own main-process file, not
+ * in config: Home updates the row count and her pattern page as she goes, and only
+ * this tab can set them up, reorder, reset or remove them.
  */
 export function KnittingTab() {
   const [knitting, setKnitting] = useState<AdminKnitting | null>(null)
   const [draft, setDraft] = useState<Draft>({ name: '', forWhom: '' })
   const [patternName, setPatternName] = useState('')
+  const [piece, setPiece] = useState({ what: '', forWhom: '' })
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -127,8 +128,31 @@ export function KnittingTab() {
     }
   }
 
+  async function addPiece(): Promise<void> {
+    if (!piece.what.trim()) {
+      setError('Say what the piece is (up to 40 characters).')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    setError('')
+    try {
+      const result = await window.admin.addKnittingPiece(piece)
+      setKnitting(result.knitting)
+      if (result.added) {
+        setPiece({ what: '', forWhom: '' })
+        setMessage('Piece saved. She sees it first in My knitting.')
+      }
+    } catch (failure) {
+      setError(mainMessage(failure, 'Could not add the piece. Try again.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const project = knitting?.project ?? null
   const patterns = knitting?.patterns ?? []
+  const pieces = knitting?.pieces ?? []
 
   return (
     <div>
@@ -308,6 +332,114 @@ export function KnittingTab() {
             </label>
             <div>
               <button type="submit">Choose page pictures…</button>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+
+      <section aria-labelledby="knitting-pieces-heading" style={{ marginTop: 28 }}>
+        <h3 id="knitting-pieces-heading">My knitting (her finished pieces)</h3>
+        <p style={{ fontSize: '.9rem', color: '#555' }}>
+          Add a photo of each piece she has finished, with what it is and who it was for. She pages
+          through them on Home, newest first; move a piece earlier or later to change the order.
+        </p>
+        <ul aria-label="Finished pieces" style={{ listStyle: 'none', padding: 0 }}>
+          {pieces.map((item, index) => (
+            <li
+              key={item.id}
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                padding: 10,
+                marginBottom: 8,
+                border: '1px solid #ccc',
+                borderRadius: 12
+              }}
+            >
+              {item.thumbnailUrl && (
+                <img
+                  src={item.thumbnailUrl}
+                  alt=""
+                  style={{ width: 80, height: 64, objectFit: 'contain', background: '#fff' }}
+                />
+              )}
+              <span style={{ flex: 1 }}>
+                <strong>{item.what}</strong>
+                {item.forWhom && ` · for ${item.forWhom}`}
+              </span>
+              <button
+                type="button"
+                disabled={busy || index === 0}
+                aria-label={`Move ${item.what} earlier`}
+                onClick={() =>
+                  void run(
+                    () => window.admin.moveKnittingPiece(item.id, 'earlier'),
+                    'Order saved.',
+                    { keepDraft: true }
+                  )
+                }
+              >
+                Move earlier
+              </button>
+              <button
+                type="button"
+                disabled={busy || index === pieces.length - 1}
+                aria-label={`Move ${item.what} later`}
+                onClick={() =>
+                  void run(() => window.admin.moveKnittingPiece(item.id, 'later'), 'Order saved.', {
+                    keepDraft: true
+                  })
+                }
+              >
+                Move later
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                aria-label={`Remove piece ${item.what}`}
+                onClick={() => {
+                  if (window.confirm(`Remove "${item.what}" and its photo from her gallery?`))
+                    void run(() => window.admin.removeKnittingPiece(item.id), 'Piece removed.', {
+                      keepDraft: true
+                    })
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+          {knitting && pieces.length === 0 && <li>No finished pieces yet.</li>}
+        </ul>
+        <form
+          onSubmit={(event: FormEvent) => {
+            event.preventDefault()
+            void addPiece()
+          }}
+        >
+          <fieldset disabled={!knitting || busy} style={{ display: 'grid', gap: 14, padding: 20 }}>
+            <legend>Add a finished piece</legend>
+            <label>
+              What it is{' '}
+              <input
+                required
+                maxLength={40}
+                placeholder="Blue cardigan"
+                value={piece.what}
+                onChange={(e) => setPiece({ ...piece, what: e.target.value })}
+              />
+            </label>
+            <label>
+              Who it was for{' '}
+              <input
+                maxLength={40}
+                placeholder="Ella"
+                value={piece.forWhom}
+                onChange={(e) => setPiece({ ...piece, forWhom: e.target.value })}
+              />
+            </label>
+            <div>
+              <button type="submit">Choose a photo…</button>
             </div>
           </fieldset>
         </form>

@@ -11,9 +11,18 @@ export const MAX_KNITTING_PATTERNS = 20
 export const MAX_PATTERN_PAGES = 60
 /** Pages keep more detail than photos (1600): pattern text and charts must stay sharp at full screen. */
 export const PATTERN_PAGE_EDGE = 2400
+export const MAX_KNITTING_PIECES = 100
+/** A finished piece is a photo like her family photos, so it is kept at their size. */
+export const PIECE_PICTURE_EDGE = 1600
 
 const patternName = z.string().trim().min(1, 'Give the pattern a name.').max(40)
 export const patternNameSchema = patternName
+
+export const knittingPieceInputSchema = z.object({
+  what: z.string().trim().min(1, 'Say what the piece is.').max(40),
+  forWhom: z.string().trim().max(40).default('')
+})
+export type KnittingPieceInput = z.input<typeof knittingPieceInputSchema>
 
 export const knittingProjectInputSchema = z.object({
   name: z.string().trim().min(1, 'Say what she is making.').max(40),
@@ -49,11 +58,23 @@ export const knittingPatternSchema = z.object({
 })
 export type KnittingPattern = z.infer<typeof knittingPatternSchema>
 
+/** One finished piece in her gallery. */
+export const knittingPieceSchema = z.object({
+  id: z.string().uuid(),
+  what: z.string().trim().min(1).max(40),
+  forWhom: z.string().trim().max(40),
+  /** Library entry ID; the photo lives in the knitted media library. */
+  picture: z.string().uuid()
+})
+export type KnittingPiece = z.infer<typeof knittingPieceSchema>
+
 export const knittingFileSchema = z.object({
   version: z.literal(1),
   project: knittingProjectSchema.nullable(),
-  // Added with patterns; a file from before them simply has none.
-  patterns: z.array(knittingPatternSchema).max(MAX_KNITTING_PATTERNS).default([])
+  // Added with patterns and then pieces; a file from before them simply has none.
+  patterns: z.array(knittingPatternSchema).max(MAX_KNITTING_PATTERNS).default([]),
+  /** Her finished work, newest first unless the caregiver reorders it. */
+  pieces: z.array(knittingPieceSchema).max(MAX_KNITTING_PIECES).default([])
 })
 export type KnittingFile = z.infer<typeof knittingFileSchema>
 
@@ -68,6 +89,15 @@ export interface HomePattern {
   pages: { url?: string }[]
 }
 
+/** One finished piece as Home shows it. A piece with no url has lost its photo. */
+export interface HomePiece {
+  id: string
+  what: string
+  forWhom: string
+  url?: string
+  thumbnailUrl?: string
+}
+
 /** What Home is told: what she sees, plus pattern IDs to remember her page by. */
 export interface HomeKnitting {
   project: {
@@ -79,12 +109,14 @@ export interface HomeKnitting {
     patternId?: string
   } | null
   patterns: HomePattern[]
+  pieces: HomePiece[]
 }
 
 /** What the caregiver's Knitting tab edits. */
 export interface AdminKnitting {
   project: Pick<KnittingProject, 'name' | 'forWhom' | 'photoId' | 'patternId' | 'rows'> | null
   patterns: { id: string; name: string; pageCount: number; thumbnailUrl?: string }[]
+  pieces: { id: string; what: string; forWhom: string; thumbnailUrl?: string }[]
 }
 
 export interface PatternImportResult {
@@ -93,6 +125,28 @@ export interface PatternImportResult {
   added: number
   /** Pages that couldn't be read; never their file names. */
   failed: number
+}
+
+export interface PieceImportResult {
+  knitting: AdminKnitting
+  /** False when the caregiver cancelled the picker. */
+  added: boolean
+}
+
+export type PieceMove = 'earlier' | 'later'
+
+/** Moves one piece a place earlier or later; returns the same array when it can't move. */
+export function movePiece<T extends { id: string }>(
+  pieces: T[],
+  id: string,
+  direction: PieceMove
+): T[] {
+  const from = pieces.findIndex((piece) => piece.id === id)
+  const to = direction === 'earlier' ? from - 1 : from + 1
+  if (from < 0 || to < 0 || to >= pieces.length) return pieces
+  const moved = [...pieces]
+  ;[moved[from], moved[to]] = [moved[to]!, moved[from]!]
+  return moved
 }
 
 /** Files picked together are pages in name order, so page2 comes before page10. */

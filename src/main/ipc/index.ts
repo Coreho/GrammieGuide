@@ -43,6 +43,7 @@ export function registerAllIpc(): void {
   })
   registerKnittingIpc({
     patterns: () => getLibrary('patterns'),
+    gallery: () => getLibrary('knitted'),
     photo: async (id) => {
       if (!id) return undefined
       const entry = (await getLibrary('photos').list()).find((entry) => entry.id === id)

@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LibraryEntry, LibraryMetadata } from '../../src/shared/media/libraryTypes'
 import type { PhotoCodec, PhotoImage } from '../../src/main/services/photos/photoLibrary'
-import type { AdminKnitting, HomeKnitting } from '../../src/shared/knitting/knitting'
+import type {
+  AdminKnitting,
+  HomeKnitting,
+  PieceImportResult
+} from '../../src/shared/knitting/knitting'
 
 const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
@@ -48,7 +52,23 @@ const codec: PhotoCodec = { createFromPath: () => page() }
 let folder: string
 let clock: number
 let picked: string[] | null
+let pickedPhoto: string | null
 let entries: LibraryEntry[]
+let pieceEntries: LibraryEntry[]
+const gallery = {
+  addImage: vi.fn(async (_jpeg: Buffer, _thumb: Buffer, metadata: LibraryMetadata) => {
+    const id = randomUUID()
+    const entry = { id, fileName: `${id}.jpg`, thumbFileName: `${id}.thumb.jpg`, metadata }
+    pieceEntries.push(entry)
+    return entry
+  }),
+  remove: vi.fn(async (id: string) => {
+    const before = pieceEntries.length
+    pieceEntries = pieceEntries.filter((entry) => entry.id !== id)
+    return pieceEntries.length < before
+  }),
+  list: vi.fn(async () => [...pieceEntries])
+}
 const library = {
   addImage: vi.fn(async (_jpeg: Buffer, _thumb: Buffer, metadata: LibraryMetadata) => {
     const id = randomUUID()
@@ -76,15 +96,28 @@ const addPattern = async (name: string, paths: string[]): Promise<AdminKnitting>
   return ((await handler('knitting:addPattern')(admin, { name })) as { knitting: AdminKnitting })
     .knitting
 }
+const addPiece = async (
+  what: string,
+  forWhom = '',
+  path = 'C:\\photos\\piece.jpg'
+): Promise<PieceImportResult> => {
+  pickedPhoto = path
+  return (await handler('knitting:addPiece')(admin, { what, forWhom })) as PieceImportResult
+}
+const empty = { project: null, patterns: [], pieces: [] }
 
 beforeEach(() => {
   vi.clearAllMocks()
   folder = mkdtempSync(join(tmpdir(), 'grammieguide-knitting-ipc-'))
   clock = 100_000
   picked = null
+  pickedPhoto = null
   entries = []
+  pieceEntries = []
   registerKnittingIpc({
     patterns: () => library,
+    gallery: () => gallery,
+    pickPicture: async () => pickedPhoto,
     photo: async (id) =>
       id === photoId
         ? {
@@ -102,11 +135,8 @@ afterEach(() => rmSync(folder, { recursive: true, force: true }))
 
 describe('knitting IPC: her project', () => {
   it('shows Home a calm empty state before anything is set up', async () => {
-    expect(await homeState()).toEqual({ project: null, patterns: [] })
-    expect(await handler('knitting:changeRows')(home, { direction: 'add' })).toEqual({
-      project: null,
-      patterns: []
-    })
+    expect(await homeState()).toEqual(empty)
+    expect(await handler('knitting:changeRows')(home, { direction: 'add' })).toEqual(empty)
     expect(mocks.activity).not.toHaveBeenCalled()
   })
 
@@ -150,8 +180,8 @@ describe('knitting IPC: her project', () => {
     await handler('knitting:saveProject')(admin, { name: 'Scarf' })
     await handler('knitting:changeRows')(home, { direction: 'add' })
     expect(await handler('knitting:resetRows')(admin)).toMatchObject({ project: { rows: 0 } })
-    expect(await handler('knitting:removeProject')(admin)).toEqual({ project: null, patterns: [] })
-    expect(await homeState()).toEqual({ project: null, patterns: [] })
+    expect(await handler('knitting:removeProject')(admin)).toEqual(empty)
+    expect(await homeState()).toEqual(empty)
   })
 
   it.each([
@@ -160,9 +190,12 @@ describe('knitting IPC: her project', () => {
     'knitting:resetRows',
     'knitting:removeProject',
     'knitting:addPattern',
-    'knitting:removePattern'
+    'knitting:removePattern',
+    'knitting:addPiece',
+    'knitting:movePiece',
+    'knitting:removePiece'
   ])('refuses Home and a locked admin for %s', async (channel) => {
-    const request = { name: 'Scarf', id: randomUUID() }
+    const request = { name: 'Scarf', what: 'Scarf', id: randomUUID(), direction: 'later' }
     await expect(handler(channel)(home, request)).rejects.toThrow('Caregiver window required')
     await expect(
       handler(channel)({ sender: admin.sender, senderFrame: {} }, request)
@@ -194,8 +227,22 @@ describe('knitting IPC: her project', () => {
     await handler('knitting:resetRows')(admin)
     const added = await addPattern('Private cable', ['C:\\patterns\\page1.png'])
     await handler('knitting:removePattern')(admin, { id: added.patterns[0]!.id })
+    await addPiece('Wedding shawl', 'Niece', 'C:\\photos\\shawl.jpg')
+    const pieces = (await addPiece('Mittens', 'Neighbour')).knitting.pieces
+    await handler('knitting:movePiece')(admin, { id: pieces[1]!.id, direction: 'earlier' })
+    await handler('knitting:removePiece')(admin, { id: pieces[0]!.id })
     const logged = JSON.stringify(mocks.activity.mock.calls)
-    for (const detail of ['Secret', 'Granddaughter', 'Private', 'page1']) {
+    for (const detail of [
+      'Secret',
+      'Granddaughter',
+      'Private',
+      'page1',
+      'Wedding',
+      'Niece',
+      'shawl',
+      'Mittens',
+      'Neighbour'
+    ]) {
       expect(logged).not.toContain(detail)
     }
     expect(mocks.activity.mock.calls.map(([type]) => type)).toEqual([
@@ -204,7 +251,11 @@ describe('knitting IPC: her project', () => {
       'knitting-row-removed',
       'knitting-rows-reset',
       'knitting-pattern-added',
-      'knitting-pattern-removed'
+      'knitting-pattern-removed',
+      'knitting-piece-added',
+      'knitting-piece-added',
+      'knitting-piece-moved',
+      'knitting-piece-removed'
     ])
   })
 })
@@ -300,5 +351,145 @@ describe('knitting IPC: patterns', () => {
     expect(pattern!.pages[1]!.url).toBeUndefined()
     library.list.mockRejectedValueOnce(new Error('EBUSY C:\\Users\\her\\media'))
     expect((await homeState()).patterns[0]!.pages.every((p) => p.url === undefined)).toBe(true)
+  })
+})
+
+describe('knitting IPC: her finished pieces', () => {
+  it('adds a finished piece from one picked photo, newest first, with only media URLs', async () => {
+    await addPiece(' Blue cardigan ', 'Ella')
+    const result = await addPiece('Mittens')
+    expect(result.added).toBe(true)
+    expect(result.knitting.pieces.map((piece) => [piece.what, piece.forWhom])).toEqual([
+      ['Mittens', ''],
+      ['Blue cardigan', 'Ella']
+    ])
+    const pieces = (await homeState()).pieces
+    expect(pieces.map((piece) => piece.url)).toEqual(
+      [...pieceEntries].reverse().map((entry) => `grammie-media://knitted/${entry.fileName}`)
+    )
+    expect(pieces[0]!.thumbnailUrl).toBe(
+      `grammie-media://knitted/${pieceEntries[1]!.thumbFileName}`
+    )
+    expect(JSON.stringify(await homeState())).not.toContain('C:\\')
+    expect(pieceEntries.map((entry) => entry.metadata.pieceId)).toEqual(
+      [...pieces].reverse().map((piece) => piece.id)
+    )
+    expect(mocks.homeSend).toHaveBeenCalledWith('knitting:changed', {})
+  })
+
+  it('adds nothing when the caregiver cancels the picker', async () => {
+    const result = await handler('knitting:addPiece')(admin, { what: 'Hat' })
+    expect(result).toMatchObject({ added: false, knitting: { pieces: [] } })
+    expect(gallery.addImage).not.toHaveBeenCalled()
+  })
+
+  it('needs what the piece is before opening the picker', async () => {
+    pickedPhoto = 'C:\\photos\\piece.jpg'
+    await expect(handler('knitting:addPiece')(admin, { what: '  ' })).rejects.toThrow()
+    expect(gallery.addImage).not.toHaveBeenCalled()
+  })
+
+  it('rechecks the lock after the picker closes and adds nothing if it was locked', async () => {
+    pickedPhoto = 'C:\\photos\\piece.jpg'
+    mocks.unlocked
+      .mockImplementationOnce(() => {})
+      .mockImplementationOnce(() => {
+        throw new Error('admin unlock required')
+      })
+    await expect(handler('knitting:addPiece')(admin, { what: 'Hat' })).rejects.toThrow(
+      'admin unlock required'
+    )
+    expect(gallery.addImage).not.toHaveBeenCalled()
+  })
+
+  it('refuses a photo that cannot be read, in plain words, and keeps nothing', async () => {
+    await expect(addPiece('Hat', '', 'C:\\photos\\notes.txt')).rejects.toThrow(
+      "That photo couldn't be read. Try a JPEG or PNG photo."
+    )
+    expect(pieceEntries).toEqual([])
+    expect((await adminState()).pieces).toEqual([])
+  })
+
+  it('keeps folder names out of a failed save', async () => {
+    gallery.addImage.mockRejectedValueOnce(new Error("EPERM: open 'C:\\Users\\her\\media'"))
+    await expect(addPiece('Hat')).rejects.toThrow('Could not save the photo. Try again.')
+  })
+
+  it('takes the photo back out if the piece itself cannot be saved', async () => {
+    mocks.unlocked
+      .mockImplementationOnce(() => {})
+      .mockImplementationOnce(() => {})
+      .mockImplementationOnce(() => {
+        throw new Error('admin unlock required')
+      })
+    await expect(addPiece('Hat')).rejects.toThrow('admin unlock required')
+    expect(gallery.addImage).toHaveBeenCalledOnce()
+    expect(pieceEntries).toEqual([])
+    expect((await adminState()).pieces).toEqual([])
+  })
+
+  it('refuses a piece past the limit without opening the picker', async () => {
+    const pieces = Array.from({ length: 100 }, () => ({
+      id: randomUUID(),
+      what: 'Scarf',
+      forWhom: '',
+      picture: randomUUID()
+    }))
+    writeFileSync(
+      join(folder, 'project.json'),
+      JSON.stringify({ version: 1, project: null, patterns: [], pieces })
+    )
+    await expect(addPiece('Hat')).rejects.toThrow('Up to 100 pieces can be saved.')
+    expect(gallery.addImage).not.toHaveBeenCalled()
+  })
+
+  it('moves a piece earlier or later, and removes a piece with its photo', async () => {
+    await addPiece('Scarf')
+    await addPiece('Hat')
+    await addPiece('Socks')
+    const ids = (await adminState()).pieces.map((piece) => piece.id)
+    const order = async (): Promise<string[]> =>
+      (await adminState()).pieces.map((piece) => piece.what)
+    expect(await order()).toEqual(['Socks', 'Hat', 'Scarf'])
+    await handler('knitting:movePiece')(admin, { id: ids[2], direction: 'earlier' })
+    expect(await order()).toEqual(['Socks', 'Scarf', 'Hat'])
+    expect((await homeState()).pieces.map((piece) => piece.what)).toEqual(['Socks', 'Scarf', 'Hat'])
+    // Already first: nothing changes, so nothing is logged or announced.
+    mocks.activity.mockClear()
+    mocks.homeSend.mockClear()
+    await handler('knitting:movePiece')(admin, { id: ids[0], direction: 'earlier' })
+    expect(mocks.activity).not.toHaveBeenCalled()
+    expect(mocks.homeSend).not.toHaveBeenCalled()
+    await expect(
+      handler('knitting:movePiece')(admin, { id: ids[0], direction: 'sideways' })
+    ).rejects.toThrow()
+    await expect(
+      handler('knitting:movePiece')(admin, { id: 'not-an-id', direction: 'later' })
+    ).rejects.toThrow()
+
+    const result = (await handler('knitting:removePiece')(admin, { id: ids[1] })) as AdminKnitting
+    expect(result.pieces.map((piece) => piece.what)).toEqual(['Socks', 'Scarf'])
+    expect(pieceEntries).toHaveLength(2)
+    expect(mocks.homeSend).toHaveBeenCalledWith('knitting:changed', {})
+    await expect(handler('knitting:removePiece')(admin, { id: 'not-an-id' })).rejects.toThrow()
+  })
+
+  it('keeps a piece whose photo is gone, with its caption and no picture', async () => {
+    await addPiece('Scarf', 'Tom')
+    await addPiece('Hat')
+    pieceEntries.splice(0, 1)
+    const [hat, scarf] = (await homeState()).pieces
+    expect(hat!.url).toMatch(/^grammie-media:\/\/knitted\//)
+    expect(scarf).toEqual({ id: expect.any(String), what: 'Scarf', forWhom: 'Tom' })
+    gallery.list.mockRejectedValueOnce(new Error('EBUSY C:\\Users\\her\\media'))
+    expect((await homeState()).pieces.every((piece) => piece.url === undefined)).toBe(true)
+  })
+
+  it('keeps her finished pieces when her project or patterns change', async () => {
+    await addPiece('Scarf')
+    await handler('knitting:saveProject')(admin, { name: 'Hat' })
+    await addPattern('Hat', ['a1.png'])
+    await handler('knitting:removeProject')(admin)
+    expect((await adminState()).pieces).toHaveLength(1)
   })
 })

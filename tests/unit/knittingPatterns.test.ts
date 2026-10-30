@@ -1,14 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
+import { importPatternPages } from '../../src/main/services/knitting/knittingPatterns'
 import {
-  importPatternPages,
-  removePatternPages,
-  type PatternLibrary
-} from '../../src/main/services/knitting/knittingPatterns'
+  removePictures,
+  type KnittingLibrary
+} from '../../src/main/services/knitting/knittingPictures'
 import type { PhotoCodec, PhotoImage } from '../../src/main/services/photos/photoLibrary'
 import {
   MAX_PATTERN_PAGES,
   PATTERN_PAGE_EDGE,
   knittingFileSchema,
+  knittingPieceInputSchema,
+  movePiece,
   orderPagePaths,
   pageToOpen
 } from '../../src/shared/knitting/knitting'
@@ -26,7 +28,7 @@ function image(width: number, height: number, resized: unknown[]): PhotoImage {
   }
 }
 
-function fakeLibrary(): PatternLibrary & { added: Buffer[] } {
+function fakeLibrary(): KnittingLibrary & { added: Buffer[] } {
   let next = 0
   const added: Buffer[] = []
   return {
@@ -89,8 +91,34 @@ describe('pattern page import', () => {
   it('removes pages best effort, carrying on past one that fails', async () => {
     const library = fakeLibrary()
     vi.mocked(library.remove).mockRejectedValueOnce(new Error('EBUSY'))
-    await removePatternPages(library, ['a', 'b'])
+    await removePictures(library, ['a', 'b'])
     expect(library.remove).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('her finished pieces', () => {
+  const ids = (pieces: { id: string }[]): string[] => pieces.map((piece) => piece.id)
+  const pieces = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+
+  it('moves a piece one place earlier or later', () => {
+    expect(ids(movePiece(pieces, 'b', 'earlier'))).toEqual(['b', 'a', 'c'])
+    expect(ids(movePiece(pieces, 'b', 'later'))).toEqual(['a', 'c', 'b'])
+    expect(ids(pieces)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('changes nothing at either end or for an unknown piece', () => {
+    expect(movePiece(pieces, 'a', 'earlier')).toBe(pieces)
+    expect(movePiece(pieces, 'c', 'later')).toBe(pieces)
+    expect(movePiece(pieces, 'x', 'later')).toBe(pieces)
+  })
+
+  it('needs what a piece is, and keeps who it was for optional', () => {
+    expect(knittingPieceInputSchema.parse({ what: ' Cardigan ' })).toEqual({
+      what: 'Cardigan',
+      forWhom: ''
+    })
+    expect(knittingPieceInputSchema.safeParse({ what: '  ' }).success).toBe(false)
+    expect(knittingPieceInputSchema.safeParse({ what: 'x'.repeat(41) }).success).toBe(false)
   })
 })
 
@@ -102,11 +130,12 @@ describe('pattern memory', () => {
     expect(pageToOpen({ lastPage: -3, pages })).toBe(0)
   })
 
-  it('reads a knitting file saved before patterns existed', () => {
+  it('reads a knitting file saved before patterns and pieces existed', () => {
     expect(knittingFileSchema.parse({ version: 1, project: null })).toEqual({
       version: 1,
       project: null,
-      patterns: []
+      patterns: [],
+      pieces: []
     })
   })
 })

@@ -4,6 +4,7 @@ import type { HomeKnitting, RowDirection } from '@shared/knitting/knitting'
 import type { BuiltinViewProps } from './builtins'
 import { ProjectCard, ProjectView } from './KnittingProject'
 import { PatternList, PatternViewer, PatternsCard } from './KnittingPatterns'
+import { GalleryCard, GalleryViewer } from './KnittingGallery'
 import './KnittingShelf.css'
 
 type Loaded =
@@ -11,10 +12,11 @@ type Loaded =
 
 type View =
   /** `focus` names the card to land on when she comes back to the shelf. */
-  | { kind: 'shelf'; focus?: 'project' | 'patterns' }
+  | { kind: 'shelf'; focus?: 'project' | 'patterns' | 'gallery' }
   | { kind: 'project' }
   | { kind: 'patterns'; focus?: string }
   | { kind: 'pattern'; id: string; from: 'shelf' | 'project' | 'patterns' }
+  | { kind: 'gallery' }
 
 const BACK_LABELS = {
   shelf: 'Back to Knitting',
@@ -65,6 +67,7 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
 
   const project = loaded.state === 'ready' ? loaded.knitting.project : null
   const patterns = loaded.state === 'ready' ? loaded.knitting.patterns : []
+  const pieces = loaded.state === 'ready' ? loaded.knitting.pieces : []
   const openPattern = view.kind === 'pattern' ? patterns.find((p) => p.id === view.id) : undefined
 
   // The caregiver removed what she had open: back to the shelf, which says what's left.
@@ -73,11 +76,12 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
     if (
       (view.kind === 'project' && !project) ||
       (view.kind === 'patterns' && patterns.length === 0) ||
-      (view.kind === 'pattern' && !openPattern)
+      (view.kind === 'pattern' && !openPattern) ||
+      (view.kind === 'gallery' && pieces.length === 0)
     ) {
       setView({ kind: 'shelf' })
     }
-  }, [loaded.state, view, project, patterns.length, openPattern])
+  }, [loaded.state, view, project, patterns.length, openPattern, pieces.length])
 
   // Each view starts on its way back; returning to a list lands on the card she left.
   useEffect(() => {
@@ -95,6 +99,8 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
           return { kind: 'shelf', focus: 'project' }
         case 'patterns':
           return { kind: 'shelf', focus: 'patterns' }
+        case 'gallery':
+          return { kind: 'shelf', focus: 'gallery' }
         case 'pattern':
           if (current.from === 'project') return { kind: 'project' }
           if (current.from === 'patterns') return { kind: 'patterns', focus: current.id }
@@ -199,6 +205,10 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
         musicStop={musicStop}
       />
     )
+  } else if (view.kind === 'gallery' && pieces.length) {
+    content = (
+      <GalleryViewer pieces={pieces} onBack={goBack} onHome={onClose} musicStop={musicStop} />
+    )
   } else {
     content = (
       <>
@@ -219,17 +229,20 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
             Your knitting isn&apos;t ready right now.
           </p>
         )}
-        {loaded.state === 'ready' && !project && !patterns.length && (
+        {loaded.state === 'ready' && !project && !patterns.length && !pieces.length && (
           <p className="knitting-shelf-calm" role="status">
             Your knitting will be here once your family sets it up.
           </p>
         )}
-        {(project || patterns.length > 0) && (
+        {(project || patterns.length > 0 || pieces.length > 0) && (
           <div className="knitting-shelf-grid">
             {project && (
               <ProjectCard project={project} onOpen={() => setView({ kind: 'project' })} />
             )}
             {patterns.length > 0 && <PatternsCard patterns={patterns} onOpen={openPatterns} />}
+            {pieces.length > 0 && (
+              <GalleryCard pieces={pieces} onOpen={() => setView({ kind: 'gallery' })} />
+            )}
           </div>
         )}
       </>

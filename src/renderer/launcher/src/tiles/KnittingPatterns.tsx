@@ -148,29 +148,55 @@ export function PatternViewer({
           </p>
         )}
       </div>
-      <footer className="knitting-pattern-controls">
-        {/* aria-disabled, not disabled: a disabled button drops the keyboard focus it
-            holds to the page body, and the arrow keys and Esc stop reaching the viewer. */}
-        <button
-          className="knitting-pattern-turn"
-          aria-label="Previous page"
-          aria-disabled={shown === 0}
-          onClick={() => go(shown - 1)}
-        >
-          ← Back
-        </button>
-        <p className="knitting-pattern-position" aria-live="polite">
-          Page {shown + 1} of {count}
-        </p>
-        <button
-          className="knitting-pattern-turn"
-          aria-label="Next page"
-          aria-disabled={shown === count - 1}
-          onClick={() => go(shown + 1)}
-        >
-          Next →
-        </button>
-      </footer>
+      <TurnControls
+        noun="page"
+        position={`Page ${shown + 1} of ${count}`}
+        atStart={shown === 0}
+        atEnd={shown === count - 1}
+        onTurn={(step) => go(shown + step)}
+      />
     </div>
+  )
+}
+
+/** Large Back and Next with where she is between them; patterns and her gallery share it. */
+export function TurnControls({
+  noun,
+  position,
+  atStart,
+  atEnd,
+  onTurn
+}: {
+  noun: 'page' | 'piece'
+  position: string
+  atStart: boolean
+  atEnd: boolean
+  onTurn: (step: -1 | 1) => void
+}) {
+  return (
+    <footer className="knitting-pattern-controls">
+      {/* aria-disabled, not disabled: a disabled button drops the keyboard focus it
+          holds to the page body, and the arrow keys and Esc stop reaching the viewer.
+          Both viewers' turn handlers already ignore a turn past either end. */}
+      <button
+        className="knitting-pattern-turn"
+        aria-label={`Previous ${noun}`}
+        aria-disabled={atStart}
+        onClick={() => onTurn(-1)}
+      >
+        ← Back
+      </button>
+      <p className="knitting-pattern-position" aria-live="polite">
+        {position}
+      </p>
+      <button
+        className="knitting-pattern-turn"
+        aria-label={`Next ${noun}`}
+        aria-disabled={atEnd}
+        onClick={() => onTurn(1)}
+      >
+        Next →
+      </button>
+    </footer>
   )
 }

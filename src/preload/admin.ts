@@ -87,6 +87,10 @@ const adminApi = {
   removeKnittingProject: () => invoke('knitting:removeProject'),
   addKnittingPattern: (name: string) => invoke('knitting:addPattern', { name }),
   removeKnittingPattern: (id: string) => invoke('knitting:removePattern', { id }),
+  addKnittingPiece: (piece: IpcRequest<'knitting:addPiece'>) => invoke('knitting:addPiece', piece),
+  moveKnittingPiece: (id: string, direction: IpcRequest<'knitting:movePiece'>['direction']) =>
+    invoke('knitting:movePiece', { id, direction }),
+  removeKnittingPiece: (id: string) => invoke('knitting:removePiece', { id }),
   onKnittingChanged: (cb: () => void): (() => void) => {
     const listener = (): void => cb()
     ipcRenderer.on('knitting:changed', listener)

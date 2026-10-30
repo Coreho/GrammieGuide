@@ -34,8 +34,11 @@ import type {
 import type {
   AdminKnitting,
   HomeKnitting,
+  KnittingPieceInput,
   KnittingProjectInput,
   PatternImportResult,
+  PieceImportResult,
+  PieceMove,
   RowDirection
 } from './knitting/knitting'
 
@@ -167,6 +170,10 @@ export interface IpcApi {
   /** Opens the native picker in main; the pages chosen become one named pattern. */
   'knitting:addPattern': { request: { name: string }; response: PatternImportResult }
   'knitting:removePattern': { request: { id: string }; response: AdminKnitting }
+  /** Opens the native picker in main for one photo of a finished piece. */
+  'knitting:addPiece': { request: KnittingPieceInput; response: PieceImportResult }
+  'knitting:movePiece': { request: { id: string; direction: PieceMove }; response: AdminKnitting }
+  'knitting:removePiece': { request: { id: string }; response: AdminKnitting }
   'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }
