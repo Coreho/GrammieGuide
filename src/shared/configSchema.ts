@@ -32,6 +32,7 @@ export const BUILTIN_TILE_KEYS = [
   'photos',
   'music',
   'games',
+  'calls',
   'knitting'
 ] as const
 
