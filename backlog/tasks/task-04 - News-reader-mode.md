@@ -4,7 +4,7 @@ title: News reader mode
 status: To Do
 assignee: []
 created_date: '2026-09-29 04:18'
-updated_date: '2026-09-29 09:26'
+updated_date: '2026-10-17 13:35'
 labels: []
 milestone: m-10
 dependencies:
@@ -37,3 +37,9 @@ Spec 05's "Reader extraction" section describes the approach. The rest of spec 0
 - [ ] #7 Unit tests cover the sanitizer, and an e2e test opens a local fixture story in reader mode
 - [ ] #8 Read aloud reads the whole article with the existing voice (Edge, Windows fallback), not just the first 1,200 characters the voice service takes per request, and stops as soon as she leaves the article
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-10-17: TASK-59 restores the approved multi-source website shelf as a separate feature. New News tiles default to Yahoo News, BBC News and NBC News preview cards opening their websites directly; existing feed tiles retain their story lists. This supersedes the earlier description that the shelf was replaced permanently. Reader extraction and article-mode criteria here remain unimplemented and out of TASK-59 scope.
+<!-- SECTION:NOTES:END -->

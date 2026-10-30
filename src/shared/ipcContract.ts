@@ -21,6 +21,7 @@ import type {
   VoiceReport,
   VoiceStart
 } from './checks/caregiverChecks'
+import type { BuiltinGameKey } from './games/gamesSchema'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -167,8 +168,17 @@ export interface IpcApi {
   // News takes a tile id, never a URL: main fetches only the feed the caregiver
   // saved, and opens only that site or a story it served (see newsIpc.ts).
   'news:get': { request: { tileId: string }; response: NewsResult }
-  'news:open': { request: { tileId: string; storyId?: string }; response: { ok: boolean } }
+  'news:open': {
+    request: { tileId: string; storyId?: string; sourceId?: string }
+    response: { ok: boolean }
+  }
+  'news:preview': {
+    request: { tileId: string; sourceId: string }
+    response: import('./news/sources').NewsPreview
+  }
   'tile:openApp': { request: { id: string }; response: { ok: boolean } }
+  'games:openInstalled': { request: { id: string }; response: { ok: boolean } }
+  'games:reportBuiltin': { request: { game: BuiltinGameKey }; response: boolean }
   'buddy:command': { request: BuddyCommand; response: { ok: boolean } }
   'config:get': { request: void; response: PublicConfig }
   'config:set': { request: Partial<Config>; response: PublicConfig }
@@ -255,6 +265,7 @@ export interface IpcEvents {
   'browser:idle-timeout': Record<string, never>
   /** Main closed the page for Home (the recovery check finished); show Home, nothing else. */
   'browser:return-home': Record<string, never>
+  'news:return-to-shelf': { tileId: string }
   /** The caregiver's recovery check asks Home to open its page, if Home is showing. */
   'checks:recovery-start': Record<string, never>
   /** Pushed to admin whenever a caregiver check result changes. */

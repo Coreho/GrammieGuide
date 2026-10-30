@@ -5,6 +5,7 @@ import type { Tile } from '@shared/configSchema'
 import { httpUrl } from '@shared/news/httpUrl'
 import { parseFeed } from '@shared/news/parseFeed'
 import type { NewsResult, NewsStory } from '@shared/news/types'
+import { newsSourceFor } from '@shared/news/sources'
 
 export const NEWS_CACHE_MS = 15 * 60_000
 export const FEED_MAX_BYTES = 2 * 1024 * 1024
@@ -171,7 +172,7 @@ function failureDetail(error: unknown): string {
 export type NewsService = {
   get(tileId: string): Promise<NewsResult>
   /** The saved site (no storyId) or a story this service served; null for anything else. */
-  destination(tileId: string, storyId?: string): string | null
+  destination(tileId: string, storyId?: string, sourceId?: string): string | null
 }
 
 /** One service instance per app; injectable I/O and clock keep cache tests offline. */
@@ -257,9 +258,13 @@ export function createNewsService({
     },
 
     /** Browser metadata is accepted only for a saved site or a story we actually served. */
-    destination(tileId: string, storyId?: string): string | null {
+    destination(tileId: string, storyId?: string, sourceId?: string): string | null {
       const tile = configuredTile(tileId)
       if (!tile) return null
+      if (sourceId !== undefined) {
+        return storyId === undefined ? httpUrl(newsSourceFor(tile, sourceId)?.url) : null
+      }
+      if (tile.newsSources) return null
       if (storyId === undefined) return httpUrl(tile.url)
       const entry = cache.get(tileId)
       if (!entry || entry.feed !== httpUrl(tile.feedUrl)) return null

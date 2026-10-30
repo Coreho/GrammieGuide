@@ -4,6 +4,7 @@ import { friendlyAge } from '@shared/news/friendlyAge'
 import type { NewsResult, NewsStory } from '@shared/news/types'
 import { TILE_SHADOW, TILE_SHADOW_ACTIVE } from '../clay'
 import type { BuiltinViewProps } from './builtins'
+import { NewsShelf } from './NewsShelf'
 
 /**
  * The News tile's own view: today's stories as long, short cards she can scan
@@ -11,7 +12,16 @@ import type { BuiltinViewProps } from './builtins'
  * plain text from main (parseFeed strips the feed's HTML), and pictures arrive
  * as data: URLs, so the launcher's CSP stays as strict as before.
  */
-export function NewsOverlay({ tile, onClose, onBrowsing, musicStop }: BuiltinViewProps) {
+export function NewsOverlay(props: BuiltinViewProps) {
+  const tile = props.config.tiles.find((candidate) => candidate.id === props.tile.id) ?? props.tile
+  return tile.newsSources ? (
+    <NewsShelf {...props} tile={tile} />
+  ) : (
+    <NewsFeedOverlay {...props} tile={tile} />
+  )
+}
+
+function NewsFeedOverlay({ tile, onClose, onBrowsing, musicStop }: BuiltinViewProps) {
   const [news, setNews] = useState<NewsResult | null>(null)
 
   useEffect(() => {
