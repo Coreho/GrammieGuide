@@ -31,6 +31,12 @@ import type {
   WhatsAppSetupState,
   WhatsAppVideoBounds
 } from './whatsAppCalls'
+import type {
+  AdminKnitting,
+  HomeKnitting,
+  KnittingProjectInput,
+  RowDirection
+} from './knitting/knitting'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -144,6 +150,15 @@ export interface IpcApi {
   'contacts:request': { request: void; response: HomeContactState }
   'contacts:getSettings': { request: void; response: AdminContactSetup }
   'contacts:saveSettings': { request: ContactSetup; response: AdminContactSetup }
+  /** Her project as Home shows it; Home only. */
+  'knitting:home': { request: void; response: HomeKnitting }
+  /** One tap on Home's counter; main applies the double-tap guard. */
+  'knitting:changeRows': { request: { direction: RowDirection }; response: HomeKnitting }
+  /** Caregiver-only from here down. */
+  'knitting:get': { request: void; response: AdminKnitting }
+  'knitting:saveProject': { request: KnittingProjectInput; response: AdminKnitting }
+  'knitting:resetRows': { request: void; response: AdminKnitting }
+  'knitting:removeProject': { request: void; response: AdminKnitting }
   'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }
@@ -291,6 +306,8 @@ export interface IpcEvents {
   'audio:changed': AudioUpdate
   'music:importProgress': MusicImportProgress
   'photos:changed': Record<string, never>
+  /** Her knitting project or row count changed; read it again. */
+  'knitting:changed': Record<string, never>
   'photos:importProgress': PhotoImportProgress
   'buddy:command': BuddyCommand
   /** The page failed or a link was blocked (Home shows its recovery screen), or null once it's fine again. */
