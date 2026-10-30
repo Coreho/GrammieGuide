@@ -5,7 +5,8 @@ import type { MediaLibrary } from '@shared/media/mediaPath'
 export const MEDIA_LIBRARY_FOLDERS: Readonly<Record<MediaLibrary, string>> = {
   music: join('media', 'music'),
   photos: join('media', 'photos'),
-  narration: join('media', 'narration')
+  narration: join('media', 'narration'),
+  patterns: join('media', 'patterns')
 }
 
 export function libraryPaths(

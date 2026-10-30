@@ -26,14 +26,17 @@ export const LIBRARY_CONTENT_TYPES: Readonly<
     '.ico': 'image/x-icon'
   },
   music: AUDIO_CONTENT_TYPES,
-  narration: AUDIO_CONTENT_TYPES
+  narration: AUDIO_CONTENT_TYPES,
+  // Only pages the knitting import has re-encoded, never the caregiver's original files.
+  patterns: { '.jpg': 'image/jpeg' }
 }
 
 /** Electron's picker expects extensions without leading dots. */
 export const LIBRARY_EXTENSIONS: Readonly<Record<MediaLibrary, readonly string[]>> = {
   photos: Object.keys(LIBRARY_CONTENT_TYPES.photos).map((extension) => extension.slice(1)),
   music: Object.keys(LIBRARY_CONTENT_TYPES.music).map((extension) => extension.slice(1)),
-  narration: Object.keys(LIBRARY_CONTENT_TYPES.narration).map((extension) => extension.slice(1))
+  narration: Object.keys(LIBRARY_CONTENT_TYPES.narration).map((extension) => extension.slice(1)),
+  patterns: Object.keys(LIBRARY_CONTENT_TYPES.patterns).map((extension) => extension.slice(1))
 }
 
 // The protocol also serves photo narration audio; only imports are restricted per library.

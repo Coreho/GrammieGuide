@@ -7,11 +7,20 @@ export const MAX_KNITTING_ROWS = 9999
  * the thing it exists to keep. Tapping the other way (a correction) is never held back.
  */
 export const KNITTING_REPEAT_GUARD_MS = 1500
+export const MAX_KNITTING_PATTERNS = 20
+export const MAX_PATTERN_PAGES = 60
+/** Pages keep more detail than photos (1600): pattern text and charts must stay sharp at full screen. */
+export const PATTERN_PAGE_EDGE = 2400
+
+const patternName = z.string().trim().min(1, 'Give the pattern a name.').max(40)
+export const patternNameSchema = patternName
 
 export const knittingProjectInputSchema = z.object({
   name: z.string().trim().min(1, 'Say what she is making.').max(40),
   forWhom: z.string().trim().max(40).default(''),
   photoId: z.string().uuid().optional(),
+  /** A saved pattern she can open from her project; unknown IDs are dropped. */
+  patternId: z.string().uuid().optional(),
   /** True starts over at row 0; false keeps her count while the caregiver edits the details. */
   startNew: z.boolean().default(false)
 })
@@ -22,6 +31,7 @@ export const knittingProjectSchema = z.object({
   name: z.string().trim().min(1).max(40),
   forWhom: z.string().trim().max(40),
   photoId: z.string().uuid().optional(),
+  patternId: z.string().uuid().optional(),
   rows: z.number().int().min(0).max(MAX_KNITTING_ROWS),
   lastChange: z
     .object({ direction: z.enum(['add', 'remove']), at: z.number().int().nonnegative() })
@@ -29,15 +39,36 @@ export const knittingProjectSchema = z.object({
 })
 export type KnittingProject = z.infer<typeof knittingProjectSchema>
 
+export const knittingPatternSchema = z.object({
+  id: z.string().uuid(),
+  name: patternName,
+  /** Library entry IDs in page order; the pictures live in the patterns media library. */
+  pages: z.array(z.string().uuid()).min(1).max(MAX_PATTERN_PAGES),
+  /** The page she was on, so the pattern reopens where she left it. */
+  lastPage: z.number().int().min(0).default(0)
+})
+export type KnittingPattern = z.infer<typeof knittingPatternSchema>
+
 export const knittingFileSchema = z.object({
   version: z.literal(1),
-  project: knittingProjectSchema.nullable()
+  project: knittingProjectSchema.nullable(),
+  // Added with patterns; a file from before them simply has none.
+  patterns: z.array(knittingPatternSchema).max(MAX_KNITTING_PATTERNS).default([])
 })
 export type KnittingFile = z.infer<typeof knittingFileSchema>
 
 export type RowDirection = 'add' | 'remove'
 
-/** What Home is told: no IDs it could replay, just what she sees. */
+/** One pattern as Home shows it. A page with no url has lost its picture. */
+export interface HomePattern {
+  id: string
+  name: string
+  lastPage: number
+  thumbnailUrl?: string
+  pages: { url?: string }[]
+}
+
+/** What Home is told: what she sees, plus pattern IDs to remember her page by. */
 export interface HomeKnitting {
   project: {
     name: string
@@ -45,12 +76,36 @@ export interface HomeKnitting {
     rows: number
     photoUrl?: string
     thumbnailUrl?: string
+    patternId?: string
   } | null
+  patterns: HomePattern[]
 }
 
 /** What the caregiver's Knitting tab edits. */
 export interface AdminKnitting {
-  project: Pick<KnittingProject, 'name' | 'forWhom' | 'photoId' | 'rows'> | null
+  project: Pick<KnittingProject, 'name' | 'forWhom' | 'photoId' | 'patternId' | 'rows'> | null
+  patterns: { id: string; name: string; pageCount: number; thumbnailUrl?: string }[]
+}
+
+export interface PatternImportResult {
+  knitting: AdminKnitting
+  /** Pages added; 0 when the caregiver cancelled the picker. */
+  added: number
+  /** Pages that couldn't be read; never their file names. */
+  failed: number
+}
+
+/** Files picked together are pages in name order, so page2 comes before page10. */
+export function orderPagePaths(paths: readonly string[]): string[] {
+  const base = (path: string): string => path.split(/[\\/]/).at(-1) ?? path
+  return [...paths].sort((a, b) =>
+    base(a).localeCompare(base(b), undefined, { numeric: true, sensitivity: 'base' })
+  )
+}
+
+/** Clamps a remembered page to the pattern as it is now (pages can be fewer than before). */
+export function pageToOpen(pattern: Pick<HomePattern, 'lastPage' | 'pages'>): number {
+  return Math.min(Math.max(0, pattern.lastPage), Math.max(0, pattern.pages.length - 1))
 }
 
 /** Applies one tap; returns the same object when the tap changes nothing. */

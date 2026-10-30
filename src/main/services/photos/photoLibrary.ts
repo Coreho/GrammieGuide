@@ -22,7 +22,8 @@ export interface PhotoCodec {
   createFromPath(path: string): PhotoImage | Promise<PhotoImage>
 }
 
-function downscale(image: PhotoImage, limit: number): PhotoImage {
+/** Bounds the longer edge; knitting patterns reuse it with a larger limit so text stays sharp. */
+export function downscale(image: PhotoImage, limit: number): PhotoImage {
   const { width, height } = image.getSize()
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     throw new Error('Photo could not be decoded')

@@ -85,6 +85,8 @@ const adminApi = {
     invoke('knitting:saveProject', project),
   resetKnittingRows: () => invoke('knitting:resetRows'),
   removeKnittingProject: () => invoke('knitting:removeProject'),
+  addKnittingPattern: (name: string) => invoke('knitting:addPattern', { name }),
+  removeKnittingPattern: (id: string) => invoke('knitting:removePattern', { id }),
   onKnittingChanged: (cb: () => void): (() => void) => {
     const listener = (): void => cb()
     ipcRenderer.on('knitting:changed', listener)
