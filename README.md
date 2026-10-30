@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-27_
+_Last updated: 2026-10-30_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -26,7 +26,7 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **M2 done** - kiosk Home screen (tile grid, embedded browser, weather, help, font-scale control) in the Clay Launcher design, plus the PIN-gated caregiver admin panel.
 - **M3 done** - static 3D Buddy (procedural cat, tap-to-greet chat panel with a stubbed reply).
 - **M4 done** - Buddy is finished: the real rigged 3D cat (24 animation clips) replaces the procedural M3 stand-in; an xstate behavior machine has him greet, idle, fidget, stroll the bottom of Home and (if the caregiver allows) make the odd remark; Anthropic-backed chat with him listening, thinking and talking beside the panel; replies read aloud (online Edge voice, Windows voice as fallback); and she can talk instead of typing (Windows' offline speech recognizer). Caregiver settings for all of it are in the admin Buddy tab.
-- **Kiosk install done** - GrammieGuide now does on its own what the old launcher did: starts at login (scheduled task, no time limit), is watched by the external watchdog (which now actually runs: execution policy fixed), holds the volume ceiling, and heals Wi-Fi. Windows installer (`npm run package`), a one-click import of her settings (not tiles, which are set up fresh) from Grandma's Launcher, and switch/rollback scripts that keep the old launcher installed as the fallback. See [docs/kiosk-install.md](docs/kiosk-install.md).
+- **Kiosk install done** - GrammieGuide now does on its own what the old launcher did: starts at login (scheduled task, no time limit), is watched by the external watchdog (which now actually runs: execution policy fixed), holds the volume ceiling, and heals Wi-Fi. Windows installer (`npm run package`), a one-click import of her settings (not tiles, which are set up fresh) from Grandma's Launcher, and switch/rollback scripts that keep the old launcher installed as the fallback. See [docs/kiosk-install.md](docs/kiosk-install.md). Only the copy the installer places in Program Files registers the startup and watchdog tasks, so a test or build copy can't take them over; one that tries says so in admin → Reliability.
 - **Home recovers by itself** - if the Home screen crashes, it reloads at once; if it freezes for 10 seconds, it is reloaded. Any open web page is closed first, so she is never left without a Home button. If Home fails 4 times within 5 minutes, the app closes, and the watchdog starts it again a minute or two later. Each recovery shows in admin → Reliability.
 - **Only one GrammieGuide at a time** - opening it again (a desktop shortcut, the installer's "run now") just brings the running Home to the front instead of starting a second kiosk on top of it.
 - **Illustrated Home cards** - the built-in Photos, Music, Weather and News tiles show sculpted clay pictures, and any tile can be given Games or Websites artwork. The new **Clay cards** theme matches the approved design (cream background, bigger labels). Not yet checked on the real kiosk.
@@ -141,7 +141,7 @@ Two things to know after such a reset:
 - `npm run test` - unit tests (Vitest)
 - `npm run typecheck` - TypeScript project references, no emit
 - `npm run lint` - ESLint
-- `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first). The app windows it opens are invisible and never take focus, so you can keep working while it runs
+- `npm run test:e2e` - Playwright E2E against the built app (run `npm run build` first). The app windows it opens are invisible and never take focus, so you can keep working while it runs. The window-stacking test needs a specially built package and skips without one; see the top of `tests/e2e/kiosk-stacking.spec.ts`. Don't launch a normal package from a test on the kiosk: it asks for admin rights, and an approved copy acts as the real app
 - `npm run fetch:voice` - download Buddy's local voice model (skips files that already match)
 - `npm run package` - fetches the voice model if needed, then builds the Windows installer via electron-builder (`dist/GrammieGuide Setup <version>.exe`)
 - `sh scripts/blender/buildBuddy.sh` - rebuild Buddy's model from the Meshy downloads (needs Blender)

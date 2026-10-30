@@ -1,6 +1,6 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication } from 'playwright'
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -8,12 +8,21 @@ import { join } from 'node:path'
 // it, and admin's file pickers and the ChatGPT sign-in browser would have too.
 // The real stacking can't be seen in an invisible e2e run, so this checks the
 // window settings that decide it. Kiosk mode is off in dev builds, so this runs
-// against the packaged app (npm run package) and skips without one.
+// against a packaged app, and only one you name and build for it:
+//
+//   npm run build
+//   npx electron-builder --win --dir -c.directories.output=<folder> -c.win.requestedExecutionLevel=asInvoker
+//   GRAMMIEGUIDE_PACKAGED_EXE=<folder>/win-unpacked/GrammieGuide.exe npx playwright test kiosk-stacking
+//
+// Never the normal package. It asks Windows for admin rights, and a copy approved
+// at that prompt acted as the real app: on her computer it took over her startup
+// and watchdog tasks. Whatever happens to be in dist/ isn't used for the same reason.
 
-const packagedExe =
-  process.env['GRAMMIEGUIDE_PACKAGED_EXE'] ??
-  join(process.cwd(), 'dist', 'win-unpacked', 'GrammieGuide.exe')
-test.skip(!existsSync(packagedExe), 'needs the packaged app: kiosk mode is off in dev builds')
+const packagedExe = process.env['GRAMMIEGUIDE_PACKAGED_EXE']
+test.skip(
+  !packagedExe || !existsSync(packagedExe),
+  'needs GRAMMIEGUIDE_PACKAGED_EXE: kiosk mode is off in dev builds (see the top of this file)'
+)
 
 let app: ElectronApplication
 
@@ -33,6 +42,12 @@ const stacking = (): Promise<Stacking> =>
   })
 
 test.beforeAll(async () => {
+  // Before launching: by the time a prompt appears, it's too late to refuse.
+  if (!readFileSync(packagedExe!).includes('level="asInvoker"')) {
+    throw new Error(
+      `Refusing to launch ${packagedExe}: it wasn't built with requestedExecutionLevel=asInvoker (see the top of this file)`
+    )
+  }
   app = await electron.launch({
     executablePath: packagedExe,
     args: [`--user-data-dir=${mkdtempSync(join(tmpdir(), 'grammieguide-stacking-'))}`],

@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { getConfig, setConfig } from '../../config/store'
 import { logActivity } from '../activityLog/activityLog'
+import { isInstalledExe } from './installLocation'
 import { logReliabilityEvent } from './reliabilityLog'
 import { enforceVolumeCeiling } from './volumeEnforcer'
 import { resolveWifiAdapterName, restartWifiAdapter } from './wifiHealer'
@@ -22,13 +23,18 @@ export function resourcesDir(): string {
   return app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources')
 }
 
+const isPackagedRealRun = (): boolean => app.isPackaged && process.env['GRAMMIEGUIDE_E2E'] !== '1'
+
 /**
  * System-level registration (autostart + watchdog) only happens in the
  * installed app: in dev or under E2E it would point Windows at electron.exe
- * and relaunch it forever on the developer's own machine.
+ * and relaunch it forever on the developer's own machine. Being packaged isn't
+ * enough either: a test copy approved at an admin prompt on her computer acted
+ * as the real app and took both tasks, so deleting its folder left her with no
+ * watchdog and a broken next boot.
  */
 export function shouldRegisterSystemTasks(): boolean {
-  return app.isPackaged && process.env['GRAMMIEGUIDE_E2E'] !== '1'
+  return isPackagedRealRun() && isInstalledExe(process.execPath, process.env['ProgramFiles'])
 }
 
 /**
@@ -37,6 +43,18 @@ export function shouldRegisterSystemTasks(): boolean {
  * button) re-enables it.
  */
 export async function registerSystemTasks(opts: { force?: boolean } = {}): Promise<boolean> {
+  // Checked here, not by callers, because admin's Re-register button gets here too.
+  if (!shouldRegisterSystemTasks()) {
+    // A real kiosk landing here would stop following updates, so leave a trace.
+    if (isPackagedRealRun()) {
+      logReliabilityEvent({
+        op: 'system-tasks-skipped',
+        ok: false,
+        detail: 'not running from the installed folder, so the startup and watchdog tasks were left alone'
+      })
+    }
+    return false
+  }
   const exe = process.execPath
   const userData = app.getPath('userData')
   const keep = { keepDisabled: !opts.force }
@@ -53,7 +71,7 @@ export function startKioskServices(): void {
   // Starting at all means the watchdog should look after us again.
   clearQuitFlag(app.getPath('userData'))
 
-  if (shouldRegisterSystemTasks()) void registerSystemTasks()
+  void registerSystemTasks()
 
   const holdVolume = (): void => {
     void enforceVolumeCeiling(getConfig().display.volumeCeiling, resourcesDir(), undefined, { quiet: true }).catch((err) =>
