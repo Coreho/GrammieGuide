@@ -16,6 +16,14 @@ import { getAudioCoordinator } from '../audio/audioRuntime'
 import { getConfig } from '../../config/store'
 import { navigationAllowed, webHostname, type NavigationKind } from '@shared/browser/approvedSites'
 import { blockedSites } from './blockedSites'
+import { EMPTY_READER, type ReaderState } from '@shared/news/reader'
+import { prepareArticle } from '../news/readerImages'
+import {
+  NO_VIDEO,
+  supportsVideoControls,
+  operateVideo,
+  type VideoState
+} from '@shared/browser/videoControls'
 
 /**
  * Embedded web-tile browser. Ports the escape-guard/popup-block logic from
@@ -41,6 +49,116 @@ let privateNavigation = false
 let trustedPage: string | null = null
 let returnToNewsTileId: string | null = null
 let committedPage: string | null = null
+let videoState: VideoState = { ...NO_VIDEO }
+let reader: ReaderState = { ...EMPTY_READER }
+let readerGeneration = 0
+let readerTimer: NodeJS.Timeout | null = null
+let autoReaderHeadline: string | undefined
+function updateReader(next: ReaderState): void {
+  reader = next
+  if (hostWindow && !hostWindow.isDestroyed() && !hostWindow.webContents.isDestroyed())
+    hostWindow.webContents.send('browser:reader', next)
+  if (view && !view.webContents.isDestroyed())
+    view.webContents.send(
+      'browserView:readerHidden',
+      next.mode === 'article' || next.mode === 'loading'
+    )
+  if (view && !view.webContents.isDestroyed() && hostWindow && !hostWindow.isDestroyed())
+    view.setVisible(!problem && next.mode !== 'article' && next.mode !== 'loading')
+}
+function resetReader(): void {
+  readerGeneration++
+  if (readerTimer) clearTimeout(readerTimer)
+  readerTimer = null
+  updateReader({ ...EMPTY_READER })
+}
+function waitForReader(headline: string): void {
+  updateReader({ ...EMPTY_READER, mode: 'loading', headline })
+  const generation = readerGeneration
+  if (readerTimer) clearTimeout(readerTimer)
+  readerTimer = setTimeout(() => {
+    if (generation !== readerGeneration) return
+    autoReaderHeadline = undefined
+    readerTimer = null
+    updateReader({ ...EMPTY_READER })
+  }, 15_000)
+}
+function extractArticle(): void {
+  if (!view || problem) return
+  const generation = ++readerGeneration
+  updateReader({ ...reader, mode: 'loading' })
+  view.webContents.send('browserView:extract', generation)
+  if (readerTimer) clearTimeout(readerTimer)
+  readerTimer = setTimeout(() => {
+    readerTimer = null
+    if (generation !== readerGeneration) return
+    readerGeneration++
+    updateReader({ ...EMPTY_READER })
+  }, 10_000)
+}
+export function setReaderMode(mode: 'article' | 'page'): boolean {
+  if (
+    !view ||
+    problem ||
+    !navigationAllowed(view.webContents.getURL(), getConfig(), 'back', trustedPage)
+  )
+    return false
+  lastActivityAt = Date.now()
+  if (mode === 'page') {
+    readerGeneration++
+    if (readerTimer) clearTimeout(readerTimer)
+    readerTimer = null
+    updateReader({ ...reader, mode: 'page' })
+  } else if (reader.article) updateReader({ ...reader, mode: 'article' })
+  else if (reader.available) extractArticle()
+  else return false
+  return true
+}
+// Test fixtures exercise the same adapter without granting arbitrary production sites.
+let testVideoUrl: string | null = null
+export function setVideoFixtureForTests(url: string): void {
+  if (process.env.GRAMMIEGUIDE_E2E === '1') testVideoUrl = url
+}
+function supportedVideo(): boolean {
+  const url = view?.webContents.getURL() ?? ''
+  return supportsVideoControls(url) || (testVideoUrl !== null && url === testVideoUrl)
+}
+function updateVideo(state: VideoState): void {
+  const changed = JSON.stringify(videoState) !== JSON.stringify(state)
+  videoState = state
+  if (changed) {
+    layout()
+    if (hostWindow && !hostWindow.isDestroyed()) hostWindow.webContents.send('browser:video', state)
+  }
+}
+export async function sendVideoCommand(command: unknown): Promise<boolean> {
+  if (
+    !view ||
+    problem ||
+    !supportedVideo() ||
+    !videoState.available ||
+    !['play', 'pause', 'rewind', 'fullscreen'].includes(command as string)
+  )
+    return false
+  if (!navigationAllowed(view.webContents.getURL(), getConfig(), 'back', trustedPage)) return false
+  lastActivityAt = Date.now()
+  const targetUrl = view.webContents.getURL()
+  try {
+    return (
+      (await view.webContents.executeJavaScriptInIsolatedWorld(
+        1001,
+        [
+          {
+            code: `location.href === ${JSON.stringify(targetUrl)} && (${operateVideo.toString()})(${JSON.stringify(command)})`
+          }
+        ],
+        true
+      )) === true
+    )
+  } catch {
+    return false
+  }
+}
 
 // The recovery screen: which problem Home is showing instead of the page, the
 // address to retry, and whether the current navigation has already failed.
@@ -71,17 +189,76 @@ export function initEmbeddedBrowser(win: BrowserWindow): void {
   })
 
   if (!activityListenerRegistered) {
-    ipcMain.on('browserView:activity', () => {
-      lastActivityAt = Date.now()
+    ipcMain.on('browserView:activity', (event) => {
+      if (event.sender === view?.webContents || event.sender === hostWindow?.webContents)
+        lastActivityAt = Date.now()
+    })
+    ipcMain.on('browserView:readerable', (event, available: unknown) => {
+      if (
+        !view ||
+        event.sender !== view.webContents ||
+        event.senderFrame !== view.webContents.mainFrame ||
+        problem
+      )
+        return
+      if (typeof available === 'boolean' && available !== reader.available)
+        updateReader({ ...reader, available })
+    })
+    ipcMain.on(
+      'browserView:article',
+      async (event, payload: { generation: number; article: unknown }) => {
+        if (
+          !view ||
+          event.sender !== view.webContents ||
+          event.senderFrame !== view.webContents.mainFrame ||
+          !payload ||
+          payload.generation !== readerGeneration ||
+          reader.mode !== 'loading' ||
+          problem
+        )
+          return
+        const generation = readerGeneration
+        const article = await prepareArticle(payload.article).catch(() => null)
+        if (generation !== readerGeneration || !view || problem) return
+        if (readerTimer) clearTimeout(readerTimer)
+        readerTimer = null
+        // The real page is the quiet fallback, with no technical error wording.
+        updateReader(
+          article ? { ...reader, mode: 'article', available: true, article } : { ...EMPTY_READER }
+        )
+        if (article) {
+          updateVideo({ ...NO_VIDEO })
+        }
+      }
+    )
+    ipcMain.on('browserView:videoState', (event, state: VideoState) => {
+      if (event.sender !== view?.webContents || event.senderFrame !== view.webContents.mainFrame)
+        return
+      if (problem || reader.mode === 'article' || reader.mode === 'loading' || !supportedVideo())
+        return updateVideo({ ...NO_VIDEO })
+      if (
+        !state ||
+        ['available', 'paused', 'canRewind', 'fullscreen'].some(
+          (key) => typeof state[key as keyof VideoState] !== 'boolean'
+        )
+      )
+        return
+      updateVideo({
+        available: state.available,
+        paused: state.paused,
+        canRewind: state.canRewind,
+        fullscreen: state.fullscreen
+      })
     })
     activityListenerRegistered = true
   }
 }
 
 function layout(): void {
-  if (!view || !hostWindow) return
+  if (!view || !hostWindow || hostWindow.isDestroyed() || view.webContents.isDestroyed()) return
   const [width = 0, height = 0] = hostWindow.getContentSize()
-  view.setBounds({ x: 0, y: NAV_BAR_HEIGHT, width, height: Math.max(0, height - NAV_BAR_HEIGHT) })
+  const top = NAV_BAR_HEIGHT + (videoState.available ? 88 : 0)
+  view.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
 }
 
 export function openUrl(
@@ -90,6 +267,7 @@ export function openUrl(
     privateNavigation?: boolean
     trustedInitialPage?: boolean
     returnToNewsTileId?: string
+    readerHeadline?: string
     onLoaded?: (outcome: PageOutcome) => void
   } = {}
 ): { ok: boolean; reason?: string } {
@@ -111,6 +289,7 @@ export function openUrl(
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        disableHtmlFullscreenWindowResize: true,
         // Its own session, so the deny-all rules in webSession.ts (and the ad
         // blocker) apply to web tiles without touching Home or admin.
         partition: WEB_PARTITION,
@@ -142,8 +321,18 @@ export function openUrl(
     })
 
     view.webContents.on('did-start-navigation', (details) => {
+      if (details.isMainFrame) {
+        updateVideo({ ...NO_VIDEO })
+        resetReader()
+        if (autoReaderHeadline !== undefined) waitForReader(autoReaderHeadline)
+      }
       if (details.isMainFrame && !details.isSameDocument) navigationFailed = false
     })
+    const enableVideo = (): void => {
+      view?.webContents.send('browserView:videoEnabled', supportedVideo())
+    }
+    view.webContents.on('dom-ready', enableVideo)
+    view.webContents.on('did-navigate-in-page', enableVideo)
 
     view.webContents.on(
       'did-fail-load',
@@ -167,6 +356,10 @@ export function openUrl(
     )
 
     view.webContents.on('did-finish-load', () => {
+      if (!navigationFailed && !problem && autoReaderHeadline !== undefined) {
+        autoReaderHeadline = undefined
+        extractArticle()
+      }
       // A blocked tap leaves the page itself fine; only she dismisses that screen.
       if (navigationFailed || problem === null || problem === 'blocked') return
       clearProblem()
@@ -184,12 +377,15 @@ export function openUrl(
   privateNavigation = Boolean(options.privateNavigation)
   trustedPage = options.trustedInitialPage ? url : null
   returnToNewsTileId = options.returnToNewsTileId ?? null
+  autoReaderHeadline = options.readerHeadline
+  resetReader()
   resetProblem()
   if (!allowNavigation(url, 'open')) {
     options.onLoaded?.('failed')
     return { ok: true }
   }
-  view.setVisible(true)
+  if (autoReaderHeadline !== undefined) waitForReader(autoReaderHeadline)
+  else view.setVisible(true)
   // loadURL rejects on a failed load; did-fail-load below already owns what she
   // sees, so swallow it rather than leaving an unhandled rejection in main.
   const openedView = view
@@ -278,6 +474,9 @@ function allowNavigation(url: string, kind: NavigationKind): boolean {
 }
 
 function showProblem(kind: PageProblem): void {
+  autoReaderHeadline = undefined
+  resetReader()
+  updateVideo({ ...NO_VIDEO })
   problem = kind
   // The page is a native view drawn over Home; hide it so Home's screen shows.
   view?.setVisible(false)
@@ -286,7 +485,7 @@ function showProblem(kind: PageProblem): void {
 
 function clearProblem(): void {
   resetProblem()
-  view?.setVisible(true)
+  view?.setVisible(reader.mode !== 'article' && reader.mode !== 'loading')
   hostWindow?.webContents.send('browser:page-problem', { kind: null })
 }
 
@@ -312,6 +511,9 @@ function scheduleOfflineRetry(): void {
 }
 
 export function closeEmbeddedBrowser(): void {
+  autoReaderHeadline = undefined
+  resetReader()
+  updateVideo({ ...NO_VIDEO })
   stopPageAudio?.()
   stopPageAudio = null
   const closingView = view

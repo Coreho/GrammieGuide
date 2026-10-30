@@ -8,6 +8,48 @@ import {
 import { migrations } from '../../src/main/config/migrations'
 import { runMigrations } from '../../src/main/config/migrations/runner'
 
+describe('ChatGPT-only migration 020', () => {
+  it.each(['anthropic', 'openrouter'])(
+    'removes %s credentials/models while retaining other settings',
+    (provider) => {
+      const previous = {
+        ...defaultConfig(),
+        schemaVersion: 19,
+        buddy: {
+          ...defaultConfig().buddy,
+          provider,
+          model: 'obsolete-model',
+          anthropicApiKey: 'private-ant',
+          openrouterApiKey: 'private-or',
+          ttsVoice: 'saved-voice'
+        },
+        reliability: { adminPinHash: 'saved-hash', adminPinSalt: 'saved-salt' }
+      }
+      const before = structuredClone(previous),
+        result = runMigrations(previous)
+      expect(CURRENT_SCHEMA_VERSION).toBe(21)
+      expect(result.ok).toBe(true)
+      expect(result.config.buddy).toEqual({
+        ...defaultConfig().buddy,
+        provider: 'chatgpt',
+        model: '',
+        ttsVoice: 'saved-voice'
+      })
+      expect(result.config.reliability).toEqual(previous.reliability)
+      expect(previous).toEqual(before)
+      expect(runMigrations(result.config).config).toEqual(result.config)
+    }
+  )
+  it('preserves a previously selected ChatGPT model', () => {
+    const previous = {
+      ...defaultConfig(),
+      schemaVersion: 19,
+      buddy: { ...defaultConfig().buddy, model: 'account-model' }
+    }
+    expect(runMigrations(previous).config.buddy.model).toBe('account-model')
+  })
+})
+
 describe('Buddy chat setting and migration 007', () => {
   it('enables chat by default and rejects non-boolean settings', () => {
     expect(defaultConfig().buddy).toHaveProperty('chatEnabled', true)
@@ -32,7 +74,14 @@ describe('Buddy chat setting and migration 007', () => {
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
     expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
-    expect(result.config.buddy).toMatchObject({ ...raw.buddy, chatEnabled: true })
+    expect(result.config.buddy).toMatchObject({
+      motion: 'still',
+      tapAction: 'chat',
+      model: '',
+      provider: 'chatgpt',
+      chatEnabled: true
+    })
+    expect(result.config.buddy).not.toHaveProperty('anthropicApiKey')
     expect(raw).toEqual(before)
     expect(runMigrations(result.config).config).toEqual(result.config)
   })

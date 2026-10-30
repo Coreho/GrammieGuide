@@ -1,4 +1,3 @@
-import type Anthropic from '@anthropic-ai/sdk'
 import {
   ACTION_REPLIES,
   buddyActionRequestSchema,
@@ -8,10 +7,20 @@ import {
 import { BUILTIN_TILE_KEYS, type Config } from '@shared/configSchema'
 import { tilesInHome, slotDescription } from '@shared/homeLayout'
 import { isAllowedUrl } from '../browser/urlPolicy'
+import { BUDDY_GESTURES } from '@shared/buddy/gestures'
 import type { LibraryEntry } from '@shared/media/libraryTypes'
 import type { MediaLibrary } from '@shared/media/mediaPath'
 
-export const BUDDY_ACTION_TOOLS: Anthropic.Tool[] = [
+export const BUDDY_ACTION_TOOLS: {
+  name: string
+  description: string
+  input_schema: {
+    type: 'object'
+    properties: Record<string, unknown>
+    required?: string[]
+    additionalProperties: boolean
+  }
+}[] = [
   ...[
     ['play_my_music', 'Start her saved music.'],
     ['show_my_pictures', 'Open her approved pictures.'],
@@ -29,6 +38,17 @@ export const BUDDY_ACTION_TOOLS: Anthropic.Tool[] = [
       type: 'object',
       properties: { name: { type: 'string' } },
       required: ['name'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'do_a_gesture',
+    description:
+      'Make Buddy perform a friendly gesture when she asks him to dance, wave, bow, jump, cheer, stretch, send love or do a trick. Use only when she asks him to do one. The app plays it and says a short line of its own; do not describe it yourself.',
+    input_schema: {
+      type: 'object',
+      properties: { gesture: { type: 'string', enum: [...BUDDY_GESTURES] } },
+      required: ['gesture'],
       additionalProperties: false
     }
   }

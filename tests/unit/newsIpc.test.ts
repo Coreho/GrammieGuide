@@ -19,7 +19,7 @@ vi.mock('../../src/main/windows/windowManager', () => ({
   getLauncherWindow: () => ({ webContents: mocks.sender })
 }))
 vi.mock('../../src/main/services/news/news', () => ({
-  newsService: { get: vi.fn(), destination: mocks.destination },
+  newsService: { get: vi.fn(), destination: mocks.destination, headline: () => 'A garden story' },
   newsPreviews: { get: mocks.preview }
 }))
 vi.mock('../../src/main/services/browser/embeddedBrowser', () => ({ openUrl: mocks.open }))
@@ -54,8 +54,9 @@ describe('News IPC source boundary', () => {
     expect(mocks.open).toHaveBeenCalledWith('https://www.bbc.com/news', {
       privateNavigation: true,
       trustedInitialPage: false,
-      returnToNewsTileId: 'news'
+      returnToNewsTileId: 'news',
+      readerHeadline: undefined
     })
-    expect(mocks.log).toHaveBeenCalledWith('news-site-opened')
+    expect(mocks.log).toHaveBeenCalledWith('news-site-opened', 'news')
   })
 })

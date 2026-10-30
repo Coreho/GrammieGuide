@@ -41,8 +41,10 @@ function setup(): Config {
   config.weather.locations = [{ id: 'home', label: 'Boston' }]
   config.display.fontStep = 3
   config.buddy.quickMessages = [{ id: 'hello', text: 'Hello!', clip: 'wave', speak: false }]
-  config.buddy.anthropicApiKey = 'source-key'
-  config.buddy.openrouterApiKey = 'source-openrouter-key'
+  Object.assign(config.buddy, {
+    anthropicApiKey: 'source-key',
+    openrouterApiKey: 'source-openrouter-key'
+  })
   config.reliability = { adminPinHash: 'source-hash', adminPinSalt: 'source-salt' }
   return config
 }
@@ -54,8 +56,8 @@ describe('settings backups', () => {
     const restored = parseConfigBackup(buildConfigBackup(source), defaultConfig())
     expect(toPublicConfig(restored)).toEqual(toPublicConfig(source))
     expect(source).toEqual(before)
-    expect(restored.buddy.anthropicApiKey).toBeUndefined()
-    expect(restored.buddy.openrouterApiKey).toBeUndefined()
+    expect(restored.buddy).not.toHaveProperty('anthropicApiKey')
+    expect(restored.buddy).not.toHaveProperty('openrouterApiKey')
     expect(restored.reliability.adminPinHash).toBeUndefined()
     expect(restored.reliability.adminPinSalt).toBeUndefined()
   })
@@ -63,7 +65,7 @@ describe('settings backups', () => {
   it('never exports API keys, PIN credentials or unsupported contact channel tokens', () => {
     const source = {
       ...setup(),
-      contacts: [{ channelToken: 'contact-secret' }],
+      contacts: { ...setup().contacts, channelToken: 'contact-secret' },
       buddy: { ...setup().buddy, channelToken: 'nested-secret' }
     }
     const text = buildConfigBackup(source)
@@ -87,8 +89,10 @@ describe('settings backups', () => {
 
   it('keeps only this device’s secrets, even if an incoming backup contains other credentials', () => {
     const device = defaultConfig()
-    device.buddy.anthropicApiKey = 'device-key'
-    device.buddy.openrouterApiKey = 'device-openrouter-key'
+    Object.assign(device.buddy, {
+      anthropicApiKey: 'device-key',
+      openrouterApiKey: 'device-openrouter-key'
+    })
     device.reliability = { adminPinHash: 'device-hash', adminPinSalt: 'device-salt' }
     const backup = JSON.parse(buildConfigBackup(setup()))
     backup.config.buddy.anthropicApiKey = 'incoming-key'
@@ -96,8 +100,8 @@ describe('settings backups', () => {
     backup.config.reliability.adminPinHash = 'incoming-hash'
     backup.config.reliability.adminPinSalt = 'incoming-salt'
     const restored = parseConfigBackup(JSON.stringify(backup), device)
-    expect(restored.buddy.anthropicApiKey).toBe('device-key')
-    expect(restored.buddy.openrouterApiKey).toBe('device-openrouter-key')
+    expect(restored.buddy).not.toHaveProperty('anthropicApiKey')
+    expect(restored.buddy).not.toHaveProperty('openrouterApiKey')
     expect(restored.reliability).toEqual(device.reliability)
     expect(restored.tiles).toEqual(setup().tiles)
   })
@@ -107,7 +111,7 @@ describe('settings backups', () => {
     backup.config.schemaVersion = 1
     backup.config.tiles = [{ id: 'old', label: 'News', type: 'web', url: 'https://example.com' }]
     backup.config.buddy = {
-      model: 'saved-model',
+      model: '',
       chattiness: 'low',
       cloudTtsEnabled: false,
       roaming: false
@@ -121,7 +125,7 @@ describe('settings backups', () => {
       slot: 0
     })
     expect(restored.buddy).toMatchObject({
-      model: 'saved-model',
+      model: '',
       motion: 'still',
       tapAction: 'reaction',
       chatEnabled: true,

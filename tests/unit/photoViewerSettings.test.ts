@@ -24,7 +24,7 @@ describe('photo viewer settings and migration 009', () => {
           slot: 2
         }
       ],
-      buddy: { ...defaultConfig().buddy, anthropicApiKey: 'private-key' }
+      buddy: { ...defaultConfig().buddy, ttsVoice: 'private-key' }
     }
     const before = structuredClone(raw)
     const result = runMigrations(raw)
@@ -32,7 +32,7 @@ describe('photo viewer settings and migration 009', () => {
     expect(result.config.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(result.config).toHaveProperty('photos.slideshowEnabled', false)
     expect(result.config.tiles).toEqual(raw.tiles)
-    expect(result.config.buddy.anthropicApiKey).toBe('private-key')
+    expect(result.config.buddy.ttsVoice).toBe('private-key')
     expect(raw).toEqual(before)
     expect(runMigrations(result.config).config).toEqual(result.config)
   })

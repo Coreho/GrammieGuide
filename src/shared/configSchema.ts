@@ -9,16 +9,31 @@ import { TILE_ARTWORK_KEYS } from './tileArtwork'
 import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
 import { newsSourceSchema } from './news/sources'
+import { personalFactsSchema } from './buddy/personalFacts'
+import { DEFAULT_LOCAL_VOICE, LOCAL_VOICE_IDS } from './buddy/localVoices'
+import {
+  contactConfigSchema,
+  defaultContactSetup,
+  publicContacts,
+  type PublicContacts
+} from './contactSettings'
 
 /**
  * Versioned config schema. Bumping CURRENT_SCHEMA_VERSION and adding a new
  * shape here goes hand-in-hand with adding a migration file under
  * src/main/config/migrations/ - see runner.ts for how the two connect.
  */
-export const CURRENT_SCHEMA_VERSION = 16
+export const CURRENT_SCHEMA_VERSION = 21
 
 // Offer only built-ins with working launcher views. Future features add their keys here.
-export const BUILTIN_TILE_KEYS = ['weather', 'news', 'photos', 'music', 'games'] as const
+export const BUILTIN_TILE_KEYS = [
+  'weather',
+  'news',
+  'photos',
+  'music',
+  'games',
+  'knitting'
+] as const
 
 export const tileSchema = z.object({
   id: z.string(),
@@ -77,30 +92,32 @@ export const confusionConfigSchema = z.object({
 })
 
 export const buddyConfigSchema = z.object({
-  /** Who answers chat. Anthropic direct is the default and needs no migration:
-   *  existing setups have an Anthropic key and keep it. */
   provider: z.enum(BUDDY_PROVIDERS).default(DEFAULT_BUDDY_PROVIDER),
-  anthropicApiKey: z.string().optional(),
-  /** Only used when provider is 'openrouter'. Kept separate so switching back
-   *  and forth never costs her a key she already entered. */
-  openrouterApiKey: z.string().optional(),
   /** Chat can be switched off while Buddy's presence and friendly reactions stay available. */
   chatEnabled: z.boolean().default(true),
-  /** Sonnet 5.5, not the cheaper Haiku 4.5: live checks found Haiku still agreeing with
-   * confused statements ("I'm sure it will be nice to see her") despite the prompt.
-   *  The id is provider-specific, so shared/buddy/providers.ts owns both lists. */
-  model: z.string().default('claude-sonnet-5-5'),
+  /** Discovered and verified against the signed-in ChatGPT account. */
+  model: z.string().default(''),
   chattiness: z.enum(['off', 'low', 'normal']).default('off'),
-  /** Online Edge voice for speech; off (or offline) falls back to the Windows voice. */
-  cloudTtsEnabled: z.boolean().default(true),
+  /**
+   * Online Edge voice for speech; off (or offline) falls back to the voice on this computer.
+   * Off by default: the free voice on this computer needs no internet, and Microsoft's unofficial
+   * endpoint has refused every request for weeks at a time.
+   */
+  cloudTtsEnabled: z.boolean().default(false),
   /** Read chat replies and tap reactions aloud. Unprompted remarks stay silent either way. */
   voiceEnabled: z.boolean().default(true),
   /** Edge neural voice name. Aria is what the old app spoke with, so she already knows it. */
   ttsVoice: z.string().default('en-US-AriaNeural'),
+  /**
+   * The voice on this computer (Kokoro), used when the online one is off or
+   * failing. Lenient: a voice dropped from the list must not fail her config.
+   */
+  localVoice: z.enum(LOCAL_VOICE_IDS).default(DEFAULT_LOCAL_VOICE).catch(DEFAULT_LOCAL_VOICE),
   /** Caregivers choose how much movement helps her, rather than assuming more is better. */
   motion: z.enum(['still', 'roam', 'reduced']).default('roam'),
   tapAction: z.enum(['reaction', 'chat']).default('reaction'),
-  quickMessages: z.array(quickMessageSchema).max(50).default([])
+  quickMessages: z.array(quickMessageSchema).max(50).default([]),
+  personalFacts: personalFactsSchema.default([])
 })
 
 export const idleDimConfigSchema = z.object({
@@ -165,46 +182,42 @@ export const configSchema = z.object({
   }),
   games: gamesConfigSchema.default(defaultGamesConfig()),
   display: displayConfigSchema,
-  reliability: reliabilityConfigSchema
+  reliability: reliabilityConfigSchema,
+  contacts: contactConfigSchema.default(defaultContactSetup())
 })
 
 export type Config = z.infer<typeof configSchema>
 export type Tile = z.infer<typeof tileSchema>
 
-/**
- * Never sent to any renderer as-is - secrets (the Anthropic and OpenRouter API
- * keys, PIN hash+salt) are stripped. Matches the old app's security model: the
- * caregiver can *set* the API key/PIN but the app never reads it back to
- * any renderer afterward.
- */
-export type PublicConfig = Omit<Config, 'buddy' | 'reliability'> & {
-  buddy: Omit<Config['buddy'], 'anthropicApiKey' | 'openrouterApiKey'>
+/** PIN and contact secrets stay private; ChatGPT tokens live outside config. */
+export type PublicConfig = Omit<Config, 'buddy' | 'reliability' | 'contacts'> & {
+  contacts: PublicContacts
+  buddy: Config['buddy']
   reliability: Omit<Config['reliability'], 'adminPinHash' | 'adminPinSalt'>
 }
 
 export function toPublicConfig(cfg: Config): PublicConfig {
-  const { anthropicApiKey: _key, openrouterApiKey: _orKey, ...publicBuddy } = cfg.buddy
+  const publicBuddy = buddyConfigSchema.parse(cfg.buddy)
   const { adminPinHash: _hash, adminPinSalt: _salt, ...publicReliability } = cfg.reliability
-  return { ...cfg, buddy: publicBuddy, reliability: publicReliability }
+  return {
+    ...cfg,
+    buddy: publicBuddy,
+    reliability: publicReliability,
+    contacts: publicContacts(cfg.contacts)
+  }
 }
 
-/**
- * Applies an admin-panel patch without ever touching secrets. The admin
- * renderer only holds PublicConfig, so a patch like { buddy: {...} } built
- * from it has neither API key - and store.ts's setConfig merges one level
- * deep, so passing that through as-is would silently wipe them (same for
- * the PIN hash/salt under reliability). Secrets always come from `current`;
- * they only change via their own dedicated admin:* channels.
- */
-export function mergeAdminPatch(current: Config, patch: Partial<Config>): Partial<Config> {
-  const merged: Partial<Config> = { ...patch }
-  if (patch.buddy) {
-    merged.buddy = {
-      ...patch.buddy,
-      anthropicApiKey: current.buddy.anthropicApiKey,
-      openrouterApiKey: current.buddy.openrouterApiKey
-    }
-  }
+/** Preserve device PIN/contact secrets and strip obsolete Buddy credential fields. */
+export function mergeAdminPatch(
+  current: Config,
+  patch: Partial<Config> | Partial<PublicConfig>
+): Partial<Config> {
+  const { contacts: _contactPatch, ...rest } = patch
+  const merged: Partial<Config> = { ...rest }
+  // Contact setup has its own gated writer. In particular a settings restore
+  // must never relabel a preserved phone number with an imported person's name.
+  if ('contacts' in patch) merged.contacts = current.contacts
+  if (patch.buddy) merged.buddy = buddyConfigSchema.parse(patch.buddy)
   if (patch.reliability) {
     merged.reliability = {
       ...patch.reliability,
@@ -225,11 +238,12 @@ export function defaultConfig(): Config {
       rapidTap: { count: 20, windowMs: 4000, clusterRadiusPx: 80, cooldownMs: 15000 }
     },
     buddy: {
-      model: 'claude-sonnet-5-5',
+      model: '',
       chattiness: 'off',
-      cloudTtsEnabled: true,
+      cloudTtsEnabled: false,
       voiceEnabled: true,
       ttsVoice: 'en-US-AriaNeural',
+      localVoice: DEFAULT_LOCAL_VOICE,
       motion: 'roam',
       tapAction: 'reaction'
     },

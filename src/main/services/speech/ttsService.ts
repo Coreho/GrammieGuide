@@ -27,17 +27,21 @@ export type TtsClient = {
 
 /**
  * Turns a chat reply into something worth hearing: no markdown symbols or
- * emoji read out as words, whitespace collapsed, length capped, then escaped
- * for the SSML template.
+ * emoji read out as words, whitespace collapsed, length capped. The local
+ * voice (localVoice.ts) takes this as it is.
  */
-export function cleanForSpeech(text: string): string {
-  const plain = text
+export function plainForSpeech(text: string): string {
+  return text
     .replace(/[*_#`~>|]/g, ' ')
     .replace(/\p{Extended_Pictographic}/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, MAX_SPEECH_CHARS)
-  return plain
+}
+
+/** plainForSpeech, then escaped for the SSML template the Edge service wraps it in. */
+export function cleanForSpeech(text: string): string {
+  return plainForSpeech(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -54,7 +58,8 @@ export function createTtsService(
 ): {
   speak(text: string, voice: string): Promise<BuddySpeakResult>
 } {
-  const createClient = opts.createClient ?? ((): TtsClient => new MsEdgeTTS() as unknown as TtsClient)
+  const createClient =
+    opts.createClient ?? ((): TtsClient => new MsEdgeTTS() as unknown as TtsClient)
   const timeoutMs = opts.timeoutMs ?? 10_000
   // One ready client per voice: setMetadata opens the socket, so reusing it
   // saves ~half the latency on every line after the first.
@@ -100,7 +105,12 @@ export function createTtsService(
           })
         ])
         if (audio.length === 0) throw new Error('empty audio')
-        return { ok: true, audioBase64: audio.toString('base64'), mime: 'audio/mpeg' }
+        return {
+          ok: true,
+          audioBase64: audio.toString('base64'),
+          mime: 'audio/mpeg',
+          source: 'online'
+        }
       } catch {
         // A dead socket stays dead; the next line reconnects fresh.
         drop(useVoice)

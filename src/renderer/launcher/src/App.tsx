@@ -14,15 +14,19 @@ import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { timeParts } from './components/HomeHeader'
 import { NavBar } from './components/NavBar'
+import { VideoControls } from './components/VideoControls'
+import { ReaderView } from './components/ReaderView'
+import { EMPTY_READER } from '@shared/news/reader'
 import { PageRecovery } from './components/PageRecovery'
 import type { PageProblem } from '@shared/browser/loadFailure'
 import { ConfusionOverlay } from './components/ConfusionOverlay'
 import { Toast } from './components/Toast'
 import { BuddyChatPanel } from './buddy/BuddyChatPanel'
 import type { ChatPhase } from '@shared/buddy/buddyMachine'
-import type { BuddyCommand } from '@shared/buddy/commands'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import { BuddyMenu, type BuddyMenuAnchor } from './buddy/BuddyMenu'
 import { pickTapReaction, type TapReaction } from '@shared/buddy/tapReactions'
+import { reactionFor } from '@shared/buddy/homeReactions'
 import { builtinFor } from './tiles/builtins'
 import { useMusicPlayer } from './music/useMusicPlayer'
 import { NowPlayingChip } from './music/NowPlayingChip'
@@ -31,6 +35,9 @@ import { ACTION_REPLIES, type BuddyActionPlan } from '@shared/buddy/actions'
 import { openBuddyTile } from './buddy/openBuddyTile'
 import { IdleDimOverlay } from './components/IdleDimOverlay'
 import { useAudioHold, useIdleDim } from './components/useIdleDim'
+import { useContactFlow } from './contacts/useContactFlow'
+import { ContactButton } from './contacts/ContactButton'
+import { ContactOverlay } from './contacts/ContactOverlay'
 
 declare global {
   interface Window {
@@ -44,9 +51,12 @@ const WEATHER_REFRESH_MS = 15 * 60 * 1000
 export default function App() {
   const { player: music, state: musicState } = useMusicPlayer()
   const [config, setConfig] = useState<PublicConfig | null>(null)
+  const contactFlow = useContactFlow(config?.contacts)
   const configRef = useRef(config)
   configRef.current = config
   const [view, setView] = useState<View>('home')
+  const [reader, setReader] = useState(EMPTY_READER)
+  useEffect(() => window.launcher.onReader(setReader), [])
   /** A web page that failed or was blocked; Home's recovery screen stands in for it. */
   const [pageProblem, setPageProblem] = useState<PageProblem | null>(null)
   /** The built-in tile (Weather, News, ...) whose own view is open over Home. */
@@ -55,7 +65,7 @@ export default function App() {
     () =>
       window.launcher.onNewsShelf(({ tileId }) => {
         const tile = configRef.current?.tiles.find((candidate) => candidate.id === tileId)
-        if (tile?.type === 'builtin' && tile.builtinKey === 'news' && tile.newsSources) {
+        if (tile?.type === 'builtin' && tile.builtinKey === 'news') {
           setOpenBuiltin(tile)
         }
         setView('home')
@@ -78,6 +88,25 @@ export default function App() {
     null
   )
   const [buddyChatPhase, setBuddyChatPhase] = useState<ChatPhase>('idle')
+  const [buddyReplyGesture, setBuddyReplyGesture] = useState<ClipName | null>(null)
+  const [buddyGesture, setBuddyGesture] = useState<{ clip: ClipName; sequence: number } | null>(
+    null
+  )
+  const [buddyReaction, setBuddyReaction] = useState<{ clip: ClipName; sequence: number } | null>(
+    null
+  )
+  const [buddyLookAt, setBuddyLookAt] = useState<{ x: number; at: number } | null>(null)
+  // Closing a built-in view (it covers Home without unmounting Buddy) gets a
+  // small welcome back. Coming back from a web page rebuilds his floor, which
+  // greets her already.
+  const lastBuiltin = useRef<TileType | null>(null)
+  useEffect(() => {
+    const closed = lastBuiltin.current
+    lastBuiltin.current = openBuiltin
+    if (!closed || openBuiltin) return
+    const clip = reactionFor(closed.builtinKey === 'photos' ? 'photosClosed' : 'builtinClosed')
+    setBuddyReaction((previous) => ({ clip, sequence: (previous?.sequence ?? 0) + 1 }))
+  }, [openBuiltin])
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -186,7 +215,12 @@ export default function App() {
   }, [view])
 
   const buddyMenuAvailable =
-    Boolean(config) && view === 'home' && !openBuiltin && !showConfusion && !showBuddyChat
+    Boolean(config) &&
+    view === 'home' &&
+    !openBuiltin &&
+    !showConfusion &&
+    !showBuddyChat &&
+    !contactFlow.open
   recoveryCheckAllowed.current = buddyMenuAvailable && !buddyMenuAnchor
 
   const audioHold = useAudioHold()
@@ -194,8 +228,7 @@ export default function App() {
     embeddedWebOpen: view === 'browser',
     buddyChatOpen: showBuddyChat,
     audioHold,
-    // TASK-22's help request will block dimming here once it exists.
-    contactFlow: false
+    contactFlow: contactFlow.open
   })
 
   useEffect(() => {
@@ -262,10 +295,18 @@ export default function App() {
       // Repeated pats and game taps are deliberate interaction, not a sign she is lost.
       if (
         (e.target as HTMLElement).closest(
-          '[data-buddy-tap], [data-buddy-chat-invite], [data-game-interactive]'
+          '[data-buddy-tap], [data-buddy-chat-invite], [data-game-interactive], [data-contact-control]'
         )
       )
         return
+      // Buddy glances toward where she tapped. The Stage is scaled, so convert
+      // to its own pixels (his floor spans its width).
+      const stage = stageRef.current
+      if (stage && stage.offsetWidth > 0) {
+        const box = stage.getBoundingClientRect()
+        const scale = box.width / stage.offsetWidth
+        setBuddyLookAt({ x: (e.clientX - box.x) / scale, at: performance.now() })
+      }
       const triggered = tapTracker.current?.recordTap(e.clientX, e.clientY) ?? false
       if (triggered) {
         triggerConfusionRecovery('taps')
@@ -385,6 +426,20 @@ export default function App() {
             tiles={config.tiles}
             layout={config.display.homeLayout}
             nowPlaying={<NowPlayingChip state={musicState} onStop={() => music.stop()} />}
+            contact={
+              config.contacts.enabled && config.contacts.preferred ? (
+                <ContactButton
+                  name={contactFlow.state?.contact?.name ?? config.contacts.preferred.name}
+                  photoUrl={contactFlow.state?.contact?.photoUrl}
+                  onClick={() => {
+                    clearChatInvitation()
+                    closeBuddyMenu()
+                    setBuddyCommand(null)
+                    contactFlow.request()
+                  }}
+                />
+              ) : undefined
+            }
             onActivateTile={activateTile}
             onBuddyTap={() => {
               if (!buddyMenuAvailable || buddyMenuAnchor) return
@@ -425,6 +480,11 @@ export default function App() {
               command: buddyCommand,
               chatOpen: config.buddy.chatEnabled && showBuddyChat,
               chatPhase: buddyChatPhase,
+              replyGesture: buddyReplyGesture,
+              gesture: buddyGesture,
+              reaction: buddyReaction,
+              musicPlaying: musicState.state === 'playing' || musicState.state === 'lowered',
+              lookAt: buddyLookAt,
               motion: config.buddy.motion,
               chattiness: config.buddy.chattiness,
               hour: now.getHours(),
@@ -460,7 +520,13 @@ export default function App() {
           <BuddyChatPanel
             onAction={runBuddyAction}
             voiceEnabled={config.buddy.voiceEnabled}
-            onPhaseChange={setBuddyChatPhase}
+            onPhaseChange={(phase, gesture) => {
+              setBuddyChatPhase(phase)
+              setBuddyReplyGesture(gesture ?? null)
+            }}
+            onGesture={(clip) =>
+              setBuddyGesture((previous) => ({ clip, sequence: (previous?.sequence ?? 0) + 1 }))
+            }
             onClose={() => {
               setShowBuddyChat(false)
               setBuddyChatPhase('idle')
@@ -468,6 +534,17 @@ export default function App() {
           />
         )}
         {toast && view === 'home' && !openBuiltin && <Toast message={toast} />}
+        {view === 'home' && contactFlow.open && (
+          <ContactOverlay
+            state={contactFlow.state}
+            busy={contactFlow.busy}
+            now={now.getTime()}
+            onClose={contactFlow.close}
+            onStopMusic={
+              musicState.currentId && musicState.state !== 'off' ? () => music.stop() : undefined
+            }
+          />
+        )}
       </Stage>
       {toast && openBuiltin && (
         <div style={{ position: 'fixed', inset: 0, zIndex: zLayers.toast, pointerEvents: 'none' }}>
@@ -475,8 +552,21 @@ export default function App() {
         </div>
       )}
 
+      {view === 'browser' && <VideoControls />}
+      {view === 'browser' && !pageProblem && <ReaderView state={reader} />}
       {view === 'browser' && (
         <NavBar
+          readerToggle={
+            reader.available || reader.mode === 'loading' || reader.mode === 'article'
+              ? {
+                  article: reader.mode === 'article' || reader.mode === 'loading',
+                  onToggle: () =>
+                    void window.launcher.readerMode(
+                      reader.mode === 'article' || reader.mode === 'loading' ? 'page' : 'article'
+                    )
+                }
+              : undefined
+          }
           message={toast}
           onHome={goHome}
           onBack={goBack}

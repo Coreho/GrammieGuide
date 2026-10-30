@@ -5,12 +5,14 @@ export function NavBar({
   onHome,
   onBack,
   onStopMusic,
-  message
+  message,
+  readerToggle
 }: {
   onHome: () => void
   onBack: () => void
   onStopMusic?: () => void
   message?: string | null
+  readerToggle?: { article: boolean; onToggle: () => void }
 }) {
   return (
     <div
@@ -35,6 +37,11 @@ export function NavBar({
       <button onClick={onBack} style={navButtonStyle}>
         ← Back
       </button>
+      {readerToggle && (
+        <button style={navButtonStyle} onClick={readerToggle.onToggle}>
+          {readerToggle.article ? 'Show page' : 'Show article'}
+        </button>
+      )}
       {onStopMusic && (
         <button
           onClick={onStopMusic}

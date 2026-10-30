@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcChannel, IpcRequest, IpcResponse, IpcEvents } from '@shared/ipcContract'
 import type { Config } from '@shared/configSchema'
-import type { BuddyProvider } from '@shared/buddy/providers'
 import { plainErrorMessage } from '@shared/ipcErrors'
 
 /**
@@ -16,6 +15,21 @@ function invoke<C extends IpcChannel>(channel: C, req?: IpcRequest<C>): Promise<
 }
 
 const adminApi = {
+  chatGptState: () => invoke('chatgpt:state'),
+  chatGptConnect: (id?: string) => invoke('chatgpt:connect', { id }),
+  chatGptCancel: () => invoke('chatgpt:cancel'),
+  chatGptSelect: (id: string) => invoke('chatgpt:select', { id }),
+  chatGptModels: () => invoke('chatgpt:models'),
+  chatGptTest: (model: string) => invoke('chatgpt:test', { model }),
+  chatGptWelcome: () => invoke('chatgpt:welcome'),
+  chatGptSignOut: () => invoke('chatgpt:signOut'),
+  chatGptUsage: () => invoke('chatgpt:usage'),
+  listContactRequests: () => invoke('contacts:list'),
+  getContactSettings: () => invoke('contacts:getSettings'),
+  saveContactSettings: (settings: IpcRequest<'contacts:saveSettings'>) =>
+    invoke('contacts:saveSettings', settings),
+  setContactCredentials: (credentials: IpcRequest<'admin:setContactCredentials'>) =>
+    invoke('admin:setContactCredentials', credentials),
   recordNarration: (request: IpcRequest<'photos:recordNarration'>) =>
     invoke('photos:recordNarration', request),
   attachNarration: (id: string) => invoke('photos:attachNarration', { id }),
@@ -47,6 +61,16 @@ const adminApi = {
     ipcRenderer.on('photos:changed', listener)
     return () => ipcRenderer.removeListener('photos:changed', listener)
   },
+  getKnitting: () => invoke('knitting:get'),
+  saveKnittingProject: (project: IpcRequest<'knitting:saveProject'>) =>
+    invoke('knitting:saveProject', project),
+  resetKnittingRows: () => invoke('knitting:resetRows'),
+  removeKnittingProject: () => invoke('knitting:removeProject'),
+  onKnittingChanged: (cb: () => void): (() => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('knitting:changed', listener)
+    return () => ipcRenderer.removeListener('knitting:changed', listener)
+  },
   listPhotos: () => invoke('photos:listAll'),
   importPhotos: () => invoke('photos:import'),
   updatePhoto: (request: IpcRequest<'photos:update'>) => invoke('photos:update', request),
@@ -71,11 +95,12 @@ const adminApi = {
   unlock: (pin: string) => invoke('admin:unlock', { pin }),
   lock: () => invoke('admin:lock'),
   isUnlocked: () => invoke('admin:isUnlocked'),
-  hasApiKey: (provider: BuddyProvider) => invoke('admin:hasApiKey', { provider }),
-  setApiKey: (provider: BuddyProvider, apiKey: string) =>
-    invoke('admin:setApiKey', { provider, apiKey }),
   /** "Try this voice": same synthesis Buddy uses, so what the caregiver hears is what she'll hear. */
-  previewVoice: (text: string, voice: string) => invoke('buddy:speak', { text, voice }),
+  previewVoice: (text: string, voice: string) =>
+    invoke('buddy:speak', { text, voice, path: 'online' }),
+  /** The voice on this computer; waits for it to load the first time. */
+  previewLocalVoice: (text: string, localVoice: string) =>
+    invoke('buddy:speak', { text, localVoice, path: 'local' }),
   previewOldLauncherImport: () => invoke('admin:previewOldLauncherImport'),
   applyOldLauncherImport: () => invoke('admin:applyOldLauncherImport'),
 

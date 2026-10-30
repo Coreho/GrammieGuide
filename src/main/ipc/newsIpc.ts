@@ -47,9 +47,12 @@ export function registerNewsIpc(): void {
     const result = openUrl(url, {
       privateNavigation: true,
       trustedInitialPage: req.storyId !== undefined,
-      returnToNewsTileId: req.sourceId !== undefined ? req.tileId : undefined
+      returnToNewsTileId: req.tileId,
+      readerHeadline:
+        req.storyId !== undefined ? newsService.headline(req.tileId, req.storyId) : undefined
     })
-    if (result.ok) logActivity(req.storyId === undefined ? 'news-site-opened' : 'news-story-opened')
+    if (result.ok)
+      logActivity(req.storyId === undefined ? 'news-site-opened' : 'news-story-opened', req.tileId)
     return { ok: result.ok }
   })
 }

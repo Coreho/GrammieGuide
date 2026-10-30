@@ -16,9 +16,14 @@ import {
   isBrowserOpen,
   getIdleMs,
   closeEmbeddedBrowser,
-  overrideOnlineCheckForTests
+  overrideOnlineCheckForTests,
+  setVideoFixtureForTests
 } from './services/browser/embeddedBrowser'
 import { logActivity } from './services/activityLog/activityLog'
+import { startContactRequests, stopContactRequests } from './services/contacts/contactRuntime'
+import { getContactRequests } from './services/contacts/contactRuntime'
+import { createContactFixture } from './services/contacts/contactFixture'
+import { getChatGptFixture } from './services/chatgpt/runtime'
 import { registerMediaScheme, installMediaProtocol } from './services/media/mediaProtocol'
 import { installAdminMicrophonePermissions } from './services/photos/adminMicrophone'
 import {
@@ -90,6 +95,14 @@ function startInactivityWatch(): void {
 
 app.whenReady().then(() => {
   loadConfig()
+  const contactFixture =
+    process.env['GRAMMIEGUIDE_E2E'] === '1' ? createContactFixture() : undefined
+  startContactRequests(
+    app.getPath('userData'),
+    () => getConfig().contacts.credentials ?? null,
+    contactFixture?.channel,
+    contactFixture?.now
+  )
   registerAllIpc()
   installMediaProtocol()
   installAdminMicrophonePermissions()
@@ -113,6 +126,33 @@ app.whenReady().then(() => {
   if (process.env['GRAMMIEGUIDE_E2E'] === '1') {
     ;(globalThis as unknown as { __e2e__: unknown }).__e2e__ = {
       createAdminWindow,
+      chatGptFixture: async (action: 'complete' | 'fail' | 'recover' | 'request') => {
+        const fixture = getChatGptFixture()
+        if (!fixture) throw new Error('ChatGPT fixture is not enabled')
+        if (action === 'request') return fixture.request()
+        if (action === 'complete') await fixture.completeAuthorization()
+        else fixture.fail(action === 'fail')
+        return undefined
+      },
+      contactFixture: contactFixture
+        ? {
+            count: contactFixture.count,
+            update: async (action: {
+              delivery?: 'pending' | 'delivered' | 'failed'
+              advance?: number
+              reply?: string
+              failSubmission?: boolean
+            }) => {
+              if (action.delivery) contactFixture.delivery(action.delivery)
+              if (action.advance) contactFixture.advance(action.advance)
+              if (action.reply) contactFixture.reply(action.reply)
+              if (action.failSubmission !== undefined)
+                contactFixture.failSubmission(action.failSubmission)
+              await getContactRequests().poll()
+            }
+          }
+        : undefined,
+      setVideoFixtureForTests,
       closeBrowserIfIdle,
       setDeviceOnline: (online: boolean) => overrideOnlineCheckForTests(() => online),
       // The real refresh interval is 24 hours; a test needs to run one now, with
@@ -123,6 +163,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  stopContactRequests()
   stopHeartbeat()
   stopKioskServices()
   stopAdBlocker()

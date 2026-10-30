@@ -25,7 +25,13 @@ export const BUDDY_CLIPS = [
   'beckon',
   'walk_casual',
   'walk',
-  'run'
+  'run',
+  // TASK-71, retargeted from a later Meshy rig (see buildBuddy.sh)
+  'doze',
+  'hooray',
+  'big_stretch',
+  'funny_dance',
+  'groove'
 ] as const
 export type ClipName = (typeof BUDDY_CLIPS)[number]
 

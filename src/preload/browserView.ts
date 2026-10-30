@@ -1,4 +1,8 @@
 import { ipcRenderer } from 'electron'
+import { NO_VIDEO, type VideoState } from '@shared/browser/videoControls'
+import { Readability, isProbablyReaderable } from '@mozilla/readability'
+import { sanitizeReader } from './readerSanitize'
+import type { ReaderArticle } from '@shared/news/reader'
 
 /**
  * Forwards user activity inside the embedded web tile to the main process
@@ -22,3 +26,74 @@ function reportActivity(event: Event): void {
 for (const eventName of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
   document.addEventListener(eventName, reportActivity, { capture: true, passive: true })
 }
+
+// Nothing is exposed to page JavaScript. Main decides whether this document is
+// supported; only its isolated preload receives the fixed transport commands.
+let videoEnabled = false
+function video(): HTMLVideoElement | null {
+  return videoEnabled ? document.querySelector('video') : null
+}
+function reportVideo(): void {
+  const player = video()
+  const state: VideoState =
+    player && player.readyState >= 1 && !player.error
+      ? {
+          available: true,
+          paused: player.paused || player.ended,
+          canRewind: player.seekable.length > 0,
+          fullscreen: Boolean(document.fullscreenElement) || player.matches(':popover-open')
+        }
+      : { ...NO_VIDEO }
+  ipcRenderer.send('browserView:videoState', state)
+}
+ipcRenderer.on('browserView:videoEnabled', (_event, enabled: boolean) => {
+  videoEnabled = enabled === true
+  reportVideo()
+})
+setInterval(reportVideo, 500)
+let readerHidden = false
+ipcRenderer.on('browserView:readerHidden', (_event, hidden: boolean) => {
+  readerHidden = hidden === true
+  if (readerHidden)
+    document.querySelectorAll('video,audio').forEach((media) => (media as HTMLMediaElement).pause())
+})
+document.addEventListener(
+  'play',
+  (event) => {
+    if (readerHidden && event.target instanceof HTMLMediaElement) event.target.pause()
+  },
+  true
+)
+
+function reportReaderable(): void {
+  try {
+    ipcRenderer.send('browserView:readerable', isProbablyReaderable(document))
+  } catch {
+    ipcRenderer.send('browserView:readerable', false)
+  }
+}
+window.addEventListener('DOMContentLoaded', reportReaderable)
+window.addEventListener('load', reportReaderable)
+// JS-rendered articles may arrive after load. Check sparingly, without cloning.
+setInterval(reportReaderable, 2500)
+ipcRenderer.on('browserView:extract', (_event, generation: number) => {
+  let article: ReaderArticle | null = null
+  try {
+    const parsed = new Readability(document.cloneNode(true) as Document, {
+      maxElemsToParse: 50_000
+    }).parse()
+    if (parsed?.content) {
+      const clean = sanitizeReader(parsed.content)
+      if (clean.plainText.length >= 100)
+        article = {
+          title: (parsed.title ?? '').slice(0, 500),
+          byline: (parsed.byline ?? '').slice(0, 500),
+          date: (parsed.publishedTime ?? '').slice(0, 100),
+          ...clean
+        }
+    }
+  } catch {
+    /* A paywall, huge DOM or missing article simply leaves the page. */
+  }
+  ipcRenderer.send('browserView:article', { generation, article })
+})

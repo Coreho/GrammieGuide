@@ -4,7 +4,7 @@ import { TileGrid } from './TileGrid'
 import { BuddyFloor } from '../buddy/BuddyFloor'
 import type { ChatPhase, Chattiness, BuddyMotion } from '@shared/buddy/buddyMachine'
 import type { RemarkWeather } from '@shared/buddy/remarks'
-import type { BuddyCommand } from '@shared/buddy/commands'
+import type { BuddyCommand, ClipName } from '@shared/buddy/commands'
 import type { HomeLayoutName } from '@shared/homeLayout'
 import type { ReactNode } from 'react'
 import { HomeHeader } from './HomeHeader'
@@ -15,6 +15,15 @@ export type HomeBuddyProps = {
   command: (BuddyCommand & { sequence: number }) | null
   chatOpen: boolean
   chatPhase: ChatPhase
+  /** The gesture the line he's speaking opens with. */
+  replyGesture: ClipName | null
+  /** A gesture she asked for in chat. */
+  gesture: { clip: ClipName; sequence: number } | null
+  /** His response to something she just did on Home (homeReactions.ts). */
+  reaction: { clip: ClipName; sequence: number } | null
+  musicPlaying: boolean
+  /** Where she last tapped (Stage pixels) and when, for his glance. */
+  lookAt: { x: number; at: number } | null
   motion: BuddyMotion
   chattiness: Chattiness
   hour: number
@@ -31,7 +40,8 @@ export function HomeView({
   onActivateTile,
   onBuddyTap,
   buddy,
-  nowPlaying
+  nowPlaying,
+  contact
 }: {
   time: string
   ampm: string
@@ -43,6 +53,7 @@ export function HomeView({
   onBuddyTap: () => void
   buddy: HomeBuddyProps
   nowPlaying?: ReactNode
+  contact?: ReactNode
 }) {
   return (
     <>
@@ -54,11 +65,9 @@ export function HomeView({
         style={{ flex: 'none', height: 150, display: 'flex', alignItems: 'flex-end', gap: 32 }}
       >
         {/* TASK-22 owns the control; reserving its footprint prevents a later Home reshuffle. */}
-        <div
-          data-home-contact-slot
-          aria-hidden="true"
-          style={{ width: 420, height: 112, flex: 'none', pointerEvents: 'none' }}
-        />
+        <div data-home-contact-slot style={{ width: 420, height: 112, flex: 'none' }}>
+          {contact}
+        </div>
         {/*
           The floor spans the Stage while the footer reserves exactly 150px.
           No text-size buttons here: the caregiver sets text size in admin's

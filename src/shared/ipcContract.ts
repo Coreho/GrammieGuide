@@ -1,7 +1,7 @@
 import type { Config, PublicConfig } from './configSchema'
 import type { NewsResult } from './news/types'
-import type { BuddyCommand } from './buddy/commands'
-import type { BuddyProvider } from './buddy/providers'
+import type { BuddyCommand, ClipName } from './buddy/commands'
+import type { ChatGptState } from './buddy/chatGpt'
 import type { PageOutcome, PageProblem } from './browser/loadFailure'
 import type { LibraryEntry, LibraryMetadata, LibraryRequest } from './media/libraryTypes'
 import type { Photo, PhotoPatch, PhotoImportResult, PhotoImportProgress } from './media/photoTypes'
@@ -22,6 +22,14 @@ import type {
   VoiceStart
 } from './checks/caregiverChecks'
 import type { BuiltinGameKey } from './games/gamesSchema'
+import type { ContactRequestSummary, HomeContactState } from './contacts'
+import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
+import type {
+  AdminKnitting,
+  HomeKnitting,
+  KnittingProjectInput,
+  RowDirection
+} from './knitting/knitting'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -78,17 +86,19 @@ export type BuddyChatTurn = { role: 'user' | 'assistant'; text: string }
  * has to invent error copy. `reason` is for logging/tests only.
  */
 export type BuddyChatResult =
-  | { ok: true; reply: string; action?: BuddyActionPlan }
+  /** `gesture`: a gesture she asked for, played in chat alongside the fixed reply. */
+  | { ok: true; reply: string; action?: BuddyActionPlan; gesture?: ClipName }
   | {
       ok: false
-      reason: 'disabled' | 'no-key' | 'unavailable' | 'declined'
+      reason: 'disabled' | 'not-connected' | 'unavailable' | 'declined'
       reply: string
       choices?: BuddyTileChoice[]
     }
 
-/** Base64 MP3 of Buddy's line, or why there's none (the renderer then uses the Windows voice). */
+/** Buddy's line as audio, or why there's none (the renderer then uses the Windows voice). */
 export type BuddySpeakResult =
-  | { ok: true; audioBase64: string; mime: 'audio/mpeg' }
+  /** `source`: the online Edge voice, or the voice on this computer (Kokoro, a WAV). */
+  | { ok: true; audioBase64: string; mime: 'audio/mpeg' | 'audio/wav'; source: 'online' | 'local' }
   | { ok: false; reason: 'disabled' | 'empty' | 'unavailable' }
 
 /**
@@ -113,6 +123,30 @@ export type OldLauncherImportPreview =
     }
 
 export interface IpcApi {
+  'chatgpt:state': { request: void; response: ChatGptState }
+  'chatgpt:connect': { request: { id?: string }; response: ChatGptState }
+  'chatgpt:cancel': { request: void; response: ChatGptState }
+  'chatgpt:select': { request: { id: string }; response: ChatGptState }
+  'chatgpt:models': { request: void; response: ChatGptState }
+  'chatgpt:test': { request: { model: string }; response: ChatGptState }
+  'chatgpt:welcome': { request: void; response: ChatGptState }
+  'chatgpt:signOut': { request: void; response: ChatGptState }
+  'chatgpt:usage': { request: void; response: void }
+  'contacts:list': { request: void; response: ContactRequestSummary[] }
+  'contacts:home': { request: void; response: HomeContactState }
+  'contacts:request': { request: void; response: HomeContactState }
+  'contacts:getSettings': { request: void; response: AdminContactSetup }
+  'contacts:saveSettings': { request: ContactSetup; response: AdminContactSetup }
+  /** Her project as Home shows it; Home only. */
+  'knitting:home': { request: void; response: HomeKnitting }
+  /** One tap on Home's counter; main applies the double-tap guard. */
+  'knitting:changeRows': { request: { direction: RowDirection }; response: HomeKnitting }
+  /** Caregiver-only from here down. */
+  'knitting:get': { request: void; response: AdminKnitting }
+  'knitting:saveProject': { request: KnittingProjectInput; response: AdminKnitting }
+  'knitting:resetRows': { request: void; response: AdminKnitting }
+  'knitting:removeProject': { request: void; response: AdminKnitting }
+  'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }
     response: Photo['narration'] | null
@@ -205,13 +239,6 @@ export interface IpcApi {
   'admin:unlock': { request: { pin: string }; response: { ok: boolean; reason?: string } }
   'admin:lock': { request: void; response: void }
   'admin:isUnlocked': { request: void; response: boolean }
-  /** Provider-scoped: Anthropic and OpenRouter each keep their own key. */
-  'admin:hasApiKey': { request: { provider: BuddyProvider }; response: boolean }
-  /** Empty string clears that provider's key. Write-only: never read back to any renderer. */
-  'admin:setApiKey': {
-    request: { provider: BuddyProvider; apiKey: string }
-    response: { ok: boolean }
-  }
   'admin:previewOldLauncherImport': { request: void; response: OldLauncherImportPreview }
   'admin:applyOldLauncherImport': { request: void; response: { ok: boolean } }
 
@@ -220,8 +247,15 @@ export interface IpcApi {
   'buddy:cancelListen': { request: void; response: void }
   /** Buddy opening a saved web tile by ID; resolves once the page loads or fails. */
   'browser:openTile': { request: { tileId: string }; response: PageOutcome }
-  /** Online (Edge) voice. `voice` overrides the configured one - the admin panel's "Try this voice". */
-  'buddy:speak': { request: { text: string; voice?: string }; response: BuddySpeakResult }
+  /**
+   * Buddy's line: the online Edge voice if it's on, then the voice on this
+   * computer. `path` asks for just one of them and `voice`/`localVoice`
+   * override the saved choice - the admin panel's "Try this voice".
+   */
+  'buddy:speak': {
+    request: { text: string; voice?: string; localVoice?: string; path?: 'online' | 'local' }
+    response: BuddySpeakResult
+  }
   /** One spoken phrase through Windows' offline recognizer; returns once she pauses. */
   'buddy:listen': { request: void; response: BuddyListenResult }
   /** Whether there's a recognizer and a microphone at all, so the panel can hide its mic button. */
@@ -234,6 +268,11 @@ export interface IpcApi {
 
   'browser:open': { request: { url: string }; response: { ok: boolean; reason?: string } }
   'browser:goHome': { request: void; response: void }
+  'browser:readerMode': { request: 'article' | 'page'; response: boolean }
+  'browser:videoCommand': {
+    request: import('./browser/videoControls').VideoCommand
+    response: boolean
+  }
   /** Caregiver-only, bounded domain history; never full addresses. */
   'browser:blockedSites': { request: void; response: string[] }
   'browser:goBack': { request: void; response: void }
@@ -254,9 +293,13 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
  * IpcApi since these are ipcRenderer.on subscriptions, not invoke() calls.
  */
 export interface IpcEvents {
+  'browser:reader': import('./news/reader').ReaderState
+  'browser:video': import('./browser/videoControls').VideoState
   'audio:changed': AudioUpdate
   'music:importProgress': MusicImportProgress
   'photos:changed': Record<string, never>
+  /** Her knitting project or row count changed; read it again. */
+  'knitting:changed': Record<string, never>
   'photos:importProgress': PhotoImportProgress
   'buddy:command': BuddyCommand
   /** The page failed or a link was blocked (Home shows its recovery screen), or null once it's fine again. */

@@ -10,12 +10,17 @@ const mocks = vi.hoisted(() => ({
   log: vi.fn(),
   reliability: vi.fn(),
   requireAdmin: vi.fn(),
+  listeners: new Map<string, (...args: unknown[]) => void>(),
+  url: 'https://saved.example',
   views: [] as Array<{ webContents: EventEmitter }>
 }))
 vi.mock('electron', async () => {
   const { EventEmitter } = await import('node:events')
   return {
-    ipcMain: { handle: mocks.handle, on: vi.fn() },
+    ipcMain: {
+      handle: mocks.handle,
+      on: (channel: string, cb: (...args: unknown[]) => void) => mocks.listeners.set(channel, cb)
+    },
     net: { isOnline: () => true },
     WebContentsView: class {
       constructor() {
@@ -25,6 +30,8 @@ vi.mock('electron', async () => {
         loadURL: mocks.load,
         setWindowOpenHandler: vi.fn(),
         isDestroyed: () => false,
+        send: vi.fn(),
+        getURL: () => mocks.url,
         close: vi.fn()
       })
       setBounds = vi.fn()
@@ -59,13 +66,15 @@ import { registerBrowserIpc } from '../../src/main/ipc/browserIpc'
 
 describe('saved web tile opening', () => {
   const host = Object.assign(new EventEmitter(), {
-    webContents: { send: vi.fn() },
+    webContents: { send: vi.fn(), isDestroyed: () => false },
     getContentSize: () => [1440, 900],
-    isDestroyed: () => false,
+    isDestroyed: vi.fn(() => false),
     contentView: { addChildView: vi.fn(), removeChildView: vi.fn() }
   })
   beforeEach(() => {
     vi.clearAllMocks()
+    host.isDestroyed.mockReturnValue(false)
+    mocks.url = 'https://saved.example'
     mocks.config.mockReturnValue({ ...defaultConfig(), approvedSites: ['saved.example'] })
     mocks.requireAdmin.mockImplementation(() => undefined)
     mocks.launcher.mockReturnValue(host)
@@ -75,6 +84,34 @@ describe('saved web tile opening', () => {
     closeEmbeddedBrowser()
     host.removeAllListeners()
     vi.useRealTimers()
+  })
+  it('closes cleanly after its host window has already been destroyed', () => {
+    mocks.load.mockResolvedValue(undefined)
+    openUrl('https://saved.example')
+    mocks.url = 'https://www.youtube.com/watch?v=fixture'
+    const contents = mocks.views.at(-1)!.webContents
+    mocks.listeners.get('browserView:videoState')!(
+      { sender: contents },
+      {
+        available: true,
+        paused: true,
+        fullscreen: false,
+        canRewind: true
+      }
+    )
+    host.isDestroyed.mockReturnValue(true)
+    expect(() => host.emit('closed')).not.toThrow()
+    host.isDestroyed.mockReturnValue(false)
+  })
+  it('refuses media and reader commands from other windows and child frames', async () => {
+    registerBrowserIpc()
+    for (const channel of ['browser:videoCommand', 'browser:readerMode']) {
+      const invoke = mocks.handle.mock.calls.find(([name]) => name === channel)![1]
+      expect(
+        await invoke({ sender: {} }, channel === 'browser:readerMode' ? 'article' : 'play')
+      ).toBe(false)
+      expect(await invoke({ sender: host.webContents, senderFrame: {} }, 'play')).toBe(false)
+    }
   })
   it('does not report success until Electron finishes loading and keeps targets private', async () => {
     let finish!: () => void

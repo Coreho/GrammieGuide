@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buddyConfigSchema, defaultConfig, CURRENT_SCHEMA_VERSION } from '../../src/shared/configSchema'
+import {
+  buddyConfigSchema,
+  defaultConfig,
+  CURRENT_SCHEMA_VERSION
+} from '../../src/shared/configSchema'
 import { migration } from '../../src/main/config/migrations/006-buddy-interaction-settings'
 import { runMigrations } from '../../src/main/config/migrations/runner'
 
@@ -57,7 +61,7 @@ describe('migration 006 (Buddy interaction settings)', () => {
         ...defaultConfig().buddy,
         motion,
         tapAction: 'chat' as const,
-        anthropicApiKey: 'keep-me'
+        ttsVoice: 'keep-me'
       }
       const raw = {
         ...defaultConfig(),

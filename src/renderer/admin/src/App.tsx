@@ -12,8 +12,10 @@ import { ReliabilityTab } from './components/ReliabilityTab'
 import { PhotosTab } from './components/PhotosTab'
 import { MusicTab } from './components/MusicTab'
 import { GamesTab } from './components/GamesTab'
+import { KnittingTab } from './components/KnittingTab'
 import { ChecksTab } from './components/ChecksTab'
 import { SitesTab } from './components/SitesTab'
+import { ContactsTab } from './components/ContactsTab'
 import { useConfigStore } from './state/useConfigStore'
 
 declare global {
@@ -28,6 +30,7 @@ type Tab =
   | 'photos'
   | 'music'
   | 'games'
+  | 'knitting'
   | 'display'
   | 'weather'
   | 'buddy'
@@ -36,6 +39,7 @@ type Tab =
   | 'reliability'
   | 'checks'
   | 'sites'
+  | 'contacts'
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('loading')
@@ -64,6 +68,7 @@ export default function App() {
             'photos',
             'music',
             'games',
+            'knitting',
             'display',
             'weather',
             'buddy',
@@ -71,7 +76,8 @@ export default function App() {
             'activity',
             'reliability',
             'checks',
-            'sites'
+            'sites',
+            'contacts'
           ] as Tab[]
         ).map((t) => (
           <button
@@ -108,6 +114,7 @@ export default function App() {
         {tab === 'photos' && <PhotosTab />}
         {tab === 'music' && <MusicTab />}
         {tab === 'games' && <GamesTab />}
+        {tab === 'knitting' && <KnittingTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'weather' && <WeatherTab />}
         {tab === 'buddy' && <BuddyTab />}
@@ -116,6 +123,7 @@ export default function App() {
         {tab === 'reliability' && <ReliabilityTab />}
         {tab === 'checks' && <ChecksTab />}
         {tab === 'sites' && <SitesTab />}
+        {tab === 'contacts' && <ContactsTab />}
       </main>
     </div>
   )

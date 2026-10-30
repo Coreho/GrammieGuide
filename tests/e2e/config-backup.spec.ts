@@ -96,8 +96,6 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
   ]
   await admin.evaluate(async (config) => {
     await window.admin.setConfig(config)
-    await window.admin.setApiKey('anthropic', 'source-key')
-    await window.admin.setApiKey('openrouter', 'source-openrouter-key')
   }, source)
   await admin.getByRole('button', { name: 'Reliability', exact: true }).click()
   await expect(admin.getByRole('heading', { name: 'Settings backup and restore' })).toBeVisible()
@@ -121,8 +119,6 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
       tiles: [],
       display: { ...current.display, fontStep: 1 }
     })
-    await window.admin.setApiKey('anthropic', 'destination-key')
-    await window.admin.setApiKey('openrouter', 'destination-openrouter-key')
   })
   await pickRestore()
   await admin.getByRole('button', { name: 'Restore backup', exact: true }).click()
@@ -141,8 +137,8 @@ test('caregiver saves and restores settings, rejects bad files, and sees media a
     admin.getByRole('list', { name: 'Configured tiles' }).getByRole('listitem')
   ).toHaveCount(3)
   const stored = JSON.parse(readFileSync(join(userData, 'grammieguide-config.json'), 'utf8'))
-  expect(stored.buddy.anthropicApiKey).toBe('destination-key')
-  expect(stored.buddy.openrouterApiKey).toBe('destination-openrouter-key')
+  expect(stored.buddy).not.toHaveProperty('anthropicApiKey')
+  expect(stored.buddy).not.toHaveProperty('openrouterApiKey')
   expect(stored.reliability.adminPinHash).toBeTruthy()
   await home.getByRole('button', { name: 'Our photos', exact: true }).click()
   await expect(

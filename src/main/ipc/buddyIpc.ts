@@ -4,9 +4,12 @@ import { join } from 'node:path'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import { getConfig } from '../config/store'
 import { buddyChat } from '../services/ai/buddyChatService'
-import { getBuddyChatClient } from '../services/ai/buddyChatClient'
+import { chatGptBuddyReply } from '../services/chatgpt/buddyAdapter'
+import { getChatGptSession } from '../services/chatgpt/runtime'
 import { logActivity } from '../services/activityLog/activityLog'
 import { createTtsService } from '../services/speech/ttsService'
+import { getLocalVoice } from '../services/speech/localVoiceRuntime'
+import { speakLine } from '../services/speech/voiceChain'
 import { listenOnce, canListen } from '../services/speech/sttService'
 import { buddyCommandSchema } from '@shared/buddy/commands'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
@@ -22,6 +25,7 @@ import { libraryPaths } from '../services/media/libraryPaths'
 import type { MediaLibrary } from '@shared/media/mediaPath'
 import type { LibraryStore } from '../services/media/libraryStore'
 import { runPowerShell } from '../services/reliability/shellExec'
+import { PersonalHistory } from '@shared/buddy/personalFacts'
 
 const tts = createTtsService()
 // The recognizer/mic check spawns PowerShell (~1s); the answer can't change
@@ -29,6 +33,7 @@ const tts = createTtsService()
 let canListenOnce: Promise<boolean> | null = null
 
 export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore): void {
+  const personalHistory = new PersonalHistory()
   const resolveAction = (action: BuddyActionRequest): Promise<BuddyActionResult> =>
     resolveBuddyAction(
       action,
@@ -62,17 +67,26 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
   ipcMain.handle('buddy:chat', async (_e, req: { turns: BuddyChatTurn[] }) => {
     if (_e.sender !== getLauncherWindow()?.webContents)
       return { ok: false, reason: 'unavailable', reply: ACTION_REPLIES.unavailable }
-    const { provider, anthropicApiKey, openrouterApiKey, model, chatEnabled } = getConfig().buddy
-    // Each provider keeps its own key, so switching back and forth never needs
-    // one to be re-entered.
-    const apiKey = provider === 'openrouter' ? openrouterApiKey : anthropicApiKey
+    const { model, chatEnabled, motion } = getConfig().buddy
+    let connected = false
+    try {
+      connected =
+        chatEnabled && Boolean(model) && getChatGptSession().state().verifiedModel === model
+    } catch {
+      /* Locked or unreadable credential storage gets Buddy's calm setup reply. */
+    }
     const result = await buddyChat(Array.isArray(req?.turns) ? req.turns : [], {
       chatEnabled,
-      apiKey,
-      provider,
-      model,
-      client: chatEnabled && apiKey ? getBuddyChatClient(provider, apiKey) : null,
+      motion,
+      ...(connected ? { generate: (messages) => chatGptBuddyReply(model, messages) } : {}),
       log: logActivity,
+      personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
+      contactButton: () => {
+        const contacts = getConfig().contacts
+        return contacts.enabled && contacts.preferred
+          ? `Ask ${contacts.preferred.name} to call`
+          : null
+      },
       resolveAction
     })
     // Log that a conversation happened, never what was said - the activity
@@ -81,15 +95,33 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
     return result
   })
 
-  ipcMain.handle('buddy:speak', async (_e, req: { text?: unknown; voice?: unknown }) => {
-    const { cloudTtsEnabled, ttsVoice } = getConfig().buddy
-    if (!cloudTtsEnabled) return { ok: false, reason: 'disabled' }
-    const text = typeof req?.text === 'string' ? req.text : ''
-    const voice = typeof req?.voice === 'string' ? req.voice : ttsVoice
-    const result = await tts.speak(text, voice)
-    if (!result.ok && result.reason === 'unavailable') logActivity('buddy-voice-unavailable')
-    return result
-  })
+  ipcMain.handle(
+    'buddy:speak',
+    async (_e, req: { text?: unknown; voice?: unknown; localVoice?: unknown; path?: unknown }) => {
+      const { cloudTtsEnabled, ttsVoice, localVoice } = getConfig().buddy
+      const text = typeof req?.text === 'string' ? req.text : ''
+      const voice = typeof req?.voice === 'string' ? req.voice : ttsVoice
+      const local = typeof req?.localVoice === 'string' ? req.localVoice : localVoice
+      return speakLine({
+        path: req?.path === 'online' || req?.path === 'local' ? req.path : undefined,
+        cloudTtsEnabled,
+        online: () => tts.speak(text, voice),
+        local: (wait) => getLocalVoice().speak(text, local, { wait }),
+        log: logActivity
+      })
+    }
+  )
+  // With the online voice off, the voice on this computer is the one she'll
+  // hear: load it before Buddy's first line rather than on it. Later, once
+  // Home has settled, so it doesn't compete with startup.
+  setTimeout(() => {
+    try {
+      const { cloudTtsEnabled, voiceEnabled } = getConfig().buddy
+      if (!cloudTtsEnabled && voiceEnabled) getLocalVoice().warm()
+    } catch {
+      // Warming up is only an optimization; the first line can still start it.
+    }
+  }, 15_000).unref()
 
   let listening: AbortController | null = null
   ipcMain.handle('buddy:cancelListen', (event) => {

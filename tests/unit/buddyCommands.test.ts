@@ -47,12 +47,12 @@ describe('tile and quick-message migrations', () => {
       schemaVersion: 2,
       tiles: [{ id: 'web', type: 'web', label: 'Family', url: 'https://example.com' }]
     }
-    raw.buddy.anthropicApiKey = 'keep-private'
+    raw.buddy.ttsVoice = 'keep-private'
     const before = structuredClone(raw)
     const result = runMigrations(raw)
     expect(result.ok).toBe(true)
     expect(result.config.tiles[0]).toMatchObject({ size: 'normal', id: 'web' })
-    expect(result.config.buddy.anthropicApiKey).toBe('keep-private')
+    expect(result.config.buddy.ttsVoice).toBe('keep-private')
     expect(result.config.buddy.quickMessages).toEqual([])
     expect(raw).toEqual(before)
   })

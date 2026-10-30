@@ -4,7 +4,7 @@ import { defaultConfig } from '../../src/shared/configSchema'
 const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
   getConfig: vi.fn(),
-  getClient: vi.fn(),
+  ready: vi.fn(),
   create: vi.fn(),
   sender: { id: 99, once: vi.fn(), removeListener: vi.fn() },
   list: vi.fn(),
@@ -13,8 +13,9 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('electron', () => ({ ipcMain: { handle: mocks.handle } }))
 vi.mock('../../src/main/config/store', () => ({ getConfig: mocks.getConfig }))
-vi.mock('../../src/main/services/ai/buddyChatClient', () => ({
-  getBuddyChatClient: mocks.getClient
+vi.mock('../../src/main/services/chatgpt/buddyAdapter', () => ({ chatGptBuddyReply: mocks.create }))
+vi.mock('../../src/main/services/chatgpt/runtime', () => ({
+  getChatGptSession: () => ({ state: mocks.ready })
 }))
 vi.mock('../../src/main/services/activityLog/activityLog', () => ({ logActivity: vi.fn() }))
 vi.mock('../../src/main/services/speech/ttsService', () => ({
@@ -34,10 +35,11 @@ import { registerBuddyIpc } from '../../src/main/ipc/buddyIpc'
 describe('buddy:chat', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.getClient.mockReturnValue({ messages: { create: mocks.create } })
+    mocks.ready.mockReturnValue({ verifiedModel: 'account-model' })
     mocks.create.mockResolvedValue({
-      content: [{ type: 'text', text: 'Hello!' }],
-      stop_reason: 'end_turn'
+      text: 'Hello!',
+      tools: [],
+      refused: false
     })
     registerBuddyIpc(() => ({ list: mocks.list }) as never)
   })
@@ -58,66 +60,34 @@ describe('buddy:chat', () => {
 
   it('reads the live setting each turn and refuses chat before obtaining a client', async () => {
     const config = defaultConfig()
-    config.buddy.anthropicApiKey = 'saved-key'
+    config.buddy.model = 'account-model'
     mocks.getConfig.mockReturnValue(config)
     const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:chat')![1]
     const request = { turns: [{ role: 'user', text: 'Hello' }] }
     expect(await invoke({ sender: mocks.sender }, request)).toEqual({ ok: true, reply: 'Hello!' })
-    mocks.getClient.mockClear()
+    mocks.ready.mockClear()
     mocks.create.mockClear()
     config.buddy.chatEnabled = false
     expect(await invoke({ sender: mocks.sender }, request)).toMatchObject({
       ok: false,
       reason: 'disabled'
     })
-    expect(mocks.getClient).not.toHaveBeenCalled()
+    expect(mocks.ready).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
     config.buddy.chatEnabled = true
     expect(await invoke({ sender: mocks.sender }, request)).toEqual({ ok: true, reply: 'Hello!' })
     expect(mocks.create).toHaveBeenCalledTimes(1)
   })
 
-  it('uses the key belonging to the selected provider, never the other one', async () => {
+  it('refuses an unverified model without calling inference', async () => {
     const config = defaultConfig()
-    // Both keys saved, as they would be after a caregiver has tried both.
-    config.buddy.anthropicApiKey = 'anthropic-key'
-    config.buddy.openrouterApiKey = 'openrouter-key'
-    config.buddy.provider = 'openrouter'
-    config.buddy.model = 'anthropic/claude-sonnet-5.5'
+    config.buddy.model = 'unverified'
     mocks.getConfig.mockReturnValue(config)
     const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:chat')![1]
-
-    await invoke({ sender: mocks.sender }, { turns: [{ role: 'user', text: 'Hello' }] })
-    expect(mocks.getClient).toHaveBeenCalledWith('openrouter', 'openrouter-key')
-    // And the request carries the routing pin that keeps her chat at Anthropic.
-    expect(mocks.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: 'anthropic/claude-sonnet-5.5',
-        provider: { only: ['Anthropic'], allow_fallbacks: false, data_collection: 'deny' }
-      })
-    )
-
-    // Switching back uses the Anthropic key, and sends no OpenRouter routing.
-    mocks.getClient.mockClear()
-    mocks.create.mockClear()
-    config.buddy.provider = 'anthropic'
-    config.buddy.model = 'claude-sonnet-5-5'
-    await invoke({ sender: mocks.sender }, { turns: [{ role: 'user', text: 'Hello' }] })
-    expect(mocks.getClient).toHaveBeenCalledWith('anthropic', 'anthropic-key')
-    expect(mocks.create.mock.calls[0]![0]).not.toHaveProperty('provider')
-  })
-
-  it('refuses chat when the selected provider has no key, even if the other one does', async () => {
-    const config = defaultConfig()
-    config.buddy.anthropicApiKey = 'anthropic-key'
-    config.buddy.provider = 'openrouter'
-    mocks.getConfig.mockReturnValue(config)
-    const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:chat')![1]
-
     expect(
       await invoke({ sender: mocks.sender }, { turns: [{ role: 'user', text: 'Hello' }] })
-    ).toMatchObject({ ok: false, reason: 'no-key' })
-    expect(mocks.getClient).not.toHaveBeenCalled()
+    ).toMatchObject({ ok: false, reason: 'not-connected' })
+    expect(mocks.create).not.toHaveBeenCalled()
   })
   it('cancels the live recognition process and rejects disabled or foreign listening requests', async () => {
     const config = defaultConfig()
