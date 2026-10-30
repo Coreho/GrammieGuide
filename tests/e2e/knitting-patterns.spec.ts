@@ -147,6 +147,13 @@ test('she reads one page at a time, filling the screen, with large Back and Next
   await expect(position()).toHaveText('Page 3 of 3')
   expect(await shownWidth()).toBe(620)
   await expect(page.getByRole('button', { name: 'Next page' })).toBeDisabled()
+  // Reaching the last page from the keyboard keeps focus in the viewer, so the
+  // arrow keys still turn pages.
+  await expect(page.getByRole('button', { name: 'Next page' })).toBeFocused()
+  await page.keyboard.press('ArrowLeft')
+  await expect(position()).toHaveText('Page 2 of 3')
+  await page.keyboard.press('ArrowRight')
+  await expect(position()).toHaveText('Page 3 of 3')
   const area = await page.locator('.knitting-pattern-page').boundingBox()
   const viewport =
     page.viewportSize() ?? (await page.evaluate(() => ({ width: innerWidth, height: innerHeight })))

@@ -175,10 +175,13 @@ export function TurnControls({
 }) {
   return (
     <footer className="knitting-pattern-controls">
+      {/* aria-disabled, not disabled: a disabled button drops the keyboard focus it
+          holds to the page body, and the arrow keys and Esc stop reaching the viewer.
+          Both viewers' turn handlers already ignore a turn past either end. */}
       <button
         className="knitting-pattern-turn"
         aria-label={`Previous ${noun}`}
-        disabled={atStart}
+        aria-disabled={atStart}
         onClick={() => onTurn(-1)}
       >
         ← Back
@@ -189,7 +192,7 @@ export function TurnControls({
       <button
         className="knitting-pattern-turn"
         aria-label={`Next ${noun}`}
-        disabled={atEnd}
+        aria-disabled={atEnd}
         onClick={() => onTurn(1)}
       >
         Next →
