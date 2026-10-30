@@ -8,7 +8,7 @@ import {
 import type { Tile as TileType, PublicConfig } from '@shared/configSchema'
 import type { WeatherSnapshot } from '@shared/ipcContract'
 import { RapidTapTracker } from '@shared/confusionDetector'
-import { THEMES, THEME_ONLY_KEYS, fontScaleForStep, type ThemeName } from '@shared/theme'
+import { THEME_ONLY_KEYS, fontScaleForStep, themeTokens, type ThemeName } from '@shared/theme'
 import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
@@ -186,9 +186,9 @@ export default function App() {
     const el = themeRef.current
     if (!config || !el) return
     for (const key of THEME_ONLY_KEYS) el.style.removeProperty(`--${key}`)
-    const tokens = THEMES[config.display.theme as ThemeName] ?? THEMES.tilesBold
+    const tokens = themeTokens(config.display.theme as ThemeName, config.display.background)
     for (const [key, value] of Object.entries(tokens)) el.style.setProperty(`--${key}`, value)
-  }, [config, config?.display.theme])
+  }, [config, config?.display.theme, config?.display.background])
 
   const refreshWeather = useCallback(() => {
     const label = config?.weather.locations[0]?.label
@@ -455,7 +455,12 @@ export default function App() {
   const OpenBuiltinView = openBuiltin ? builtinFor(openBuiltin)?.View : undefined
 
   return (
-    <div ref={themeRef} onPointerDown={handlePointerDown} style={{ position: 'fixed', inset: 0 }}>
+    <div
+      ref={themeRef}
+      data-home-theme
+      onPointerDown={handlePointerDown}
+      style={{ position: 'fixed', inset: 0 }}
+    >
       <Stage rootRef={stageRef}>
         {view === 'home' && (
           <HomeView

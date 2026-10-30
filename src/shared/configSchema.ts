@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
+import { BACKGROUND_NAMES, THEME_NAMES, DEFAULT_FONT_STEP, FONT_STEP_COUNT } from './theme'
 import { TILE_COLOR_COUNT } from './tileColors'
 import { quickMessageSchema } from './buddy/commands'
 import { BUDDY_PROVIDERS, DEFAULT_BUDDY_PROVIDER } from './buddy/providers'
@@ -138,6 +138,10 @@ export const displayConfigSchema = z.object({
     .max(FONT_STEP_COUNT - 1)
     .default(DEFAULT_FONT_STEP),
   theme: z.enum(THEME_NAMES).default('tilesBold'),
+  // Unset is the theme's own background, so existing setups need no migration.
+  // An unknown name (from a newer or older build) is dropped rather than failing
+  // the whole config at boot and resetting her Home.
+  background: z.enum(BACKGROUND_NAMES).optional().catch(undefined),
   homeLayout: z.enum(HOME_LAYOUT_NAMES).default('simple4'),
   ambientBackground: z.boolean().default(true),
   volumeCeiling: z.number().min(0).max(100).default(70),
