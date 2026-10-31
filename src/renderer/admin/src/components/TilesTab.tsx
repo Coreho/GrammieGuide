@@ -169,6 +169,8 @@ export function TilesTab() {
     tile.url = tile.type === 'web' || isNews ? tile.url : undefined
     tile.feedUrl = isNews ? tile.feedUrl : undefined
     tile.newsSources = isNews ? tile.newsSources : undefined
+    tile.ravelry =
+      tile.type === 'builtin' && tile.builtinKey === 'knitting' ? tile.ravelry : undefined
     tile.builtinKey = tile.type === 'builtin' ? (tile.builtinKey ?? 'weather') : undefined
     const tiles = editing
       ? config.tiles.map((t) => (t.id === tile.id ? tile : t))
