@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { MAX_PATTERN_PAGES, type AdminKnitting } from '@shared/knitting/knitting'
+import type { Tile } from '@shared/configSchema'
+import { useConfigStore } from '../state/useConfigStore'
 import { TilePhotoPicker } from './TilePhotoPicker'
 
 type Draft = { name: string; forWhom: string; photoId?: string; patternId?: string }
@@ -11,6 +13,9 @@ const toDraft = (knitting: AdminKnitting): Draft => ({
   patternId: knitting.project?.patternId
 })
 
+const isKnittingTile = (tile: Tile): boolean =>
+  tile.type === 'builtin' && tile.builtinKey === 'knitting'
+
 /** Main's knitting messages are written for the caregiver; drop Electron's IPC prefix. */
 function mainMessage(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : ''
@@ -20,9 +25,12 @@ function mainMessage(error: unknown, fallback: string): string {
 /**
  * Her project, patterns and finished pieces live in their own main-process file, not
  * in config: Home updates the row count and her pattern page as she goes, and only
- * this tab can set them up, reorder, reset or remove them.
+ * this tab can set them up, reorder, reset or remove them. The Ravelry switch is the
+ * exception: it lives on the tile, because the approved-sites rule reads it from config.
  */
 export function KnittingTab() {
+  const config = useConfigStore((s) => s.config)
+  const saveConfig = useConfigStore((s) => s.save)
   const [knitting, setKnitting] = useState<AdminKnitting | null>(null)
   const [draft, setDraft] = useState<Draft>({ name: '', forWhom: '' })
   const [patternName, setPatternName] = useState('')
@@ -150,9 +158,29 @@ export function KnittingTab() {
     }
   }
 
+  async function setRavelry(ravelry: boolean): Promise<void> {
+    setBusy(true)
+    setMessage('')
+    setError('')
+    try {
+      const latest = useConfigStore.getState().config!
+      await saveConfig({
+        tiles: latest.tiles.map((tile) => (isKnittingTile(tile) ? { ...tile, ravelry } : tile))
+      })
+      setMessage(
+        ravelry ? 'Ravelry is on her Knitting shelf.' : 'Ravelry is off her Knitting shelf.'
+      )
+    } catch {
+      setError('Could not save the Ravelry setting. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const project = knitting?.project ?? null
   const patterns = knitting?.patterns ?? []
   const pieces = knitting?.pieces ?? []
+  const knittingTiles = config?.tiles.filter(isKnittingTile) ?? []
 
   return (
     <div>
@@ -443,6 +471,27 @@ export function KnittingTab() {
             </div>
           </fieldset>
         </form>
+      </section>
+
+      <section aria-labelledby="knitting-ravelry-heading" style={{ marginTop: 28 }}>
+        <h3 id="knitting-ravelry-heading">Ravelry</h3>
+        <p style={{ fontSize: '.9rem', color: '#555' }}>
+          Adds a Ravelry card to her Knitting shelf. It opens ravelry.com in her protected browser,
+          where other sites stay blocked and nothing downloads. Ravelry needs an account: turn this
+          on, tap the card on Home and sign in with Remember me ticked, so she doesn&apos;t meet the
+          login page. Some people have reported headaches from Ravelry&apos;s design, so try it with
+          her first.
+        </p>
+        <label>
+          <input
+            type="checkbox"
+            disabled={knittingTiles.length === 0 || busy}
+            checked={knittingTiles.some((tile) => tile.ravelry)}
+            onChange={(e) => void setRavelry(e.target.checked)}
+          />{' '}
+          Show Ravelry on her Knitting shelf
+        </label>
+        {config && knittingTiles.length === 0 && <p>Add a Knitting tile in the Tiles tab first.</p>}
       </section>
     </div>
   )

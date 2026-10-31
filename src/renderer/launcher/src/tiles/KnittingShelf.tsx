@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { zLayers } from '@shared/zLayers'
-import type { HomeKnitting, RowDirection } from '@shared/knitting/knitting'
+import { RAVELRY_URL, type HomeKnitting, type RowDirection } from '@shared/knitting/knitting'
 import type { BuiltinViewProps } from './builtins'
-import { ProjectCard, ProjectView } from './KnittingProject'
+import { KnittingPicture, ProjectCard, ProjectView } from './KnittingProject'
 import { PatternList, PatternViewer, PatternsCard } from './KnittingPatterns'
 import { GalleryCard, GalleryViewer } from './KnittingGallery'
 import './KnittingShelf.css'
@@ -29,10 +29,14 @@ const BACK_LABELS = {
  * parts the caregiver has set up get a card. The row count and pattern pages
  * live in main, so a reloaded or recovered Home shows the same row and page.
  */
-export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
+export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: BuiltinViewProps) {
   const surface = useRef<HTMLElement>(null)
   const [loaded, setLoaded] = useState<Loaded>({ state: 'loading' })
   const [view, setView] = useState<View>({ kind: 'shelf' })
+  const [openingRavelry, setOpeningRavelry] = useState(false)
+  const [ravelryFailed, setRavelryFailed] = useState(false)
+  // App holds the tile as it was when she opened it; config is what's saved now.
+  const showRavelry = config.tiles.some((saved) => saved.id === tile.id && saved.ravelry === true)
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -165,6 +169,21 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
     else setView({ kind: 'patterns' })
   }
 
+  async function openRavelry(): Promise<void> {
+    if (openingRavelry) return
+    setOpeningRavelry(true)
+    setRavelryFailed(false)
+    try {
+      const result = await window.launcher.openBrowser(RAVELRY_URL)
+      if (result.ok) onBrowsing()
+      else setRavelryFailed(true)
+    } catch {
+      setRavelryFailed(true)
+    } finally {
+      setOpeningRavelry(false)
+    }
+  }
+
   const linked = project?.patternId && patterns.some((p) => p.id === project.patternId)
 
   let content
@@ -229,12 +248,16 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
             Your knitting isn&apos;t ready right now.
           </p>
         )}
-        {loaded.state === 'ready' && !project && !patterns.length && !pieces.length && (
-          <p className="knitting-shelf-calm" role="status">
-            Your knitting will be here once your family sets it up.
-          </p>
-        )}
-        {(project || patterns.length > 0 || pieces.length > 0) && (
+        {loaded.state === 'ready' &&
+          !project &&
+          !patterns.length &&
+          !pieces.length &&
+          !showRavelry && (
+            <p className="knitting-shelf-calm" role="status">
+              Your knitting will be here once your family sets it up.
+            </p>
+          )}
+        {(project || patterns.length > 0 || pieces.length > 0 || showRavelry) && (
           <div className="knitting-shelf-grid">
             {project && (
               <ProjectCard project={project} onOpen={() => setView({ kind: 'project' })} />
@@ -243,7 +266,29 @@ export function KnittingShelf({ tile, onClose, musicStop }: BuiltinViewProps) {
             {pieces.length > 0 && (
               <GalleryCard pieces={pieces} onOpen={() => setView({ kind: 'gallery' })} />
             )}
+            {showRavelry && (
+              <button
+                className="knitting-card"
+                data-knitting-card="ravelry"
+                aria-label="Ravelry: patterns and ideas online"
+                disabled={openingRavelry}
+                onClick={() => void openRavelry()}
+              >
+                <span className="knitting-card-picture" aria-hidden="true">
+                  <KnittingPicture />
+                </span>
+                <span className="knitting-card-label">
+                  <span className="knitting-card-title">Ravelry</span>
+                  <span className="knitting-card-detail">Patterns and ideas online</span>
+                </span>
+              </button>
+            )}
           </div>
+        )}
+        {ravelryFailed && showRavelry && (
+          <p className="knitting-shelf-status" role="status">
+            Ravelry can&apos;t open right now.
+          </p>
         )}
       </>
     )

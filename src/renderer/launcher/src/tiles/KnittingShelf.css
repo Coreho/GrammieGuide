@@ -56,6 +56,15 @@
   color: var(--ink2, #504738);
 }
 
+.knitting-shelf-status {
+  flex: none;
+  margin: 0;
+  text-align: center;
+  font-size: calc(28px * var(--font-scale, 1));
+  font-weight: 700;
+  color: var(--ink2, #504738);
+}
+
 /* Room for four parts, two by two, so later cards fill in without moving this one. */
 .knitting-shelf-grid {
   flex: 1;

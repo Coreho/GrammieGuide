@@ -30,6 +30,67 @@ const config = {
   approvedSites: ['example.com', '127.0.0.1', '[::1]']
 }
 
+describe('the Ravelry switch on a Knitting tile', () => {
+  const knitting = (fields: Partial<Tile>): Tile => ({
+    id: 'knitting',
+    label: 'Knitting',
+    type: 'builtin',
+    builtinKey: 'knitting',
+    slot: 0,
+    size: 'normal',
+    colorIndex: 0,
+    ...fields
+  })
+  const on = { tiles: [knitting({ ravelry: true })], approvedSites: [] }
+
+  it.each([
+    'https://www.ravelry.com/',
+    'https://ravelry.com/patterns',
+    'https://api.ravelry.com/a'
+  ])('allows %s when on', (url) => {
+    expect(navigationAllowed(url, on, 'open')).toBe(true)
+    expect(navigationAllowed(url, on, 'navigate')).toBe(true)
+  })
+
+  it.each([
+    'https://ravelry.com.example.org/',
+    'https://notravelry.com/',
+    'https://www.example.com/',
+    'https://www.ravelry.com@example.org/'
+  ])('still refuses %s when on', (url) => {
+    expect(navigationAllowed(url, on, 'navigate')).toBe(false)
+  })
+
+  it('approves nothing while off, unset, or on any other tile', () => {
+    expect(tileSites([knitting({ ravelry: false })])).toEqual([])
+    expect(tileSites([knitting({})])).toEqual([])
+    expect(tileSites([knitting({ ravelry: true, builtinKey: 'music' })])).toEqual([])
+    expect(tileSites([{ ...tile('https://example.com'), type: 'app', ravelry: true }])).toEqual([])
+    expect(
+      navigationAllowed(
+        'https://www.ravelry.com/',
+        { tiles: [knitting({})], approvedSites: [] },
+        'open'
+      )
+    ).toBe(false)
+  })
+
+  it('never takes an address from the tile', () => {
+    expect(tileSites([knitting({ ravelry: true, url: 'https://example.com' })])).toEqual([
+      'ravelry.com'
+    ])
+    expect(tileSites([knitting({ url: 'https://example.com' })])).toEqual([])
+  })
+
+  it('survives a config save, and a tile from before it stays valid', () => {
+    const saved = applyConfigPatch(defaultConfig(), { tiles: [knitting({ ravelry: true })] })
+    expect(saved.ok && saved.config.tiles[0]?.ravelry).toBe(true)
+    const older = applyConfigPatch(defaultConfig(), { tiles: [knitting({})] })
+    expect(older.ok).toBe(true)
+    expect(older.ok && older.config.tiles[0]?.ravelry).toBeUndefined()
+  })
+})
+
 describe('approved site matching', () => {
   it.each([
     'https://bbc.co.uk',

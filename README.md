@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-30_
+_Last updated: 2026-10-31_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -9,6 +9,8 @@ This is a **separate repo from `grandmas-launcher`**, which keeps running untouc
 Full rewrite plan (context, decisions, architecture, milestones): see the plan document from the planning session (`i-kinda-wanna-overhaul-moonlit-prism.md`).
 
 ## Status
+
+- **Ravelry on the Knitting shelf (TASK-72.06)** - a switch in admin → Knitting adds a **Ravelry** card to her shelf, opening ravelry.com in her protected browser with the usual Home button and recovery screen. Other sites stay blocked and nothing downloads. Showing her saved patterns through Ravelry's API follows in TASK-72.07, which needs a Ravelry key from the owner.
 
 - **Knitting gallery (TASK-72.03)** - the Knitting shelf gains a **My knitting** card: her finished pieces, one at a time, the photo shown whole with what it is and who it went to underneath, between large **Back** and **Next** buttons. In admin → Knitting the caregiver adds a piece (what it is, who it was for, then a photo), moves pieces earlier or later, or removes them. A 3D viewer for models of her work follows in TASK-72.05.
 
@@ -71,6 +73,8 @@ Built-in tiles each have their own view. **News** is wide by default. New News t
 **Knitting patterns (admin → Knitting → Patterns).** Name the pattern, then choose its pages: clear photos or saved pictures of each page, all at once (up to 60, shown in file-name order, so name them page1, page2 and so on). Each page is decoded and saved as a JPEG up to 2400 pixels on its longer side, more than photos get, so pattern text stays sharp; the original files are never used. On Home the **Patterns** card opens the pattern straight away (or a list when there are several). She sees one page at a time on a paper-colored page that fills the screen, with **Page 2 of 5** between large **Back** and **Next** buttons, and the pattern reopens on her last page, even after a restart. Choose a pattern for her project and the project view gets a **Pattern** button. Removing a pattern removes its pages and its link to the project. Patterns are not part of settings backups.
 
 **Her finished knitting (admin → Knitting → My knitting).** Type what the piece is and, if it went to someone, who it was for, then choose one photo of it. The photo is decoded and saved as a JPEG up to 1600 pixels on its longer side, like her family photos; the original file is never used. New pieces go first; **Move earlier** and **Move later** change the order, and **Remove** deletes the piece and its photo (up to 100 pieces). On Home the **My knitting** card opens her gallery: one piece at a time, shown whole, with its name and **For Ella** underneath, and **1 of 12** between large **Back** and **Next** buttons. A piece whose photo is lost keeps its caption with a calm line in place of the picture. Logs record only that a piece was added, moved or removed, never what it is or who it was for. Pieces are not part of settings backups.
+
+**Ravelry (admin → Knitting → Ravelry).** Add a Knitting tile first, then turn on **Show Ravelry on her Knitting shelf**. A **Ravelry** card appears on her shelf straight away, and turning it off removes the card and the site's approval at once. Every Ravelry page needs an account, so tap the card on Home and sign in once with **Remember me** ticked; otherwise she'll meet the login page. The address is fixed in the app, and the switch is saved with the tile, so it is part of settings backups. Reports since Ravelry's 2020 redesign describe headaches and worse from its design, which its founders dispute, so try it with her before leaving it on.
 
 In **admin → Reliability → Settings backup and restore**, **Save backup** writes all settings and tiles to a JSON file you choose. **Restore backup** replaces the current settings and tiles from that file, upgrades older settings through the config migrations, and updates Home immediately. Save a backup before restoring if you want to keep the current setup. An invalid or unreadable backup is rejected in plain words without changing settings.
 

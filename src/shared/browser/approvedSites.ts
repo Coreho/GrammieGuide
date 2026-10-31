@@ -1,4 +1,5 @@
 import type { Tile } from '../configSchema'
+import { RAVELRY_URL } from '../knitting/knitting'
 
 export const MAX_APPROVED_SITES = 100
 export const MAX_SITE_LENGTH = 253
@@ -93,23 +94,26 @@ export function siteMatches(host: string, site: string): boolean {
   return host === site || (!isIp(site) && site !== 'localhost' && host.endsWith(`.${site}`))
 }
 
+function tilePages(tile: Tile): (string | undefined)[] {
+  if (tile.type === 'web') return [tile.url]
+  if (tile.type !== 'builtin') return []
+  // The News fallback website is caregiver-saved too; feed hosts are not pages.
+  if (tile.builtinKey === 'news')
+    return [tile.url, ...(tile.newsSources?.map((source) => source.url) ?? [])]
+  if (tile.builtinKey === 'knitting' && tile.ravelry) return [RAVELRY_URL]
+  return []
+}
+
 export function tileSites(tiles: readonly Tile[]): string[] {
   return [
     ...new Set(
-      tiles.flatMap((tile) => {
-        // The News fallback website is caregiver-saved too; feed hosts are not pages.
-        if (tile.type !== 'web' && !(tile.type === 'builtin' && tile.builtinKey === 'news'))
-          return []
-        const urls = [
-          tile.url,
-          ...(tile.type === 'builtin' ? (tile.newsSources?.map((source) => source.url) ?? []) : [])
-        ]
-        return urls.flatMap((url) => {
+      tiles.flatMap((tile) =>
+        tilePages(tile).flatMap((url) => {
           const host = url && webHostname(url)
           const site = host && siteFor(host)
           return site ? [site] : []
         })
-      })
+      )
     )
   ]
 }

@@ -14,6 +14,8 @@ export const PATTERN_PAGE_EDGE = 2400
 export const MAX_KNITTING_PIECES = 100
 /** A finished piece is a photo like her family photos, so it is kept at their size. */
 export const PIECE_PICTURE_EDGE = 1600
+/** Fixed here: the caregiver only switches it on, and Home never gets to choose an address. */
+export const RAVELRY_URL = 'https://www.ravelry.com/'
 
 const patternName = z.string().trim().min(1, 'Give the pattern a name.').max(40)
 export const patternNameSchema = patternName

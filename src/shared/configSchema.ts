@@ -67,6 +67,8 @@ export const tileSchema = z.object({
       'Each news source needs a unique ID.'
     )
     .optional(),
+  /** Knitting only: adds the Ravelry card to the shelf and approves the site. Optional, so no migration. */
+  ravelry: z.boolean().optional(),
   appPath: z.string().optional(),
   builtinKey: z.string().optional()
 })
