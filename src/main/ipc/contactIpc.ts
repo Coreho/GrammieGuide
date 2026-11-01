@@ -53,6 +53,18 @@ export function registerContactIpc(
     requireAdminUnlocked()
     return getContactRequests().list()
   })
+  ipcMain.handle('contacts:images', async (event): Promise<IpcResponse<'contacts:images'>> => {
+    requireHome(event)
+    const entries = await Promise.all(
+      getConfig().contacts.people.map(async (person) => {
+        const url = await photo(person.photoId).catch(() => undefined)
+        return [person.id, url] as const
+      })
+    )
+    return Object.fromEntries(
+      entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+    )
+  })
   ipcMain.handle('contacts:home', async (event): Promise<IpcResponse<'contacts:home'>> => {
     requireHome(event)
     return control().home()

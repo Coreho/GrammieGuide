@@ -69,13 +69,13 @@ export class ContactController {
 
   async home(): Promise<HomeContactState> {
     const config = this.config()
-    if (!config.enabled || !config.preferred) return { contact: null, request: null }
+    if (!config.enabled || !config.people[0]) return { contact: null, request: null }
     const photo = async (id?: string): Promise<string | undefined> =>
       this.photo(id).catch(() => undefined)
     let contact: HomeContactState['contact'] = {
-      id: config.preferred.id,
-      name: config.preferred.name,
-      photoUrl: await photo(config.preferred.photoId)
+      id: config.people[0].id,
+      name: config.people[0].name,
+      photoUrl: await photo(config.people[0].photoId)
     }
     try {
       const latest =
@@ -100,7 +100,7 @@ export class ContactController {
   request(): Promise<HomeContactState> {
     return this.run(async () => {
       const config = this.config()
-      if (!config.enabled || !config.preferred)
+      if (!config.enabled || !config.people[0])
         return { contact: null, request: null, problem: 'not-configured' }
       const before = await this.home()
       if (before.problem) return before
@@ -109,7 +109,7 @@ export class ContactController {
       try {
         await this.requests.request({
           purpose: 'real',
-          contacts: [config.preferred, ...(config.fallback ? [config.fallback] : [])],
+          contacts: config.people.slice(0, 2),
           expiresAfterMs: config.expiryMinutes * 60_000,
           fallbackAfterMs: config.fallbackAfterMinutes * 60_000
         })

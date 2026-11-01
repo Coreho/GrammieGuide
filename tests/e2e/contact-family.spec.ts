@@ -97,15 +97,16 @@ test('caregiver sets names, a library photo, numbers and write-only SMS credenti
   }, source)
   await admin.evaluate(() => window.admin.importPhotos())
   await admin.getByRole('button', { name: 'Contacts', exact: true }).click()
-  await admin.getByLabel('Preferred contact name', { exact: true }).fill('Sarah')
-  await admin.getByLabel('Preferred contact phone number', { exact: true }).fill('+15551111111')
+  await admin.getByRole('button', { name: 'Add person', exact: true }).click()
+  await admin.getByLabel('Person 1 name', { exact: true }).fill('Sarah')
+  await admin.getByLabel('Person 1 phone number', { exact: true }).fill('+15551111111')
   await admin
-    .getByRole('group', { name: 'Preferred contact photo', exact: true })
+    .getByRole('group', { name: 'Person 1 photo', exact: true })
     .getByRole('button', { name: /Use photo:/ })
     .click()
-  await admin.getByLabel('Try a fallback contact', { exact: true }).check()
-  await admin.getByLabel('Fallback contact name', { exact: true }).fill('Tom')
-  await admin.getByLabel('Fallback contact phone number', { exact: true }).fill('+15552222222')
+  await admin.getByRole('button', { name: 'Add person', exact: true }).click()
+  await admin.getByLabel('Person 2 name', { exact: true }).fill('Tom')
+  await admin.getByLabel('Person 2 phone number', { exact: true }).fill('+15552222222')
   await admin.getByLabel('Show the callback button on Home').check()
   await admin.getByRole('button', { name: 'Save contact settings', exact: true }).click()
   await expect(
@@ -130,6 +131,94 @@ test('caregiver sets names, a library photo, numbers and write-only SMS credenti
   expect(publicJson).not.toContain('+1555')
   expect(publicJson).not.toContain('test-secret')
   await admin.screenshot({ path: info.outputPath('contacts-admin.png'), fullPage: true })
+})
+
+test('six photo cards fit without scrolling and admin can edit, reorder and remove people', async ({
+  browserName: _browserName
+}, info) => {
+  const original = await admin.evaluate(() => window.admin.getContactSettings())
+  for (let index = 3; index <= 6; index++) {
+    await admin.getByRole('button', { name: 'Add person', exact: true }).click()
+    await admin.getByLabel(`Person ${index} name`, { exact: true }).fill(`Family ${index}`)
+    await admin
+      .getByLabel(`Person ${index} phone number`, { exact: true })
+      .fill(`+1555333333${index}`)
+    await admin
+      .getByRole('group', { name: `Person ${index} photo`, exact: true })
+      .getByRole('button', { name: /Use photo:/ })
+      .click()
+  }
+  await expect(admin.getByRole('button', { name: 'Add person', exact: true })).toBeDisabled()
+  await admin
+    .getByRole('group', { name: 'Manage Family 6', exact: true })
+    .getByRole('button', { name: 'Move up', exact: true })
+    .click()
+  await expect(admin.getByLabel('Person 5 name', { exact: true })).toHaveValue('Family 6')
+  await admin.getByLabel('Person 5 name', { exact: true }).fill('Aunt June')
+  await admin.getByRole('button', { name: 'Save contact settings', exact: true }).click()
+  await expect(
+    admin.getByRole('status').filter({ hasText: 'Contact settings saved' })
+  ).toBeVisible()
+  await admin.evaluate(async () => {
+    const config = await window.admin.getConfig()
+    await window.admin.setConfig({
+      tiles: config.tiles.map((tile, index) =>
+        index === 3 ? { ...tile, builtinKey: 'calls', label: 'Family calls' } : tile
+      )
+    })
+  })
+  await home.getByRole('button', { name: 'Family calls', exact: true }).click()
+  const dialog = home.getByRole('dialog', { name: 'Family calls', exact: true })
+  await expect(dialog.locator('.call-contact')).toHaveCount(6)
+  await expect(dialog.locator('.call-contact img')).toHaveCount(5)
+  await expect(dialog.getByRole('button', { name: 'Call Aunt June', exact: true })).toBeVisible()
+  await expect(
+    dialog.getByRole('button', { name: 'Video call Aunt June', exact: true })
+  ).toBeVisible()
+  for (const [width, height] of [
+    [1280, 720],
+    [1920, 1080]
+  ]) {
+    await app.evaluate(
+      ({ BrowserWindow }, size) =>
+        BrowserWindow.getAllWindows()[0]!.setContentSize(size[0]!, size[1]!),
+      [width, height]
+    )
+    for (const fontStep of [0, 4]) {
+      await admin.evaluate(async (fontStep) => {
+        const config = await window.admin.getConfig()
+        await window.admin.setConfig({ display: { ...config.display, fontStep } })
+      }, fontStep)
+      await expect
+        .poll(() =>
+          dialog.evaluate((element) => {
+            const nodes = [
+              element,
+              ...element.querySelectorAll('.call-contact, .call-contact button, .call-contact h2')
+            ]
+            return nodes.every(
+              (node) =>
+                node.scrollHeight <= node.clientHeight + 1 &&
+                node.scrollWidth <= node.clientWidth + 1
+            )
+          })
+        )
+        .toBe(true)
+      for (const button of await dialog.locator('button').all())
+        await expect(button).toBeInViewport({ ratio: 1 })
+    }
+  }
+  await home.screenshot({ path: info.outputPath('six-family-call-cards.png') })
+  await home.getByRole('button', { name: 'Back to Home', exact: true }).click()
+  await admin
+    .getByRole('group', { name: 'Manage Aunt June', exact: true })
+    .getByRole('button', { name: 'Remove person', exact: true })
+    .click()
+  await admin.getByRole('button', { name: 'Save contact settings', exact: true }).click()
+  await expect
+    .poll(async () => (await admin.evaluate(() => window.admin.getContactSettings())).people.length)
+    .toBe(5)
+  await admin.evaluate((settings) => window.admin.saveContactSettings(settings), original)
 })
 
 test('the contact footprint stays fixed in both Home layouts at all five font sizes', async ({
@@ -194,7 +283,9 @@ test('delivery and YES have different screens; repeated taps and reopening never
     home.getByRole('heading', { name: 'Request delivered to Sarah.', exact: true })
   ).toBeVisible()
   await home.screenshot({ path: info.outputPath('contact-delivered-largest.png') })
-  await update({ reply: 'preferred' })
+  await update({
+    reply: (await admin.evaluate(() => window.admin.getContactSettings())).people[0]!.id
+  })
   await expect(
     home.getByRole('heading', { name: 'Sarah saw your request.', exact: true })
   ).toBeVisible()
@@ -215,7 +306,9 @@ test('fallback, late preferred reply, failure, expiry and Buddy guidance remain 
     home.getByRole('heading', { name: 'Asking Tom to call…', exact: true })
   ).toBeVisible()
   await expect.poll(count).toBe(3)
-  await update({ reply: 'preferred' })
+  await update({
+    reply: (await admin.evaluate(() => window.admin.getContactSettings())).people[0]!.id
+  })
   await expect(
     home.getByRole('heading', { name: 'Sarah saw your request.', exact: true })
   ).toBeVisible()
@@ -254,7 +347,7 @@ test('a long familiar name remains readable and a removed photo falls back to th
     if (photo) await window.admin.removePhoto(photo.id)
     await window.admin.saveContactSettings({
       ...settings,
-      preferred: { ...settings.preferred!, name: 'WWWWWWWWWWWW' }
+      people: [{ ...settings.people[0]!, name: 'WWWWWWWWWWWW' }, ...settings.people.slice(1)]
     })
   })
   const button = home.getByRole('button', { name: 'Ask WWWWWWWWWWWW to call', exact: true })

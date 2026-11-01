@@ -1,7 +1,10 @@
 import { z } from 'zod'
 
+export const MAX_CONTACTS = 6
+export const contactIdSchema = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/)
+
 export const contactPersonSchema = z.object({
-  id: z.enum(['preferred', 'fallback']),
+  id: contactIdSchema,
   name: z.string().trim().min(1).max(12),
   phone: z
     .string()
@@ -32,23 +35,18 @@ export const contactCredentialsSchema = z.object({
 export const contactSetupSchema = z
   .object({
     enabled: z.boolean(),
-    preferred: contactPersonSchema.nullable(),
-    fallback: contactPersonSchema.nullable(),
+    people: z.array(contactPersonSchema).max(MAX_CONTACTS),
     expiryMinutes: z.number().int().min(2).max(60),
     fallbackAfterMinutes: z.number().int().min(1).max(30)
   })
   .refine(
     (value) =>
-      (!value.enabled || value.preferred !== null) &&
-      (!value.preferred || value.preferred.id === 'preferred') &&
-      (!value.fallback ||
-        (value.fallback.id === 'fallback' &&
-          value.preferred !== null &&
-          value.fallback.phone !== value.preferred.phone)) &&
+      (!value.enabled || value.people.length > 0) &&
+      new Set(value.people.map((person) => person.id)).size === value.people.length &&
+      new Set(value.people.map((person) => person.phone)).size === value.people.length &&
       value.fallbackAfterMinutes < value.expiryMinutes,
     {
-      message:
-        'Choose a preferred contact, a different fallback number, and a wait shorter than expiry.'
+      message: 'Add a contact, use unique numbers, and choose a wait shorter than expiry.'
     }
   )
 export const contactConfigSchema = contactSetupSchema.and(
@@ -59,9 +57,11 @@ export const contactConfigSchema = contactSetupSchema.and(
 export type ContactSetup = z.infer<typeof contactSetupSchema>
 export type ContactConfig = z.infer<typeof contactConfigSchema>
 export type ContactCredentials = z.infer<typeof contactCredentialsSchema>
-export type ContactPerson = ContactSetup['preferred'] & {}
+export type ContactPerson = z.infer<typeof contactPersonSchema>
 export type PublicContactPerson = Omit<ContactPerson, 'phone'>
-export type PublicContacts = Omit<ContactSetup, 'preferred' | 'fallback'> & {
+export type PublicContacts = Omit<ContactSetup, 'people'> & {
+  people: PublicContactPerson[]
+  /** Derived from list order for the Home callback button. */
   preferred: PublicContactPerson | null
   fallback: PublicContactPerson | null
 }
@@ -69,8 +69,7 @@ export type AdminContactSetup = ContactSetup & { hasCredentials: boolean }
 export function defaultContactSetup(): ContactSetup {
   return {
     enabled: false,
-    preferred: null,
-    fallback: null,
+    people: [],
     expiryMinutes: 10,
     fallbackAfterMinutes: 2
   }
@@ -83,8 +82,9 @@ export function publicContact(person: ContactPerson | null): PublicContactPerson
 export function publicContacts(config: ContactConfig): PublicContacts {
   return {
     enabled: config.enabled,
-    preferred: publicContact(config.preferred),
-    fallback: publicContact(config.fallback),
+    people: config.people.map((person) => publicContact(person)!),
+    preferred: publicContact(config.people[0] ?? null),
+    fallback: publicContact(config.people[1] ?? null),
     expiryMinutes: config.expiryMinutes,
     fallbackAfterMinutes: config.fallbackAfterMinutes
   }

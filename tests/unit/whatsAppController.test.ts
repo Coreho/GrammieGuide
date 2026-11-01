@@ -53,6 +53,47 @@ function fixture(): {
 }
 
 describe('WhatsApp control interface', () => {
+  it('allows every saved caller by name, blocks outsiders, and dials the sixth saved person', async () => {
+    const f = fixture()
+    const people = Array.from({ length: 6 }, (_, i) => ({
+      id: `person-${i}`,
+      name: `Person ${i}`,
+      phone: `+1555111111${i}`
+    }))
+    const controller = new WhatsAppController(f.adapter, () => people)
+    for (let i = 0; i < people.length; i++) {
+      f.set({
+        ...active(i + 1, 'incoming'),
+        call: { ...active().call!, phone: people[i]!.phone, phase: 'incoming' }
+      })
+      const state = await controller.refresh()
+      expect(state.call?.contact?.name).toBe(people[i]!.name)
+      expect(state.availableActions).toContain('answer')
+      expect(JSON.stringify(state)).not.toContain(people[i]!.phone)
+    }
+    f.set({
+      ...active(7, 'incoming'),
+      call: { ...active().call!, phone: '+15559999999', phase: 'incoming' }
+    })
+    const unknown = await controller.refresh()
+    expect(unknown.call?.contact).toBeNull()
+    expect(unknown.availableActions).not.toContain('answer')
+    f.set(ready(8))
+    await controller.refresh()
+    vi.mocked(f.adapter.execute).mockResolvedValue({
+      ...active(9),
+      call: { ...active().call!, phone: people[5]!.phone }
+    })
+    expect(
+      (await controller.command({ type: 'start', contactId: people[5]!.id, mode: 'video' })).ok
+    ).toBe(true)
+    expect(f.adapter.execute).toHaveBeenCalledWith(
+      { type: 'start', phone: people[5]!.phone, mode: 'video' },
+      expect.any(AbortSignal)
+    )
+    controller.dispose()
+    f.controller.dispose()
+  })
   it('answers known video callers only while video capability is available', async () => {
     const f = fixture()
     const incoming = {

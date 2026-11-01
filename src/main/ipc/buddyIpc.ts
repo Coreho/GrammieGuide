@@ -83,8 +83,8 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
       contactButton: () => {
         const contacts = getConfig().contacts
-        return contacts.enabled && contacts.preferred
-          ? `Ask ${contacts.preferred.name} to call`
+        return contacts.enabled && contacts.people[0]
+          ? `Ask ${contacts.people[0].name} to call`
           : null
       },
       resolveAction

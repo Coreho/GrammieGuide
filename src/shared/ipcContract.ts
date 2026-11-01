@@ -162,6 +162,7 @@ export interface IpcApi {
   'chatgpt:signOut': { request: void; response: ChatGptState }
   'chatgpt:usage': { request: void; response: void }
   'contacts:list': { request: void; response: ContactRequestSummary[] }
+  'contacts:images': { request: void; response: Record<string, string> }
   'contacts:home': { request: void; response: HomeContactState }
   'contacts:request': { request: void; response: HomeContactState }
   'contacts:getSettings': { request: void; response: AdminContactSetup }
