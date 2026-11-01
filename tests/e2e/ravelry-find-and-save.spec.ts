@@ -268,6 +268,14 @@ test('she looks a pattern over, saves it once, and its instructions come too', a
     /^data:image\//
   )
 
+  // Focus starts on the Back button above, and the arrow keys still turn the pictures from there.
+  await expect(shelf().getByRole('button', { name: 'Back to Blankets' })).toBeFocused()
+  await expect(shelf().getByText('1 of 2', { exact: true })).toBeVisible()
+  await page.keyboard.press('ArrowRight')
+  await expect(shelf().getByText('2 of 2', { exact: true })).toBeVisible()
+  await page.keyboard.press('ArrowLeft')
+  await expect(shelf().getByText('1 of 2', { exact: true })).toBeVisible()
+
   await saveButton().click()
   await expect(shelf().getByText(/My saved patterns, with its instructions/)).toBeVisible({
     timeout: 30_000

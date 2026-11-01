@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { HomeRavelryPattern } from '@shared/knitting/knitting'
 import { KnittingPicture } from './KnittingProject'
 import { TurnControls } from './KnittingPatterns'
@@ -220,22 +220,29 @@ export function RavelryPatternBody({
     if (next >= 0 && next < count) setIndex(next)
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLElement>): void {
-    if (event.key === 'ArrowRight') {
-      event.preventDefault()
-      go(shown + 1)
-    } else if (event.key === 'ArrowLeft') {
-      event.preventDefault()
-      go(shown - 1)
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      // The words scroll separately from the buttons, so the keys have to reach them too.
-      event.preventDefault()
-      words.current?.scrollBy({ top: event.key === 'ArrowDown' ? 160 : -160 })
+  // On the whole view, not just this body: each view starts with focus on its Back button in the
+  // header above, and the keys have to work from there too.
+  const body = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const view = body.current?.parentElement
+    if (!view) return
+    const onKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault()
+        const next = shown + (event.key === 'ArrowRight' ? 1 : -1)
+        if (next >= 0 && next < count) setIndex(next)
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        // The words scroll separately from the buttons, so the keys have to reach them too.
+        event.preventDefault()
+        words.current?.scrollBy({ top: event.key === 'ArrowDown' ? 160 : -160 })
+      }
     }
-  }
+    view.addEventListener('keydown', onKeyDown)
+    return () => view.removeEventListener('keydown', onKeyDown)
+  }, [shown, count])
 
   return (
-    <div className="knitting-ravelry-pattern" onKeyDown={onKeyDown}>
+    <div ref={body} className="knitting-ravelry-pattern">
       <div className="knitting-ravelry-pictures">
         <div className="knitting-piece-picture">
           {url && failed !== url ? (

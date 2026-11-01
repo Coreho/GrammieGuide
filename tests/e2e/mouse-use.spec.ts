@@ -34,7 +34,10 @@ const KNITTING = {
       designer: 'A designer',
       facts: [{ label: 'Yarn', value: 'DK' }],
       notes: 'Plenty of words about it. '.repeat(300),
-      pictures: [{}, {}]
+      pictures: [{}, {}],
+      ravelryId: 5,
+      pages: [],
+      lastPage: 0
     }
   ]
 }
