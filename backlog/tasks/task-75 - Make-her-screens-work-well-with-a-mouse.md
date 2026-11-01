@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-01T11:57:00Z'
-updated_date: '2026-11-01T11:57:00Z'
+updated_date: '2026-11-01T12:07:00Z'
 labels:
   - accessibility
   - home
@@ -22,12 +22,12 @@ The owner confirmed on 2026-11-01 that she uses a mouse, not the touchscreen thi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A double-click acts once on her screens: a tile opens only that tile, Back goes back one step, Next turns one page
-- [ ] #2 Game pieces, patting Buddy, text boxes, touch and the keyboard keep their own behaviour
-- [ ] #3 Moving the mouse brightens a dimmed Home and swallows nothing, and a nudge of a pixel or two does not wake it
-- [ ] #4 Moving the mouse over a web page counts as using it for the idle timeout
-- [ ] #5 Scrollable areas have a bar wide enough to grab, and the wheel still works
-- [ ] #6 Words she sees or hears say click, not tap
+- [x] #1 A double-click acts once on her screens: a tile opens only that tile, Back goes back one step, Next turns one page
+- [x] #2 Game pieces, patting Buddy, text boxes, touch and the keyboard keep their own behaviour
+- [x] #3 Moving the mouse brightens a dimmed Home and swallows nothing, and a nudge of a pixel or two does not wake it
+- [x] #4 Moving the mouse over a web page counts as using it for the idle timeout
+- [x] #5 Scrollable areas have a bar wide enough to grab, and the wheel still works
+- [x] #6 Words she sees or hears say click, not tap
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -40,3 +40,9 @@ The owner confirmed on 2026-11-01 that she uses a mouse, not the touchscreen thi
 5. Copy: tap to click in her words. Internal names such as data-buddy-tap stay.
 6. Real mouse events in e2e, in hidden windows.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Verified 2026-11-01 with real mouse events through Playwright, in hidden windows. Measured before the fix: double-clicking the Knitting tile landed in her first card, Back to Knitting landed on Home, Next on page 1 landed on page 3. After: the shelf, the shelf, page 2. Add a row sent one request instead of two. Full e2e at fcba6cd: 228 passed, 1 skipped (kiosk-stacking, which needs a special package). Unit: 1572 passed before the commit. Deliberately breaking each rule in shared/mouse.ts made the unit tests fail. Not tested: a physical mouse on the real screen, since hidden windows only receive simulated events; a second click after opening a web tile, which lands inside the embedded page where this guard can't reach; double-clicks slower than Windows' 500 ms setting, which still count as two separate clicks.
+<!-- SECTION:NOTES:END -->

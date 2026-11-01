@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-10-31T22:47:00Z'
-updated_date: '2026-11-01T09:50:00Z'
+updated_date: '2026-11-01T12:07:00Z'
 labels:
   - knitting
 dependencies:
@@ -48,4 +48,6 @@ The owner pointed to Ravelry's API (ravelry.com/groups/ravelry-api) on 2026-10-3
 
 <!-- SECTION:NOTES:BEGIN -->
 Verified 2026-11-01. Real API with the owner's read-only key: username starts read-, search and pattern replies match the parser, /current_user.json gets 403 so the key can't reach the account, a wrong password gets 403, pictures are JPEG or PNG (medium2 about 210 KB). Fixtures are those replies, trimmed. Live run in the built app from a throwaway data folder: the key was accepted through the admin form and not plain text on disk, 12 results with all thumbnails loaded, two real patterns added, 18 JPEGs saved, Home's data carries no Ravelry addresses and no key. Unit: 1567 passed. E2E: the 13 Ravelry tests passed before two small later edits (notes end at a sentence; admin's status line moved above the results). Ten deliberate breaks of safety rules were all caught by tests. Decision: no background refresh, so Home never uses the network; remove and add a pattern again to refresh it. Decision: the read-only key can't read favorites, so patterns are picked in admin. Not done: the full e2e suite has not completed; the 2026-11-01 run collapsed under low memory (workers exiting 0xC0000142, 9 passed, 161 did not run), which tests nothing either way. Ravelry's API terms weren't readable from here; the owner saw them when creating the key.
+
+Full e2e passed 2026-11-01 at fcba6cd: 228 passed, 1 skipped (kiosk-stacking), which supersedes the collapsed run noted above and covers the two later small edits.
 <!-- SECTION:NOTES:END -->
