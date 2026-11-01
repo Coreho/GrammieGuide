@@ -10,6 +10,8 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Status
 
+- **Show article no longer blanks Home** - a line break in an article used to empty the whole screen, Home button included, on any page or News story opened in the reader. Line breaks now display normally, and an article that can't be drawn returns her to the real page.
+
 - **Works with her mouse (TASK-75)** - she uses a mouse, and the app was built thinking of taps. A double-click now acts once, so opening a tile no longer jumps into the first thing inside it, Back no longer goes back twice, and Next no longer skips a page. Moving the mouse brightens a dimmed Home and counts as using a web page, scrollbars are wide enough to grab, and on-screen words say click. Checked with simulated mouse events in hidden windows; not yet tried by hand on the real screen.
 
 - **Ravelry patterns picked for her (TASK-72.07)** - with a read-only Ravelry key, the caregiver searches Ravelry in admin → Knitting and adds patterns to her shelf. She sees them as large picture cards with plain words, without Ravelry's website, and they keep working offline because a copy is saved when each is added. Ravelry's API shares a pattern's pictures and description, not its full instructions.

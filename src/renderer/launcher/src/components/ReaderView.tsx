@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef, useState } from 'react'
+import { Component, createElement, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ReaderNode, ReaderState } from '@shared/news/reader'
 import { readChunks } from '@shared/news/reader'
 import { zLayers } from '@shared/zLayers'
@@ -14,10 +14,38 @@ function renderNode(node: ReaderNode, key: number): React.ReactNode {
     ) : node.alt ? (
       <span key={key}>{node.alt}</span>
     ) : null
+  // React throws if a void tag is given children, even an empty list, which blanked all of Home.
+  if (node.tag === 'br') return <br key={key} />
   return createElement(node.tag, { key }, node.children.map(renderNode))
 }
 
+/**
+ * Article content comes from the internet. If it can't be drawn she goes back to the real page,
+ * because a render error with nothing to catch it empties Home, Home button included.
+ */
+class ReaderBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+  componentDidCatch(): void {
+    void window.launcher.readerMode('page')
+  }
+  render(): ReactNode {
+    return this.state.failed ? null : this.props.children
+  }
+}
+
 export function ReaderView({ state }: { state: ReaderState }) {
+  return (
+    // A new article gets a fresh chance; one bad article doesn't disable the reader.
+    <ReaderBoundary key={state.article?.title ?? 'none'}>
+      <ReaderContent state={state} />
+    </ReaderBoundary>
+  )
+}
+
+function ReaderContent({ state }: { state: ReaderState }) {
   const [reading, setReading] = useState(false)
   const generation = useRef(0)
   useEffect(() => {
