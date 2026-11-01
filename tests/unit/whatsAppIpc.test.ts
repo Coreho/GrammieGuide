@@ -51,8 +51,7 @@ vi.mock('../../src/main/windows/windowManager', () => ({
 vi.mock('../../src/main/config/store', () => ({
   getConfig: () => ({
     contacts: {
-      preferred: { id: 'preferred', name: 'Sarah', phone: '+15551111111' },
-      fallback: null
+      people: [{ id: 'preferred', name: 'Sarah', phone: '+15551111111' }]
     }
   })
 }))

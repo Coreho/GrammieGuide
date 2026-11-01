@@ -156,8 +156,7 @@ async function recoveryFixture(
     await admin.evaluate(async () => {
       await window.admin.saveContactSettings({
         enabled: false,
-        preferred: { id: 'preferred', name: 'Sarah', phone: '+15551111111' },
-        fallback: null,
+        people: [{ id: 'preferred', name: 'Sarah', phone: '+15551111111' }],
         expiryMinutes: 10,
         fallbackAfterMinutes: 2
       })
@@ -718,8 +717,7 @@ test('Family calls stays in GrammieGuide, observes connected state, handles inco
     await admin.evaluate(async () => {
       await window.admin.saveContactSettings({
         enabled: false,
-        preferred: { id: 'preferred', name: 'Sarah', phone: '+15551111111' },
-        fallback: null,
+        people: [{ id: 'preferred', name: 'Sarah', phone: '+15551111111' }],
         expiryMinutes: 10,
         fallbackAfterMinutes: 2
       })

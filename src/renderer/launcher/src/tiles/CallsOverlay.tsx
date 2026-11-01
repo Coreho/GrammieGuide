@@ -9,6 +9,7 @@ import { CallVideo } from './CallVideo'
 /** A small, trusted surface; the remote account and chats remain out of sight. */
 export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
   const [state, setState] = useState<WhatsAppCallState | null>(null)
+  const [images, setImages] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState('')
   const dialog = useRef<HTMLElement>(null)
@@ -51,6 +52,28 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
       previous?.focus()
     }
   }, [])
+
+  useEffect(() => {
+    let live = true
+    let request = 0
+    const refresh = (): void => {
+      const sequence = ++request
+      window.launcher.getContactImages().then(
+        (result) => {
+          if (live && sequence === request) setImages(result)
+        },
+        () => {
+          if (live && sequence === request) setImages({})
+        }
+      )
+    }
+    refresh()
+    const off = window.launcher.onPhotosChanged(refresh)
+    return () => {
+      live = false
+      off()
+    }
+  }, [config.contacts])
 
   async function command(value: WhatsAppCommand): Promise<void> {
     setBusy(true)
@@ -126,48 +149,58 @@ export function CallsOverlay({ onClose, config }: BuiltinViewProps) {
     >
       <section
         ref={dialog}
-        className={`contact-dialog call-dialog${showingVideo ? ' call-dialog-video' : ''}`}
+        className={`contact-dialog call-dialog${!call ? ' call-directory' : ''}${showingVideo ? ' call-dialog-video' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Family calls"
       >
-        {call?.mode !== 'video' && <ContactPicture />}
+        {call && call.mode !== 'video' && (
+          <ContactPicture
+            key={images[call.contact?.id ?? '']}
+            url={images[call.contact?.id ?? '']}
+          />
+        )}
         <div role="status" aria-live="polite" aria-atomic="true">
           <h1>{title}</h1>
           {!(showingVideo && call?.phase === 'connected') && <p>{detail}</p>}
         </div>
         {showingVideo && <CallVideo callId={call.id} />}
         <div className="contact-actions">
-          {!call &&
-            state?.contacts.map((contact) => (
-              <div
-                key={contact.id}
-                className="call-contact"
-                role="group"
-                aria-label={`Call ${contact.name}`}
-              >
-                <button
-                  className="contact-home call-start"
-                  disabled={busy || !state.availableActions.includes('voice')}
-                  onClick={() =>
-                    void command({ type: 'start', contactId: contact.id, mode: 'voice' })
-                  }
+          {!call && (
+            <div className="call-contacts">
+              {state?.contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="call-contact"
+                  role="group"
+                  aria-label={`Call ${contact.name}`}
                 >
-                  Call {contact.name}
-                </button>
-                {state.availableActions.includes('video') && (
+                  <ContactPicture key={images[contact.id]} url={images[contact.id]} />
+                  <h2>{contact.name}</h2>
+                  <button
+                    aria-label={`Call ${contact.name}`}
+                    className="contact-home call-start"
+                    disabled={busy || !state.availableActions.includes('voice')}
+                    onClick={() =>
+                      void command({ type: 'start', contactId: contact.id, mode: 'voice' })
+                    }
+                  >
+                    Call
+                  </button>
                   <button
                     className="contact-home call-start"
-                    disabled={busy}
+                    aria-label={`Video call ${contact.name}`}
+                    disabled={busy || !state.availableActions.includes('video')}
                     onClick={() =>
                       void command({ type: 'start', contactId: contact.id, mode: 'video' })
                     }
                   >
-                    Video call {contact.name}
+                    Video call
                   </button>
-                )}
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
+          )}
           {call && state?.availableActions.includes('answer') && (
             <button
               className="contact-home call-start"

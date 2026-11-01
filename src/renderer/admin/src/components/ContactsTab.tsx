@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
   defaultContactSetup,
+  MAX_CONTACTS,
   type AdminContactSetup,
   type ContactPerson,
   type ContactCredentials
@@ -58,6 +59,11 @@ export function ContactsTab() {
       setBusy(false)
     }
   }
+  function move(index: number, direction: number): void {
+    const people = [...settings.people]
+    ;[people[index], people[index + direction]] = [people[index + direction]!, people[index]!]
+    setSettings({ ...settings, people })
+  }
   function saveSettings(event: FormEvent): void {
     event.preventDefault()
     void run(async () => {
@@ -81,13 +87,12 @@ export function ContactsTab() {
   }
   return (
     <div className="contacts-admin">
-      <h2>Contact family</h2>
-      <WhatsAppControlsPanel />
+      <h2>Contacts</h2>
       <p>
-        Home can ask one person to call her back by text, then try a second person if needed. It
-        does not place a live call or guarantee a reply. Keep her telephone available.
+        Manage the people she can call from Family calls. Choose familiar names and photos so she
+        can easily recognize everyone.
       </p>
-      {ready && !settings.hasCredentials && (
+      {ready && settings.enabled && !settings.hasCredentials && (
         <p>
           SMS credentials are not set. Add them under SMS credentials below before using callback
           requests.
@@ -96,40 +101,79 @@ export function ContactsTab() {
       {message && <p role="status">{message}</p>}
       <form onSubmit={saveSettings}>
         <fieldset disabled={!ready || busy}>
-          <legend>Callback requests</legend>
+          <legend>
+            Family contacts ({settings.people.length}/{MAX_CONTACTS})
+          </legend>
+          <p>
+            Add up to six people. This order is used on Family calls. Callback requests go to the
+            first person, then the second person if needed. Everyone on this list can call her;
+            other callers cannot be answered here.
+          </p>
+          {settings.people.map((person, index) => (
+            <div className="contact-editor" key={person.id}>
+              <PersonEditor
+                title={`Person ${index + 1}`}
+                person={person}
+                onChange={(updated) =>
+                  setSettings({
+                    ...settings,
+                    people: settings.people.map((item) => (item.id === person.id ? updated : item))
+                  })
+                }
+              />
+              <div role="group" aria-label={`Manage ${person.name || `person ${index + 1}`}`}>
+                <button type="button" disabled={index === 0} onClick={() => move(index, -1)}>
+                  Move up
+                </button>
+                <button
+                  type="button"
+                  disabled={index === settings.people.length - 1}
+                  onClick={() => move(index, 1)}
+                >
+                  Move down
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const people = settings.people.filter((item) => item.id !== person.id)
+                    setSettings({
+                      ...settings,
+                      people,
+                      enabled: settings.enabled && people.length > 0
+                    })
+                  }}
+                >
+                  Remove person
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            disabled={settings.people.length >= MAX_CONTACTS}
+            onClick={() =>
+              setSettings({
+                ...settings,
+                people: [...settings.people, emptyPerson(crypto.randomUUID())]
+              })
+            }
+          >
+            Add person
+          </button>
+          <h3>Callback requests</h3>
+          <p>
+            The optional Home button sends a text asking the first person to call her back, then
+            tries the second person if needed. It does not start a live call or guarantee a reply.
+          </p>
           <label className="contacts-check">
             <input
               type="checkbox"
               checked={settings.enabled}
+              disabled={!settings.people.length}
               onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
-            />{' '}
+            />
             Show the callback button on Home
           </label>
-          <PersonEditor
-            title="Preferred contact"
-            person={settings.preferred ?? emptyPerson('preferred')}
-            onChange={(preferred) => setSettings({ ...settings, preferred })}
-          />
-          <label className="contacts-check">
-            <input
-              type="checkbox"
-              checked={Boolean(settings.fallback)}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  fallback: e.target.checked ? emptyPerson('fallback') : null
-                })
-              }
-            />{' '}
-            Try a fallback contact
-          </label>
-          {settings.fallback && (
-            <PersonEditor
-              title="Fallback contact"
-              person={settings.fallback}
-              onChange={(fallback) => setSettings({ ...settings, fallback })}
-            />
-          )}
           <label>
             Minutes to wait before trying the fallback
             <input
@@ -162,6 +206,7 @@ export function ContactsTab() {
           <button type="submit">Save contact settings</button>
         </fieldset>
       </form>
+      <WhatsAppControlsPanel />
       <details className="contacts-credentials">
         <summary>SMS credentials</summary>
         <p>

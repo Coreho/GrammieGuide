@@ -27,6 +27,7 @@ const launcherApi = {
     invoke('whatsapp:videoBounds', bounds),
   onWhatsAppChanged: (cb: (state: IpcEvents['whatsapp:changed']) => void) =>
     on('whatsapp:changed', cb),
+  getContactImages: () => invoke('contacts:images'),
   getContact: () => invoke('contacts:home'),
   requestCallback: () => invoke('contacts:request'),
   getAudio: () => invoke('audio:get'),

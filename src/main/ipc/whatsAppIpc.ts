@@ -1,5 +1,4 @@
 import { app, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import type { ContactPerson } from '@shared/contactSettings'
 import type { WhatsAppCallState } from '@shared/whatsAppCalls'
 import { whatsAppVideoBoundsSchema } from '@shared/whatsAppCalls'
 import { getConfig } from '../config/store'
@@ -54,10 +53,7 @@ export function registerWhatsAppIpc(adapter?: WhatsAppAdapter): void {
   let lastPushed = ''
   const controller = new WhatsAppController(
     adapter ?? createWhatsAppSessionAdapter(setup),
-    () => {
-      const { preferred, fallback } = getConfig().contacts
-      return [preferred, fallback].filter((person): person is ContactPerson => person !== null)
-    },
+    () => getConfig().contacts.people,
     (state) => {
       const inCall = Boolean(state.call || state.pending)
       if (inCall !== holdingAudio) {

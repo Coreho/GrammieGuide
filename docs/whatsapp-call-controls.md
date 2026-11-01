@@ -20,13 +20,18 @@ WhatsApp's private Web modules can change without notice.
 2. Use **Open WhatsApp setup** to link or inspect the account, then close setup.
    Login uses the isolated `persist:whatsapp` session, separate from Windows WhatsApp.
    The owner confirmed chats return after restarting without another QR scan.
-3. Save preferred/fallback family contacts with their WhatsApp phone numbers.
-   These are also the saved contacts used by the existing callback feature;
-   enabling live calls does not require Twilio credentials or enable SMS requests.
+3. Add up to six people in **Contacts**, with a familiar name, a photo from the Photos
+   library and their full international WhatsApp number. Use **Move up**, **Move down**
+   or **Remove person**, then **Save contact settings**. Family calls shows the saved
+   order as large photo cards in two rows without scrolling. A missing photo uses
+   the phone icon. Existing contacts and photos carry over automatically.
+   Callback requests use the first person, then the second if needed; the rest are
+   for live calls only. Enabling live calls does not require Twilio credentials or
+   enable SMS requests. Settings stay fixed while a callback request is active.
 4. In **Tiles**, add a **Built-in → Family calls** tile in an available Home slot.
    Its presence starts the hidden embedded connection. No calls start automatically.
-5. Open **Family calls** on Home and press **Call {name}** for voice or
-   **Video call {name}** when video rendering is available. Incoming saved-contact
+5. Open **Family calls** on Home and press **Call** or **Video call** on the person's
+   photo card. Incoming callers on the list show their saved name. Saved-contact
    voice/video calls offer **Answer** and **No, thank you**. Unknown/group callers
    cannot be answered. Answering video explicitly turns on the camera; ringing
    alone does not. Active calls always offer **End call**.

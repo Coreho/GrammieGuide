@@ -42,7 +42,7 @@ export function WhatsAppControls({
   else if (state.connection === 'not-linked') status = 'Link WhatsApp before making a call.'
   else if (state.connection === 'disconnected')
     status = 'WhatsApp is disconnected. No call can be started.'
-  else if (!state.contacts.length) status = 'Save a family contact below before making a call.'
+  else if (!state.contacts.length) status = 'Save a family contact above before making a call.'
 
   const allowed = (action: (typeof state.availableActions)[number]): boolean =>
     !busy && !state.pending && state.availableActions.includes(action)

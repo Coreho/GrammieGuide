@@ -1,10 +1,11 @@
 import { z } from 'zod'
+import { contactIdSchema } from './contactSettings'
 
 export const whatsAppCommandSchema = z.discriminatedUnion('type', [
   z
     .object({
       type: z.literal('start'),
-      contactId: z.enum(['preferred', 'fallback']),
+      contactId: contactIdSchema,
       mode: z.enum(['voice', 'video'])
     })
     .strict(),
@@ -33,7 +34,7 @@ export interface WhatsAppSetupState {
 export type WhatsAppPhase =
   'starting' | 'outgoing' | 'incoming' | 'connecting' | 'connected' | 'ending' | 'unknown'
 export interface WhatsAppContact {
-  id: 'preferred' | 'fallback'
+  id: string
   name: string
   photoId?: string
 }

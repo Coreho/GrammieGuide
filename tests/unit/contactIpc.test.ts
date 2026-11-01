@@ -36,7 +36,7 @@ describe('saved contact outcomes IPC', () => {
   it('exposes only the read channel for a future caregiver dashboard', async () => {
     const summaries = [{ id: 'request', purpose: 'real', status: 'unknown' }]
     mocks.list.mockResolvedValue(summaries)
-    expect(mocks.handle).toHaveBeenCalledTimes(6)
+    expect(mocks.handle).toHaveBeenCalledTimes(7)
     expect(mocks.handle.mock.calls[0]![0]).toBe('contacts:list')
     expect(await mocks.handle.mock.calls[0]![1]()).toEqual(summaries)
   })
@@ -60,7 +60,7 @@ describe('saved contact outcomes IPC', () => {
       expect(mocks.save).not.toHaveBeenCalled()
     }
   )
-  it.each(['contacts:home', 'contacts:request'])(
+  it.each(['contacts:home', 'contacts:request', 'contacts:images'])(
     'rejects non-Home senders for %s',
     async (channel) => {
       const handler = mocks.handle.mock.calls.find(([name]) => name === channel)![1]
