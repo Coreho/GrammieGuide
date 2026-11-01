@@ -55,8 +55,6 @@
   gap: 28px;
   padding: 8px 8px 16px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--ink2, #504738) transparent;
 }
 .news-source-card {
   display: flex;

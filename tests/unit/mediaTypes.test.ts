@@ -36,7 +36,8 @@ describe('supported media types', () => {
       music,
       narration: music,
       patterns: { '.jpg': 'image/jpeg' },
-      knitted: { '.jpg': 'image/jpeg' }
+      knitted: { '.jpg': 'image/jpeg' },
+      ravelry: { '.jpg': 'image/jpeg' }
     })
     expect(MEDIA_CONTENT_TYPES).toEqual({ ...photos, ...music })
     expect(LIBRARY_EXTENSIONS).toEqual({
@@ -44,7 +45,8 @@ describe('supported media types', () => {
       music: Object.keys(music).map((ext) => ext.slice(1)),
       narration: Object.keys(music).map((ext) => ext.slice(1)),
       patterns: ['jpg'],
-      knitted: ['jpg']
+      knitted: ['jpg'],
+      ravelry: ['jpg']
     })
   })
 

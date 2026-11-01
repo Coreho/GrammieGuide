@@ -39,8 +39,10 @@ import type {
   PatternImportResult,
   PieceImportResult,
   PieceMove,
+  RavelryAddResult,
   RowDirection
 } from './knitting/knitting'
+import type { RavelrySearchResult, RavelryStatus } from './knitting/ravelry'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -174,6 +176,14 @@ export interface IpcApi {
   'knitting:addPiece': { request: KnittingPieceInput; response: PieceImportResult }
   'knitting:movePiece': { request: { id: string; direction: PieceMove }; response: AdminKnitting }
   'knitting:removePiece': { request: { id: string }; response: AdminKnitting }
+  /** Fetches the pattern and its pictures once and saves a copy on her shelf. */
+  'knitting:addRavelry': { request: { ravelryId: number }; response: RavelryAddResult }
+  'knitting:removeRavelry': { request: { id: string }; response: AdminKnitting }
+  /** Caregiver-only. The key goes in once and never comes back out. */
+  'ravelry:status': { request: void; response: RavelryStatus }
+  'ravelry:saveKey': { request: { username: string; key: string }; response: RavelryStatus }
+  'ravelry:removeKey': { request: void; response: RavelryStatus }
+  'ravelry:search': { request: { query: string }; response: RavelrySearchResult[] }
   'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }

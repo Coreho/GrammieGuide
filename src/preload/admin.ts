@@ -91,6 +91,12 @@ const adminApi = {
   moveKnittingPiece: (id: string, direction: IpcRequest<'knitting:movePiece'>['direction']) =>
     invoke('knitting:movePiece', { id, direction }),
   removeKnittingPiece: (id: string) => invoke('knitting:removePiece', { id }),
+  addRavelryPattern: (ravelryId: number) => invoke('knitting:addRavelry', { ravelryId }),
+  removeRavelryPattern: (id: string) => invoke('knitting:removeRavelry', { id }),
+  getRavelryStatus: () => invoke('ravelry:status'),
+  saveRavelryKey: (username: string, key: string) => invoke('ravelry:saveKey', { username, key }),
+  removeRavelryKey: () => invoke('ravelry:removeKey'),
+  searchRavelry: (query: string) => invoke('ravelry:search', { query }),
   onKnittingChanged: (cb: () => void): (() => void) => {
     const listener = (): void => cb()
     ipcRenderer.on('knitting:changed', listener)

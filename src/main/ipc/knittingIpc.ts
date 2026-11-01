@@ -17,6 +17,7 @@ import {
   type KnittingPattern,
   type KnittingPiece
 } from '@shared/knitting/knitting'
+import { MAX_RAVELRY_PATTERNS, type RavelryPattern } from '@shared/knitting/ravelry'
 import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { isSafeMediaFileName } from '@shared/media/mediaPath'
 import type { LibraryEntry } from '@shared/media/libraryTypes'
@@ -29,6 +30,8 @@ import {
 } from '../services/knitting/knittingPictures'
 import { createNativePhotoCodec } from '../services/photos/nativePhotoCodec'
 import type { PhotoCodec } from '../services/photos/photoLibrary'
+import { importRavelryPictures } from '../services/ravelry/ravelryPictures'
+import type { RavelrySource } from '../services/ravelry/ravelryService'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { getAdminWindow, getLauncherWindow } from '../windows/windowManager'
 import { logActivity } from '../services/activityLog/activityLog'
@@ -41,8 +44,13 @@ export interface KnittingIpcOptions {
   patterns: () => KnittingLibrary
   /** The one shared store for the knitted media library: photos of her finished pieces. */
   gallery: () => KnittingLibrary
+  /** The one shared store for the ravelry media library: saved pictures of her picked patterns. */
+  ravelryPictures: () => KnittingLibrary
+  ravelry: () => RavelrySource
   photo?: (id: string | undefined) => Promise<KnittingPhoto | undefined>
   folder?: () => string
+  /** Where a downloaded picture waits to be decoded. */
+  temporaryFolder?: () => string
   now?: () => number
   codec?: () => PhotoCodec
   /** The native pickers; null when the caregiver cancels. */
@@ -71,10 +79,9 @@ function requireHome(event: IpcMainInvokeEvent): void {
   }
 }
 
-function mediaUrl(
-  library: 'patterns' | 'knitted',
-  fileName: string | undefined
-): string | undefined {
+type KnittingMedia = 'patterns' | 'knitted' | 'ravelry'
+
+function mediaUrl(library: KnittingMedia, fileName: string | undefined): string | undefined {
   return fileName && isSafeMediaFileName(fileName)
     ? `grammie-media://${library}/${fileName}`
     : undefined
@@ -88,8 +95,11 @@ function mediaUrl(
 export function registerKnittingIpc({
   patterns,
   gallery,
+  ravelryPictures,
+  ravelry,
   photo = async () => undefined,
   folder = () => join(app.getPath('userData'), 'knitting'),
+  temporaryFolder = () => app.getPath('temp'),
   now = Date.now,
   codec = () => createNativePhotoCodec(nativeImage),
   pickPages = async () => {
@@ -127,8 +137,10 @@ export function registerKnittingIpc({
     entriesOf(patterns(), file.patterns.length > 0)
   const pieceEntries = (file: KnittingFile): Promise<Map<string, LibraryEntry>> =>
     entriesOf(gallery(), file.pieces.length > 0)
+  const ravelryEntries = (file: KnittingFile): Promise<Map<string, LibraryEntry>> =>
+    entriesOf(ravelryPictures(), file.ravelry.length > 0)
   const thumbnail = (
-    library: 'patterns' | 'knitted',
+    library: KnittingMedia,
     entry: LibraryEntry | undefined
   ): { thumbnailUrl?: string } =>
     entry ? { thumbnailUrl: mediaUrl(library, entry.thumbFileName ?? entry.fileName) } : {}
@@ -139,7 +151,22 @@ export function registerKnittingIpc({
 
   const forHome = async (file: KnittingFile): Promise<HomeKnitting> => {
     const project = file.project
-    const [pages, pictures] = await Promise.all([pageEntries(file), pieceEntries(file)])
+    const [pages, pictures, saved] = await Promise.all([
+      pageEntries(file),
+      pieceEntries(file),
+      ravelryEntries(file)
+    ])
+    const ravelryForHome = file.ravelry.map((pattern) => ({
+      id: pattern.id,
+      name: pattern.name,
+      designer: pattern.designer,
+      facts: pattern.facts,
+      notes: pattern.notes,
+      ...thumbnail('ravelry', saved.get(pattern.pictures[0] ?? '')),
+      pictures: pattern.pictures.map((id) => ({
+        url: mediaUrl('ravelry', saved.get(id)?.fileName)
+      }))
+    }))
     const patternsForHome = file.patterns.map((pattern) => ({
       id: pattern.id,
       name: pattern.name,
@@ -157,7 +184,14 @@ export function registerKnittingIpc({
         ...thumbnail('knitted', entry)
       }
     })
-    if (!project) return { project: null, patterns: patternsForHome, pieces: piecesForHome }
+    if (!project) {
+      return {
+        project: null,
+        patterns: patternsForHome,
+        pieces: piecesForHome,
+        ravelry: ravelryForHome
+      }
+    }
     // A photo removed from the library just leaves the yarn icon in its place.
     const picture = await photo(project.photoId).catch(() => undefined)
     const patternId = linkedPattern(file)
@@ -170,13 +204,18 @@ export function registerKnittingIpc({
         ...(patternId && { patternId })
       },
       patterns: patternsForHome,
-      pieces: piecesForHome
+      pieces: piecesForHome,
+      ravelry: ravelryForHome
     }
   }
 
   const forAdmin = async (file: KnittingFile): Promise<AdminKnitting> => {
     const project = file.project
-    const [pages, pictures] = await Promise.all([pageEntries(file), pieceEntries(file)])
+    const [pages, pictures, saved] = await Promise.all([
+      pageEntries(file),
+      pieceEntries(file),
+      ravelryEntries(file)
+    ])
     return {
       project: project && {
         name: project.name,
@@ -196,6 +235,13 @@ export function registerKnittingIpc({
         what: piece.what,
         forWhom: piece.forWhom,
         ...thumbnail('knitted', pictures.get(piece.picture))
+      })),
+      ravelry: file.ravelry.map((pattern) => ({
+        id: pattern.id,
+        ravelryId: pattern.ravelryId,
+        name: pattern.name,
+        designer: pattern.designer,
+        ...thumbnail('ravelry', saved.get(pattern.pictures[0] ?? ''))
       }))
     }
   }
@@ -499,6 +545,92 @@ export function registerKnittingIpc({
       if (removed) {
         await removePictures(gallery(), [removed.picture])
         logActivity('knitting-piece-removed')
+        announce()
+      }
+      return forAdmin(file)
+    }
+  )
+
+  const alreadySaved = (current: KnittingFile, ravelryId: number): void => {
+    if (current.ravelry.some((pattern) => pattern.ravelryId === ravelryId)) {
+      throw new Error('That pattern is already on her shelf.')
+    }
+    if (current.ravelry.length >= MAX_RAVELRY_PATTERNS) {
+      throw new Error(`Up to ${MAX_RAVELRY_PATTERNS} Ravelry patterns can be saved.`)
+    }
+  }
+
+  let addingRavelry = false
+  ipcMain.handle(
+    'knitting:addRavelry',
+    async (event, req: { ravelryId?: unknown }): Promise<IpcResponse<'knitting:addRavelry'>> => {
+      requireCaregiver(event)
+      const ravelryId = req?.ravelryId
+      if (!Number.isSafeInteger(ravelryId) || (ravelryId as number) <= 0) {
+        throw new Error('Unknown pattern')
+      }
+      const wanted = ravelryId as number
+      if (addingRavelry) throw new Error('A pattern is already being added.')
+      addingRavelry = true
+      try {
+        alreadySaved(await knitting().read(), wanted)
+        const details = await ravelry().pattern(wanted)
+        // The lock or the window may have changed while Ravelry was answering.
+        requireCaregiver(event)
+        const { pictures, failed } = await importRavelryPictures(
+          details.pictureUrls,
+          ravelry(),
+          ravelryPictures(),
+          codec(),
+          temporaryFolder(),
+          wanted
+        )
+        let file: KnittingFile
+        try {
+          requireCaregiver(event)
+          file = await knitting().update((current) => {
+            alreadySaved(current, wanted)
+            const pattern: RavelryPattern = {
+              id: randomUUID(),
+              ravelryId: wanted,
+              name: details.name,
+              designer: details.designer,
+              facts: details.facts,
+              notes: details.notes,
+              pictures
+            }
+            return { ...current, ravelry: [...current.ravelry, pattern] }
+          })
+        } catch (error) {
+          // Pictures with no pattern record would be unreachable files; take them back out.
+          await removePictures(ravelryPictures(), pictures)
+          throw error
+        }
+        logActivity('knitting-ravelry-added')
+        announce()
+        return { knitting: await forAdmin(file), failedPictures: failed }
+      } finally {
+        addingRavelry = false
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'knitting:removeRavelry',
+    async (event, req: { id?: unknown }): Promise<IpcResponse<'knitting:removeRavelry'>> => {
+      requireCaregiver(event)
+      const id = req?.id
+      if (typeof id !== 'string' || !uuid.test(id)) throw new Error('Unknown pattern')
+      let removed: RavelryPattern | undefined
+      // The record goes first: an interrupted removal leaves unused files, never a broken card.
+      const file = await knitting().update((current) => {
+        removed = current.ravelry.find((pattern) => pattern.id === id)
+        if (!removed) return current
+        return { ...current, ravelry: current.ravelry.filter((pattern) => pattern.id !== id) }
+      })
+      if (removed) {
+        await removePictures(ravelryPictures(), removed.pictures)
+        logActivity('knitting-ravelry-removed')
         announce()
       }
       return forAdmin(file)

@@ -191,7 +191,10 @@ describe('admin library IPC', () => {
     ['remove', 'patterns', 'Use the Knitting tab to change patterns'],
     ['import', 'knitted', 'Use the Knitting tab to change her finished pieces'],
     ['update', 'knitted', 'Use the Knitting tab to change her finished pieces'],
-    ['remove', 'knitted', 'Use the Knitting tab to change her finished pieces']
+    ['remove', 'knitted', 'Use the Knitting tab to change her finished pieces'],
+    ['import', 'ravelry', 'Use the Knitting tab to change her Ravelry patterns'],
+    ['update', 'ravelry', 'Use the Knitting tab to change her Ravelry patterns'],
+    ['remove', 'ravelry', 'Use the Knitting tab to change her Ravelry patterns']
   ])(
     'keeps generic %s out of the %s library, which changes only through the Knitting tab',
     async (op, library, message) => {

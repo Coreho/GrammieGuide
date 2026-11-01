@@ -13,9 +13,9 @@ export const BUILTIN_GAME_LABELS: Record<BuiltinGameKey, string> = {
 
 export const BUILTIN_GAME_DESCRIPTIONS: Record<BuiltinGameKey, string> = {
   matching: 'Turn over large cards two at a time to find matching pictures.',
-  puzzle: 'Tap two pieces to swap them until the picture comes together.',
+  puzzle: 'Click two pieces to swap them until the picture comes together.',
   tictactoe: 'Take turns placing suns and blossoms on a friendly three-by-three board.',
-  melody: 'Tap the colored pads to play gentle chime notes or follow a glowing tune.'
+  melody: 'Click the colored pads to play gentle chime notes or follow a glowing tune.'
 }
 
 const windowsPathPattern = /^(?:[a-z]:\\|\\\\)/i

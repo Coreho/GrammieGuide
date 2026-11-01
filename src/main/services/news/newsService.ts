@@ -89,8 +89,11 @@ function decodeFeed(bytes: Uint8Array, charset: string | undefined): string {
   }
 }
 
-/** Limits streamed/decompressed bytes too; Content-Length alone can lie or be absent. */
-async function download(
+/**
+ * Limits streamed/decompressed bytes too; Content-Length alone can lie or be absent.
+ * Ravelry's pictures use it as well, because a pattern's designer chooses those.
+ */
+export async function download(
   url: string,
   fetchImpl: typeof fetch,
   maxBytes: number,

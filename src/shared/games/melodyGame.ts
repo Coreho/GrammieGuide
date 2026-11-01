@@ -28,9 +28,9 @@ export type MelodyState = {
 }
 
 export const MELODY_MESSAGES = {
-  freeStart: 'Tap any colored pad to play a gentle chime.',
-  followStart: 'Tap the glowing pad to follow the tune, or play any note you like.',
-  followStep: 'Lovely note! Tap the next glowing pad when you are ready.',
+  freeStart: 'Click any colored pad to play a gentle chime.',
+  followStart: 'Click the glowing pad to follow the tune, or play any note you like.',
+  followStep: 'Lovely note! Click the next glowing pad when you are ready.',
   followComplete: 'What a pretty tune! Here is a new gentle melody to follow.'
 } as const
 

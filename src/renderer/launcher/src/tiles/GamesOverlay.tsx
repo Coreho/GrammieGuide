@@ -706,7 +706,7 @@ function MelodyChimesView() {
               <ChimeNoteGlyph />
               <span className="melody-pad-title">{pad.label}</span>
               <span className="melody-pad-subtitle">
-                {glowing ? 'Tap this glowing note next' : 'Tap to chime'}
+                {glowing ? 'Click this glowing note next' : 'Click to chime'}
               </span>
             </button>
           )

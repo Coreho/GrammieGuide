@@ -39,7 +39,7 @@ export const ACTION_REPLIES = {
   photosOpening: "Let's look at your pictures.",
   home: 'Here we are, back Home.',
   tileUnavailable: "That choice isn't on Home right now. You can choose another one.",
-  tileAmbiguous: 'Which one would you like? Tap a choice below.',
+  tileAmbiguous: 'Which one would you like? Click a choice below.',
   tileOpened: 'Here it is.',
   tileFailed: "That didn't open just now. Let's try something else."
 } as const

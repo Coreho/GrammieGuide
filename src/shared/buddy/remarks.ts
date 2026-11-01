@@ -43,7 +43,7 @@ const REMARKS: Record<TimeOfDay | 'anytime', string[]> = {
   night: [],
   anytime: [
     "I'm right here if you need me.",
-    "Tap on me if you'd like to chat.",
+    "Click on me if you'd like to chat.",
     'I like keeping you company.',
     "You're doing great today."
   ]

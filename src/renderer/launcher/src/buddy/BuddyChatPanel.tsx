@@ -33,7 +33,7 @@ type Message = { from: 'user' | 'buddy'; text: string; choices?: BuddyTileChoice
 
 const GREETING = "Hi! It's nice to see you. What would you like to talk about?"
 const LINES = {
-  notHeard: "I didn't quite catch that. You can tap Talk and try again, or type it below.",
+  notHeard: "I didn't quite catch that. You can click Talk and try again, or type it below.",
   noMic: "I can't hear through the microphone right now. You can type to me instead.",
   trouble: "I'm having a little trouble hearing you right now. Let's try again in a bit."
 }
