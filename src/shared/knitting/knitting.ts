@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_RAVELRY_PATTERNS, ravelryPatternSchema } from './ravelry'
 
 export const MAX_KNITTING_ROWS = 9999
 /**
@@ -76,7 +77,9 @@ export const knittingFileSchema = z.object({
   // Added with patterns and then pieces; a file from before them simply has none.
   patterns: z.array(knittingPatternSchema).max(MAX_KNITTING_PATTERNS).default([]),
   /** Her finished work, newest first unless the caregiver reorders it. */
-  pieces: z.array(knittingPieceSchema).max(MAX_KNITTING_PIECES).default([])
+  pieces: z.array(knittingPieceSchema).max(MAX_KNITTING_PIECES).default([]),
+  /** Saved copies of the Ravelry patterns the caregiver picked for her. */
+  ravelry: z.array(ravelryPatternSchema).max(MAX_RAVELRY_PATTERNS).default([])
 })
 export type KnittingFile = z.infer<typeof knittingFileSchema>
 
@@ -100,6 +103,17 @@ export interface HomePiece {
   thumbnailUrl?: string
 }
 
+/** One Ravelry pick as Home shows it: plain text, plus pictures this app saved. */
+export interface HomeRavelryPattern {
+  id: string
+  name: string
+  designer: string
+  facts: { label: string; value: string }[]
+  notes: string
+  thumbnailUrl?: string
+  pictures: { url?: string }[]
+}
+
 /** What Home is told: what she sees, plus pattern IDs to remember her page by. */
 export interface HomeKnitting {
   project: {
@@ -112,6 +126,7 @@ export interface HomeKnitting {
   } | null
   patterns: HomePattern[]
   pieces: HomePiece[]
+  ravelry: HomeRavelryPattern[]
 }
 
 /** What the caregiver's Knitting tab edits. */
@@ -119,6 +134,19 @@ export interface AdminKnitting {
   project: Pick<KnittingProject, 'name' | 'forWhom' | 'photoId' | 'patternId' | 'rows'> | null
   patterns: { id: string; name: string; pageCount: number; thumbnailUrl?: string }[]
   pieces: { id: string; what: string; forWhom: string; thumbnailUrl?: string }[]
+  ravelry: {
+    id: string
+    ravelryId: number
+    name: string
+    designer: string
+    thumbnailUrl?: string
+  }[]
+}
+
+export interface RavelryAddResult {
+  knitting: AdminKnitting
+  /** Pictures that couldn't be saved; the pattern is kept with the ones that could. */
+  failedPictures: number
 }
 
 export interface PatternImportResult {

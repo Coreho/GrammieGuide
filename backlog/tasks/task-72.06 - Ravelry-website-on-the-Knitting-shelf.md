@@ -1,11 +1,11 @@
 ---
 id: TASK-72.06
 title: Ravelry website on the Knitting shelf
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-10-31T22:47:00Z'
-updated_date: '2026-10-31T22:54:00Z'
+updated_date: '2026-10-31T23:20:00Z'
 labels:
   - knitting
   - browsing
@@ -48,4 +48,12 @@ The owner asked on 2026-10-31 to bring ravelry.com into the Knitting tile. She i
 
 <!-- SECTION:NOTES:BEGIN -->
 Live check 2026-10-31: the shelf card opened the real site in the built app from a throwaway data folder (navigate 200 to /account/login, login fields present, nothing blocked). The login page has a Remember me box, so admin's text asks for it. Nobody has signed in yet, so staying signed in after a restart is untested.
+
+Installed on her computer 2026-10-31 19:17 (production build of main 7c71349, over the top; exe and app.asar hash-match the build). The owner turned the switch on from admin at 19:19, and a screenshot at 19:19:56 showed Ravelry open in the embedded browser with the Home button, past the login page. Staying signed in across a restart is still untested.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+A caregiver switch in admin → Knitting adds a Ravelry card to her Knitting shelf, opening ravelry.com in her protected browser. It is off by default, and only the Knitting tile's flag approves the site, so other sites stay blocked and nothing downloads. Verified with 1497 unit tests, 211 e2e tests (kiosk-stacking skipped, it needs a special package), 0 crc findings on PR #67, and real use on her computer after install. Not verified: whether the sign-in survives a restart, and how Ravelry's design suits her, given reports of headaches since its 2020 redesign. Her saved patterns through the API remain TASK-72.07, which needs the owner's API key.
+<!-- SECTION:FINAL_SUMMARY:END -->

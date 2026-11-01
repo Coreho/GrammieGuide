@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 're
 import { zLayers } from '@shared/zLayers'
 import { RAVELRY_URL, type HomeKnitting, type RowDirection } from '@shared/knitting/knitting'
 import type { BuiltinViewProps } from './builtins'
-import { KnittingPicture, ProjectCard, ProjectView } from './KnittingProject'
+import { ProjectCard, ProjectView } from './KnittingProject'
 import { PatternList, PatternViewer, PatternsCard } from './KnittingPatterns'
 import { GalleryCard, GalleryViewer } from './KnittingGallery'
+import { RavelryCard, RavelryList, RavelryViewer } from './KnittingRavelry'
 import './KnittingShelf.css'
 
 type Loaded =
@@ -12,11 +13,13 @@ type Loaded =
 
 type View =
   /** `focus` names the card to land on when she comes back to the shelf. */
-  | { kind: 'shelf'; focus?: 'project' | 'patterns' | 'gallery' }
+  | { kind: 'shelf'; focus?: 'project' | 'patterns' | 'gallery' | 'ravelry' }
   | { kind: 'project' }
   | { kind: 'patterns'; focus?: string }
   | { kind: 'pattern'; id: string; from: 'shelf' | 'project' | 'patterns' }
   | { kind: 'gallery' }
+  | { kind: 'ravelry'; focus?: string }
+  | { kind: 'ravelryPattern'; id: string }
 
 const BACK_LABELS = {
   shelf: 'Back to Knitting',
@@ -72,7 +75,10 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
   const project = loaded.state === 'ready' ? loaded.knitting.project : null
   const patterns = loaded.state === 'ready' ? loaded.knitting.patterns : []
   const pieces = loaded.state === 'ready' ? loaded.knitting.pieces : []
+  const ravelry = loaded.state === 'ready' ? loaded.knitting.ravelry : []
   const openPattern = view.kind === 'pattern' ? patterns.find((p) => p.id === view.id) : undefined
+  const openRavelryPattern =
+    view.kind === 'ravelryPattern' ? ravelry.find((p) => p.id === view.id) : undefined
 
   // The caregiver removed what she had open: back to the shelf, which says what's left.
   useEffect(() => {
@@ -81,17 +87,29 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
       (view.kind === 'project' && !project) ||
       (view.kind === 'patterns' && patterns.length === 0) ||
       (view.kind === 'pattern' && !openPattern) ||
-      (view.kind === 'gallery' && pieces.length === 0)
+      (view.kind === 'gallery' && pieces.length === 0) ||
+      (view.kind === 'ravelry' && ravelry.length === 0) ||
+      (view.kind === 'ravelryPattern' && !openRavelryPattern)
     ) {
       setView({ kind: 'shelf' })
     }
-  }, [loaded.state, view, project, patterns.length, openPattern, pieces.length])
+  }, [
+    loaded.state,
+    view,
+    project,
+    patterns.length,
+    openPattern,
+    pieces.length,
+    ravelry.length,
+    openRavelryPattern
+  ])
 
   // Each view starts on its way back; returning to a list lands on the card she left.
   useEffect(() => {
     const target =
       (view.kind === 'shelf' && view.focus && `[data-knitting-card="${view.focus}"]`) ||
       (view.kind === 'patterns' && view.focus && `[data-pattern-card="${view.focus}"]`) ||
+      (view.kind === 'ravelry' && view.focus && `[data-ravelry-card="${view.focus}"]`) ||
       '.knitting-shelf-nav'
     surface.current?.querySelector<HTMLElement>(target)?.focus()
   }, [view])
@@ -105,6 +123,10 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
           return { kind: 'shelf', focus: 'patterns' }
         case 'gallery':
           return { kind: 'shelf', focus: 'gallery' }
+        case 'ravelry':
+          return { kind: 'shelf', focus: 'ravelry' }
+        case 'ravelryPattern':
+          return { kind: 'ravelry', focus: current.id }
         case 'pattern':
           if (current.from === 'project') return { kind: 'project' }
           if (current.from === 'patterns') return { kind: 'patterns', focus: current.id }
@@ -228,6 +250,30 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
     content = (
       <GalleryViewer pieces={pieces} onBack={goBack} onHome={onClose} musicStop={musicStop} />
     )
+  } else if (view.kind === 'ravelry' && ravelry.length) {
+    content = (
+      <RavelryList
+        patterns={ravelry}
+        showWebsite={showRavelry}
+        openingWebsite={openingRavelry}
+        websiteFailed={ravelryFailed}
+        onOpen={(id) => setView({ kind: 'ravelryPattern', id })}
+        onOpenWebsite={() => void openRavelry()}
+        onBack={goBack}
+        onHome={onClose}
+        musicStop={musicStop}
+      />
+    )
+  } else if (view.kind === 'ravelryPattern' && openRavelryPattern) {
+    content = (
+      <RavelryViewer
+        key={openRavelryPattern.id}
+        pattern={openRavelryPattern}
+        onBack={goBack}
+        onHome={onClose}
+        musicStop={musicStop}
+      />
+    )
   } else {
     content = (
       <>
@@ -252,12 +298,17 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
           !project &&
           !patterns.length &&
           !pieces.length &&
+          !ravelry.length &&
           !showRavelry && (
             <p className="knitting-shelf-calm" role="status">
               Your knitting will be here once your family sets it up.
             </p>
           )}
-        {(project || patterns.length > 0 || pieces.length > 0 || showRavelry) && (
+        {(project ||
+          patterns.length > 0 ||
+          pieces.length > 0 ||
+          ravelry.length > 0 ||
+          showRavelry) && (
           <div className="knitting-shelf-grid">
             {project && (
               <ProjectCard project={project} onOpen={() => setView({ kind: 'project' })} />
@@ -266,22 +317,13 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
             {pieces.length > 0 && (
               <GalleryCard pieces={pieces} onOpen={() => setView({ kind: 'gallery' })} />
             )}
-            {showRavelry && (
-              <button
-                className="knitting-card"
-                data-knitting-card="ravelry"
-                aria-label="Ravelry: patterns and ideas online"
+            {(showRavelry || ravelry.length > 0) && (
+              // With nothing picked yet the card is just the website, as it always was.
+              <RavelryCard
+                patterns={ravelry}
                 disabled={openingRavelry}
-                onClick={() => void openRavelry()}
-              >
-                <span className="knitting-card-picture" aria-hidden="true">
-                  <KnittingPicture />
-                </span>
-                <span className="knitting-card-label">
-                  <span className="knitting-card-title">Ravelry</span>
-                  <span className="knitting-card-detail">Patterns and ideas online</span>
-                </span>
-              </button>
+                onOpen={() => (ravelry.length ? setView({ kind: 'ravelry' }) : void openRavelry())}
+              />
             )}
           </div>
         )}

@@ -1,0 +1,137 @@
+{
+  "pattern": {
+    "id": 1359829,
+    "name": "Sweet Shop Blanket",
+    "permalink": "sweet-shop-blanket",
+    "free": false,
+    "gauge_description": "23 stitches and 40 rows = 4 inches in garter stitch with two strands of yarn held together, blocked",
+    "yarn_weight_description": "DK (11 wpi)",
+    "yardage_description": "2078 - 8661 yards",
+    "sizes_available": "baby/pet, lap, throw, bedspread ",
+    "pattern_needle_sizes": [
+      {
+        "id": 6,
+        "us": "6 ",
+        "metric": 4,
+        "us_steel": null,
+        "crochet": false,
+        "knitting": true,
+        "hook": "G",
+        "name": "US 6  - 4.0 mm",
+        "pretty_metric": "4"
+      }
+    ],
+    "notes_html": "\n<p><strong>Gauge</strong>: 23 sts x 40 rows = 10 x 10cm / 4 x 4” Garter Stitch worked flat, blocked <br /><strong>Yarn</strong>: Dk weight yarn or Light Fingering held double or any weight yarn preferred <br /><strong>Needles</strong>: 4mm straight or circular needle, or needle required to meet gauge <br /><strong>Accessories</strong>: embroidery needle, scissors, weighing scales</p>",
+    "notes": "**Gauge**: 23 sts x 40 rows = 10 x 10cm / 4 x 4” Garter Stitch worked flat, blocked \r\n**Yarn**: Dk weight yarn or Light Fingering held double or any weight yarn preferred \r\n**Needles**: 4mm straight o",
+    "craft": {
+      "id": 2,
+      "name": "Knitting",
+      "permalink": "knitting"
+    },
+    "yarn_weight": {
+      "crochet_gauge": null,
+      "id": 11,
+      "knit_gauge": "22",
+      "max_gauge": null,
+      "min_gauge": null,
+      "name": "DK",
+      "ply": "8",
+      "wpi": "11"
+    },
+    "pattern_author": {
+      "id": 130334,
+      "name": "Laura Penrose",
+      "permalink": "laura-penrose"
+    },
+    "photos": [
+      {
+        "id": 123653781,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_square.jpg",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_medium.jpg",
+        "thumbnail_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_thumbnail.jpg",
+        "small_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_small.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_medium2.jpg",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.75
+      },
+      {
+        "id": 123656628,
+        "square_url": "https://images4-g.ravelrycache.com/uploads/annastephenson/942085111/IMG_1238_square.JPG",
+        "medium_url": "https://images4-f.ravelrycache.com/uploads/annastephenson/942085111/IMG_1238_medium.JPG",
+        "thumbnail_url": "https://images4-f.ravelrycache.com/uploads/annastephenson/942085111/IMG_1238_thumbnail.JPG",
+        "small_url": "https://images4-g.ravelrycache.com/uploads/annastephenson/942085111/IMG_1238_small_best_fit.JPG",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/annastephenson/942085111/IMG_1238_medium2.JPG",
+        "small2_url": "https://images4-g.ravelrycache.com/uploads/annastephenson/942085111/IMG_1238_small2.JPG",
+        "caption": null,
+        "aspect_ratio": 1.0012515644555695
+      },
+      {
+        "id": 123653782,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623262/bed1_square.jpg",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623262/bed1_medium.jpg",
+        "thumbnail_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623262/bed1_thumbnail.jpg",
+        "small_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623262/bed1_small.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/942623262/bed1_medium2.jpg",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623262/bed1_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.75
+      },
+      {
+        "id": 123653783,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623263/tent_square.jpg",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623263/tent_medium.jpg",
+        "thumbnail_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623263/tent_thumbnail.jpg",
+        "small_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623263/tent_small.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/942623263/tent_medium2.jpg",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623263/tent_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.75
+      },
+      {
+        "id": 123653784,
+        "square_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623261/Pennybed_square.jpg",
+        "medium_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623261/Pennybed_medium.jpg",
+        "thumbnail_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623261/Pennybed_thumbnail.jpg",
+        "small_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623261/Pennybed_small.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/942623261/Pennybed_medium2.jpg",
+        "small2_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623261/Pennybed_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.75
+      },
+      {
+        "id": 123653785,
+        "square_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623260/penny_tent_square.jpg",
+        "medium_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623260/penny_tent_medium.jpg",
+        "thumbnail_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623260/penny_tent_thumbnail.jpg",
+        "small_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623260/penny_tent_small.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/942623260/penny_tent_medium2.jpg",
+        "small2_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623260/penny_tent_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.75
+      },
+      {
+        "id": 123653786,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/938696453/IMG_2012_square.jpg",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/938696453/IMG_2012_medium.jpg",
+        "thumbnail_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/938696453/IMG_2012_thumbnail.jpg",
+        "small_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/938696453/IMG_2012_small_best_fit.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/938696453/IMG_2012_medium2.jpg",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/938696453/IMG_2012_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.805
+      },
+      {
+        "id": 123653787,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/938696384/IMG_2905_square.jpg",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/938696384/IMG_2905_medium.jpg",
+        "thumbnail_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/938696384/IMG_2905_thumbnail.jpg",
+        "small_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/938696384/IMG_2905_small_best_fit.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/938696384/IMG_2905_medium2.jpg",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/938696384/IMG_2905_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 1.6795031055900622
+      }
+    ]
+  }
+}

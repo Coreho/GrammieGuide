@@ -135,7 +135,8 @@ describe('pattern memory', () => {
       version: 1,
       project: null,
       patterns: [],
-      pieces: []
+      pieces: [],
+      ravelry: []
     })
   })
 })

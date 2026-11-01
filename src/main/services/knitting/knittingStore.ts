@@ -3,9 +3,10 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { knittingFileSchema, type KnittingFile } from '@shared/knitting/knitting'
 
-const EMPTY: KnittingFile = { version: 1, project: null, patterns: [], pieces: [] }
-// 20 patterns of 60 page IDs and 100 pieces is about 80 KB; anything far beyond that is not her file.
-const MAX_BYTES = 256_000
+const EMPTY: KnittingFile = { version: 1, project: null, patterns: [], pieces: [], ravelry: [] }
+// 20 patterns of 60 page IDs and 100 pieces is about 80 KB, and 24 Ravelry picks with the longest
+// notes in the widest characters about 230 KB more; anything far beyond that is not her file.
+const MAX_BYTES = 512_000
 
 /**
  * Her project and its row count, kept out of config on purpose: Home writes it

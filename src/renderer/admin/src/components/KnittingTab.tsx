@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { MAX_PATTERN_PAGES, type AdminKnitting } from '@shared/knitting/knitting'
 import type { Tile } from '@shared/configSchema'
 import { useConfigStore } from '../state/useConfigStore'
+import { RavelryPicker } from './RavelryPicker'
 import { TilePhotoPicker } from './TilePhotoPicker'
 
 type Draft = { name: string; forWhom: string; photoId?: string; patternId?: string }
@@ -492,6 +493,7 @@ export function KnittingTab() {
           Show Ravelry on her Knitting shelf
         </label>
         {config && knittingTiles.length === 0 && <p>Add a Knitting tile in the Tiles tab first.</p>}
+        {knitting && <RavelryPicker picks={knitting.ravelry} onChange={setKnitting} />}
       </section>
     </div>
   )

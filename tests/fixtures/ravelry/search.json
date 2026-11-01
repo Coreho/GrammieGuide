@@ -1,0 +1,95 @@
+{
+  "patterns": [
+    {
+      "free": false,
+      "id": 1359829,
+      "name": "Sweet Shop Blanket",
+      "permalink": "sweet-shop-blanket",
+      "personal_attributes": null,
+      "first_photo": {
+        "id": 123653781,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_square.jpg",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_medium.jpg",
+        "thumbnail_url": "https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_thumbnail.jpg",
+        "small_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_small.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_medium2.jpg",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.75
+      },
+      "designer": {
+        "id": 130334,
+        "name": "Laura Penrose",
+        "permalink": "laura-penrose"
+      },
+      "pattern_author": {
+        "id": 130334,
+        "name": "Laura Penrose",
+        "permalink": "laura-penrose"
+      }
+    },
+    {
+      "free": false,
+      "id": 7563553,
+      "name": "The Saga Blanket",
+      "permalink": "the-saga-blanket",
+      "personal_attributes": null,
+      "first_photo": {
+        "id": 152137245,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/Knittingtradition/1172551131/IMG_3071_copy_square.jpg",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/Knittingtradition/1172551131/IMG_3071_copy_medium.jpg",
+        "thumbnail_url": "https://images4-f.ravelrycache.com/uploads/Knittingtradition/1172551131/IMG_3071_copy_thumbnail.jpg",
+        "small_url": "https://images4-g.ravelrycache.com/uploads/Knittingtradition/1172551131/IMG_3071_copy_small_best_fit.jpg",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/Knittingtradition/1172551131/IMG_3071_copy_medium2.jpg",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/Knittingtradition/1172551131/IMG_3071_copy_small2.jpg",
+        "caption": null,
+        "aspect_ratio": 0.83
+      },
+      "designer": {
+        "id": 107433,
+        "name": "Inga skeie",
+        "permalink": "inga-skeie"
+      },
+      "pattern_author": {
+        "id": 107433,
+        "name": "Inga skeie",
+        "permalink": "inga-skeie"
+      }
+    },
+    {
+      "free": true,
+      "id": 1325040,
+      "name": "Diagonal Baby Blanket",
+      "permalink": "diagonal-baby-blanket-6",
+      "personal_attributes": null,
+      "first_photo": {
+        "id": 120475054,
+        "square_url": "https://images4-f.ravelrycache.com/uploads/SnufflebeanYarn/916975337/diagonal_knit_blogger_square.png",
+        "medium_url": "https://images4-g.ravelrycache.com/uploads/SnufflebeanYarn/916975337/diagonal_knit_blogger_medium.png",
+        "thumbnail_url": "https://images4-f.ravelrycache.com/uploads/SnufflebeanYarn/916975337/diagonal_knit_blogger_thumbnail.png",
+        "small_url": "https://images4-g.ravelrycache.com/uploads/SnufflebeanYarn/916975337/diagonal_knit_blogger_small_best_fit.png",
+        "medium2_url": "https://images4-a.ravelrycache.com/uploads/SnufflebeanYarn/916975337/diagonal_knit_blogger_medium2.png",
+        "small2_url": "https://images4-f.ravelrycache.com/uploads/SnufflebeanYarn/916975337/diagonal_knit_blogger_small2.png",
+        "caption": null,
+        "aspect_ratio": 1
+      },
+      "designer": {
+        "id": 97201,
+        "name": "Snufflebean Yarn",
+        "permalink": "snufflebean-yarn"
+      },
+      "pattern_author": {
+        "id": 97201,
+        "name": "Snufflebean Yarn",
+        "permalink": "snufflebean-yarn"
+      }
+    }
+  ],
+  "paginator": {
+    "page_count": 200,
+    "page": 1,
+    "page_size": 3,
+    "results": 600,
+    "last_page": 200
+  }
+}

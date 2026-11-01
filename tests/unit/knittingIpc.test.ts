@@ -104,7 +104,7 @@ const addPiece = async (
   pickedPhoto = path
   return (await handler('knitting:addPiece')(admin, { what, forWhom })) as PieceImportResult
 }
-const empty = { project: null, patterns: [], pieces: [] }
+const empty = { project: null, patterns: [], pieces: [], ravelry: [] }
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -117,6 +117,8 @@ beforeEach(() => {
   registerKnittingIpc({
     patterns: () => library,
     gallery: () => gallery,
+    ravelryPictures: () => ({ addImage: vi.fn(), remove: vi.fn(), list: vi.fn(async () => []) }),
+    ravelry: () => ({ pattern: vi.fn(), picture: vi.fn() }),
     pickPicture: async () => pickedPhoto,
     photo: async (id) =>
       id === photoId

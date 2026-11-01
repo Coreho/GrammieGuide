@@ -159,7 +159,7 @@ export function PatternViewer({
   )
 }
 
-/** Large Back and Next with where she is between them; patterns and her gallery share it. */
+/** Large Back and Next with where she is between them; every knitting viewer shares it. */
 export function TurnControls({
   noun,
   position,
@@ -167,7 +167,7 @@ export function TurnControls({
   atEnd,
   onTurn
 }: {
-  noun: 'page' | 'piece'
+  noun: 'page' | 'piece' | 'picture'
   position: string
   atStart: boolean
   atEnd: boolean

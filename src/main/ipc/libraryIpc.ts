@@ -52,6 +52,9 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     if (request.library === 'knitted') {
       throw new Error('Use the Knitting tab to change her finished pieces')
     }
+    if (request.library === 'ravelry') {
+      throw new Error('Use the Knitting tab to change her Ravelry patterns')
+    }
     return library(request)
   }
 

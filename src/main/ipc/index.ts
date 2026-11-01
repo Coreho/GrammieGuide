@@ -17,6 +17,8 @@ import { registerChecksIpc } from './checksIpc'
 import { registerContactIpc } from './contactIpc'
 import { registerWhatsAppIpc } from './whatsAppIpc'
 import { registerKnittingIpc } from './knittingIpc'
+import { registerRavelryIpc } from './ravelryIpc'
+import { getRavelryService } from '../services/ravelry/runtime'
 import { isSafeMediaFileName } from '@shared/media/mediaPath'
 
 /**
@@ -41,9 +43,12 @@ export function registerAllIpc(): void {
     const file = entry?.thumbFileName ?? entry?.fileName
     return file && isSafeMediaFileName(file) ? `grammie-media://photos/${file}` : undefined
   })
+  registerRavelryIpc(getRavelryService)
   registerKnittingIpc({
     patterns: () => getLibrary('patterns'),
     gallery: () => getLibrary('knitted'),
+    ravelryPictures: () => getLibrary('ravelry'),
+    ravelry: getRavelryService,
     photo: async (id) => {
       if (!id) return undefined
       const entry = (await getLibrary('photos').list()).find((entry) => entry.id === id)

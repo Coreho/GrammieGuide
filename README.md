@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-10-31_
+_Last updated: 2026-11-01_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -10,7 +10,9 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Status
 
-- **Ravelry on the Knitting shelf (TASK-72.06)** - a switch in admin → Knitting adds a **Ravelry** card to her shelf, opening ravelry.com in her protected browser with the usual Home button and recovery screen. Other sites stay blocked and nothing downloads. Showing her saved patterns through Ravelry's API follows in TASK-72.07, which needs a Ravelry key from the owner.
+- **Ravelry patterns picked for her (TASK-72.07)** - with a read-only Ravelry key, the caregiver searches Ravelry in admin → Knitting and adds patterns to her shelf. She sees them as large picture cards with plain words, without Ravelry's website, and they keep working offline because a copy is saved when each is added. Ravelry's API shares a pattern's pictures and description, not its full instructions.
+
+- **Ravelry on the Knitting shelf (TASK-72.06)** - a switch in admin → Knitting adds a **Ravelry** card to her shelf, opening ravelry.com in her protected browser with the usual Home button and recovery screen. Other sites stay blocked and nothing downloads.
 
 - **Knitting gallery (TASK-72.03)** - the Knitting shelf gains a **My knitting** card: her finished pieces, one at a time, the photo shown whole with what it is and who it went to underneath, between large **Back** and **Next** buttons. In admin → Knitting the caregiver adds a piece (what it is, who it was for, then a photo), moves pieces earlier or later, or removes them. A 3D viewer for models of her work follows in TASK-72.05.
 
@@ -75,6 +77,8 @@ Built-in tiles each have their own view. **News** is wide by default. New News t
 **Her finished knitting (admin → Knitting → My knitting).** Type what the piece is and, if it went to someone, who it was for, then choose one photo of it. The photo is decoded and saved as a JPEG up to 1600 pixels on its longer side, like her family photos; the original file is never used. New pieces go first; **Move earlier** and **Move later** change the order, and **Remove** deletes the piece and its photo (up to 100 pieces). On Home the **My knitting** card opens her gallery: one piece at a time, shown whole, with its name and **For Ella** underneath, and **1 of 12** between large **Back** and **Next** buttons. A piece whose photo is lost keeps its caption with a calm line in place of the picture. Logs record only that a piece was added, moved or removed, never what it is or who it was for. Pieces are not part of settings backups.
 
 **Ravelry (admin → Knitting → Ravelry).** Add a Knitting tile first, then turn on **Show Ravelry on her Knitting shelf**. A **Ravelry** card appears on her shelf straight away, and turning it off removes the card and the site's approval at once. Every Ravelry page needs an account, so tap the card on Home and sign in once with **Remember me** ticked; otherwise she'll meet the login page. The address is fixed in the app, and the switch is saved with the tile, so it is part of settings backups. Reports since Ravelry's 2020 redesign describe headaches and worse from its design, which its founders dispute, so try it with her before leaving it on.
+
+**Picking Ravelry patterns for her (admin → Knitting → Ravelry).** At ravelry.com/pro/developer create an app with **Basic Auth: read only access**, then enter its username and password under **Connect to Ravelry**. The key is tested once, then kept encrypted on this computer, and it never appears in settings backups. The form refuses a personal key, because that could change the Ravelry account. Then search, and **Add to her shelf**: up to 24 patterns, each with up to 6 pictures. With a pattern picked, the shelf's **Ravelry** card opens her patterns, with the website as a last card only when its switch is on. Removing the key leaves her saved patterns in place. Saved patterns don't update by themselves; remove one and add it again to refresh it. They are not part of settings backups.
 
 In **admin → Reliability → Settings backup and restore**, **Save backup** writes all settings and tiles to a JSON file you choose. **Restore backup** replaces the current settings and tiles from that file, upgrades older settings through the config migrations, and updates Home immediately. Save a backup before restoring if you want to keep the current setup. An invalid or unreadable backup is rejected in plain words without changing settings.
 

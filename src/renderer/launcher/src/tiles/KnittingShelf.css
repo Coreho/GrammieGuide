@@ -352,6 +352,65 @@
   overflow-wrap: anywhere;
 }
 
+/* A Ravelry pick: its pictures on one side, what Ravelry says about it on the other. */
+.knitting-ravelry-card-title {
+  font-size: calc(30px * var(--font-scale, 1));
+  overflow-wrap: anywhere;
+}
+.knitting-ravelry-pattern {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+}
+.knitting-ravelry-pictures {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.knitting-ravelry-words {
+  min-height: 0;
+  padding-right: 12px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink2, #504738) transparent;
+}
+.knitting-ravelry-by {
+  margin: 0 0 16px;
+  font-size: calc(30px * var(--font-scale, 1));
+  font-weight: 700;
+  color: var(--ink2, #504738);
+  overflow-wrap: anywhere;
+}
+.knitting-ravelry-facts {
+  margin: 0 0 20px;
+  display: grid;
+  gap: 8px;
+}
+.knitting-ravelry-facts div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: calc(26px * var(--font-scale, 1));
+  line-height: 1.25;
+}
+.knitting-ravelry-facts dt {
+  font-weight: 800;
+}
+.knitting-ravelry-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.knitting-ravelry-notes {
+  margin: 0;
+  font-size: calc(26px * var(--font-scale, 1));
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .knitting-shelf button:focus-visible {
   outline: 4px solid currentColor;
   outline-offset: -6px;
