@@ -142,10 +142,10 @@ export function buildJigsawPiecePath(
 }
 
 export const PUZZLE_MESSAGES = {
-  start: 'Tap a piece, then tap another piece to swap their places.',
-  selected: 'Now tap the piece you would like to swap it with.',
+  start: 'Click a piece, then click another piece to swap their places.',
+  selected: 'Now click the piece you would like to swap it with.',
   swapped: 'Nice move! Keep swapping until the picture comes together.',
-  complete: 'The picture is complete! Tap Next Picture whenever you are ready.'
+  complete: 'The picture is complete! Click Next Picture whenever you are ready.'
 } as const
 
 export function buildPuzzlePictures(

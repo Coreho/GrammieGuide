@@ -1,5 +1,6 @@
 import { ipcRenderer } from 'electron'
 import { NO_VIDEO, type VideoState } from '@shared/browser/videoControls'
+import { isDeliberateMouseMove } from '@shared/mouse'
 import { Readability, isProbablyReaderable } from '@mozilla/readability'
 import { sanitizeReader } from './readerSanitize'
 import type { ReaderArticle } from '@shared/news/reader'
@@ -26,6 +27,15 @@ function reportActivity(event: Event): void {
 for (const eventName of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
   document.addEventListener(eventName, reportActivity, { capture: true, passive: true })
 }
+// She reads with her hand on the mouse, so moving it is using the page. Without this, a page
+// closed under her if she read for the whole timeout without clicking or scrolling.
+document.addEventListener(
+  'pointermove',
+  (event) => {
+    if (isDeliberateMouseMove(event)) reportActivity(event)
+  },
+  { capture: true, passive: true }
+)
 
 // Nothing is exposed to page JavaScript. Main decides whether this document is
 // supported; only its isolated preload receives the fixed transport commands.

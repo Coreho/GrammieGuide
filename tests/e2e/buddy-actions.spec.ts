@@ -157,7 +157,7 @@ test('ambiguous requests show choices without moving Home and open only the chos
   const before = await page.evaluate(async () => (await window.launcher.getConfig()).tiles)
   await openChat()
   await ask('show me My News')
-  await expect(page.getByText('Which one would you like? Tap a choice below.')).toBeVisible()
+  await expect(page.getByText('Which one would you like? Click a choice below.')).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'My News — Row 1, position 2', exact: true })
   ).toBeVisible()

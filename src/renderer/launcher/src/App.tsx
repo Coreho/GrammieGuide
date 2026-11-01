@@ -35,6 +35,7 @@ import { ACTION_REPLIES, type BuddyActionPlan } from '@shared/buddy/actions'
 import { openBuddyTile } from './buddy/openBuddyTile'
 import { IdleDimOverlay } from './components/IdleDimOverlay'
 import { useAudioHold, useIdleDim } from './components/useIdleDim'
+import { useRepeatClickGuard } from './components/useRepeatClickGuard'
 import { useContactFlow } from './contacts/useContactFlow'
 import { ContactButton } from './contacts/ContactButton'
 import { ContactOverlay } from './contacts/ContactOverlay'
@@ -263,6 +264,7 @@ export default function App() {
     !contactFlow.open
   recoveryCheckAllowed.current = buddyMenuAvailable && !buddyMenuAnchor
 
+  useRepeatClickGuard()
   const audioHold = useAudioHold()
   const idleDimmed = useIdleDim(config?.display.idleDim, {
     embeddedWebOpen: view === 'browser',

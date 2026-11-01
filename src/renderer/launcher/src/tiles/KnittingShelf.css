@@ -161,7 +161,6 @@
   justify-content: center;
   gap: 16px;
   overflow-y: auto;
-  scrollbar-width: thin;
 }
 .knitting-project-name {
   margin: 0;
@@ -242,8 +241,6 @@
   gap: 28px;
   padding: 8px 8px 16px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--ink2, #504738) transparent;
 }
 .knitting-shelf-header .knitting-pattern-title {
   font-size: calc(36px * var(--font-scale, 1));
@@ -374,8 +371,6 @@
   min-height: 0;
   padding-right: 12px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--ink2, #504738) transparent;
 }
 .knitting-ravelry-by {
   margin: 0 0 16px;

@@ -5,6 +5,7 @@ import {
   type IdleDimBlockers,
   type IdleDimSettings
 } from '@shared/idleDim'
+import { isDeliberateMouseMove } from '@shared/mouse'
 import { audioSnapshot, subscribeAudio } from '../../../audio/audioBridge'
 
 const TICK_MS = 1_000
@@ -24,6 +25,9 @@ export function useAudioHold(): boolean {
  * Optional gentle dimming of Home (TASK-53). The first genuine tap, key or
  * scroll while dimmed only brightens the screen: it is swallowed before Home
  * sees it, so it can't open a tile, start a chat or count as a confused tap.
+ * Moving the mouse also brightens it, and swallows nothing: reaching for the
+ * mouse is the natural way to wake a screen, and it means her click then counts
+ * rather than appearing to do nothing.
  * State lives in memory, so a restart or Home recovery always starts bright.
  */
 export function useIdleDim(
@@ -75,14 +79,23 @@ export function useIdleDim(
       swallowKeyUp = null
       swallow(event)
     }
+    const onPointerMove = (event: PointerEvent): void => {
+      if (!isDeliberateMouseMove(event)) return
+      lastActivity.current = Date.now()
+      if (!live.current.dimmed) return
+      live.current.dimmed = false
+      setDimmed(false)
+    }
     for (const type of WAKE_EVENTS)
       window.addEventListener(type, onInput, { capture: true, passive: false })
     window.addEventListener('click', onClick, true)
     window.addEventListener('keyup', onKeyUp, true)
+    window.addEventListener('pointermove', onPointerMove, { capture: true, passive: true })
     return () => {
       for (const type of WAKE_EVENTS) window.removeEventListener(type, onInput, true)
       window.removeEventListener('click', onClick, true)
       window.removeEventListener('keyup', onKeyUp, true)
+      window.removeEventListener('pointermove', onPointerMove, true)
       clearTimeout(clickTimer)
     }
   }, [])

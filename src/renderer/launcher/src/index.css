@@ -16,3 +16,30 @@ body {
 #root {
   height: 100%;
 }
+
+/*
+ * She uses a mouse, so a bar has to be wide enough to find and grab. The clear border makes the
+ * whole width a target while the visible thumb stays calm. No arrow buttons: they are too small
+ * to hit, and the wheel and the bar already do their job.
+ */
+::-webkit-scrollbar {
+  width: 28px;
+  height: 28px;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+::-webkit-scrollbar-track {
+  border-radius: 14px;
+  background: rgba(var(--sh, 60, 55, 45), 0.12);
+}
+::-webkit-scrollbar-thumb {
+  min-height: 72px;
+  border: 5px solid transparent;
+  border-radius: 14px;
+  background: var(--ink2, #504738) padding-box;
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background: var(--ink, #30291f) padding-box;
+}

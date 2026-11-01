@@ -47,11 +47,11 @@ export type MatchingState = {
 }
 
 export const MATCHING_MESSAGES = {
-  start: 'Tap any two cards to find a matching pair.',
-  oneOpen: 'Now tap a second card to see what is underneath.',
+  start: 'Click any two cards to find a matching pair.',
+  oneOpen: 'Now click a second card to see what is underneath.',
   match: 'Those two match nicely!',
   mismatch: 'Let us take a look and try another pair.',
-  complete: 'Every pair is matched! Tap New Cards whenever you would like another round.'
+  complete: 'Every pair is matched! Click New Cards whenever you would like another round.'
 } as const
 
 export function shuffleItems<T>(items: readonly T[], random: () => number = Math.random): T[] {

@@ -30,11 +30,11 @@ export const TICTACTOE_LINES: ReadonlyArray<readonly [number, number, number]> =
 ]
 
 export const TICTACTOE_MESSAGES = {
-  playerTurn: 'Your turn — tap any open square to place a sun.',
+  playerTurn: 'Your turn — click any open square to place a sun.',
   computerTurn: 'Buddy is choosing a square…',
   playerWon: 'Three suns in a row — wonderful game!',
   computerWon: 'Three blossoms in a row! That was a fun round together.',
-  tie: 'A friendly tie! Tap Play Again whenever you would like another round.'
+  tie: 'A friendly tie! Click Play Again whenever you would like another round.'
 } as const
 
 export function createTicTacToeGame(): TicTacToeState {
