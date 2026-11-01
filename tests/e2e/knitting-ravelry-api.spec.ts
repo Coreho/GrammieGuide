@@ -197,6 +197,7 @@ test('she opens it from her shelf as pictures and plain words, never remote mark
   await openShelf()
   await expect(ravelryCard()).toHaveAccessibleName('Ravelry: Garter Baby Blanket')
   await ravelryCard().click()
+  await shelf().locator('[data-ravelry-card="saved"]').click()
 
   const card = shelf().getByRole('button', { name: 'Garter Baby Blanket, by Ann Example' })
   await expect(card).toBeVisible()
@@ -226,6 +227,8 @@ test('she opens it from her shelf as pictures and plain words, never remote mark
   await page.keyboard.press('Escape')
   await expect(card).toBeFocused()
   await page.keyboard.press('Escape')
+  await expect(shelf().locator('[data-ravelry-card="saved"]')).toBeFocused()
+  await page.keyboard.press('Escape')
   await expect(ravelryCard()).toBeFocused()
 })
 
@@ -250,6 +253,7 @@ test('with Ravelry unreachable after a restart she still has it, and only admin 
 
   await openShelf()
   await ravelryCard().click()
+  await shelf().locator('[data-ravelry-card="saved"]').click()
   await shelf().getByRole('button', { name: 'Garter Baby Blanket, by Ann Example' }).click()
   await expect(shelf().getByText('A simple blanket.')).toBeVisible()
   const picture = shelf().getByRole('img', { name: 'Garter Baby Blanket' })
@@ -284,12 +288,15 @@ test('a picture that has gone gets a calm line and keeps the words', async () =>
           designer: '',
           facts: [],
           notes: 'Words are still here.',
-          pictures: [{}]
+          pictures: [{}],
+          ravelryId: 5,
+          pages: [],
+          lastPage: 0
         }
       ]
     }))
   })
-  await shelf().getByRole('button', { name: 'Back to Ravelry' }).click()
+  await shelf().getByRole('button', { name: 'Back to my patterns' }).click()
   await page.evaluate(() => window.location.reload())
   await page.waitForLoadState('domcontentloaded')
   await openShelf()

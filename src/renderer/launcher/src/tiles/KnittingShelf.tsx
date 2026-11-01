@@ -5,7 +5,8 @@ import type { BuiltinViewProps } from './builtins'
 import { ProjectCard, ProjectView } from './KnittingProject'
 import { PatternList, PatternViewer, PatternsCard } from './KnittingPatterns'
 import { GalleryCard, GalleryViewer } from './KnittingGallery'
-import { RavelryCard, RavelryList, RavelryViewer } from './KnittingRavelry'
+import { RavelryCard, RavelryHub, RavelryList, RavelryViewer } from './KnittingRavelry'
+import { RavelryFind } from './RavelryFind'
 import './KnittingShelf.css'
 
 type Loaded =
@@ -19,7 +20,10 @@ type View =
   | { kind: 'pattern'; id: string; from: 'shelf' | 'project' | 'patterns' }
   | { kind: 'gallery' }
   | { kind: 'ravelry'; focus?: string }
+  | { kind: 'ravelrySaved'; focus?: string }
+  | { kind: 'ravelryFind' }
   | { kind: 'ravelryPattern'; id: string }
+  | { kind: 'ravelryInstructions'; id: string }
 
 const BACK_LABELS = {
   shelf: 'Back to Knitting',
@@ -77,8 +81,13 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
   const pieces = loaded.state === 'ready' ? loaded.knitting.pieces : []
   const ravelry = loaded.state === 'ready' ? loaded.knitting.ravelry : []
   const openPattern = view.kind === 'pattern' ? patterns.find((p) => p.id === view.id) : undefined
+  const canFind = loaded.state === 'ready' && loaded.knitting.ravelryFind === true
   const openRavelryPattern =
-    view.kind === 'ravelryPattern' ? ravelry.find((p) => p.id === view.id) : undefined
+    view.kind === 'ravelryPattern' || view.kind === 'ravelryInstructions'
+      ? ravelry.find((p) => p.id === view.id)
+      : undefined
+  const ravelryChoices = (ravelry.length > 0 ? 1 : 0) + (canFind ? 1 : 0) + (showRavelry ? 1 : 0)
+  const savedIds = new Set(ravelry.map((pattern) => pattern.ravelryId))
 
   // The caregiver removed what she had open: back to the shelf, which says what's left.
   useEffect(() => {
@@ -88,10 +97,14 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
       (view.kind === 'patterns' && patterns.length === 0) ||
       (view.kind === 'pattern' && !openPattern) ||
       (view.kind === 'gallery' && pieces.length === 0) ||
-      (view.kind === 'ravelry' && ravelry.length === 0) ||
-      (view.kind === 'ravelryPattern' && !openRavelryPattern)
+      // One choice left needs no choosing screen; Back from the only choice goes to the shelf.
+      (view.kind === 'ravelry' && ravelryChoices < 2) ||
+      (view.kind === 'ravelrySaved' && ravelry.length === 0) ||
+      (view.kind === 'ravelryFind' && !canFind) ||
+      ((view.kind === 'ravelryPattern' || view.kind === 'ravelryInstructions') &&
+        !openRavelryPattern)
     ) {
-      setView({ kind: 'shelf' })
+      setView(view.kind === 'ravelry' ? { kind: 'shelf', focus: 'ravelry' } : { kind: 'shelf' })
     }
   }, [
     loaded.state,
@@ -101,6 +114,8 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
     openPattern,
     pieces.length,
     ravelry.length,
+    canFind,
+    ravelryChoices,
     openRavelryPattern
   ])
 
@@ -109,7 +124,9 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
     const target =
       (view.kind === 'shelf' && view.focus && `[data-knitting-card="${view.focus}"]`) ||
       (view.kind === 'patterns' && view.focus && `[data-pattern-card="${view.focus}"]`) ||
-      (view.kind === 'ravelry' && view.focus && `[data-ravelry-card="${view.focus}"]`) ||
+      ((view.kind === 'ravelry' || view.kind === 'ravelrySaved') &&
+        view.focus &&
+        `[data-ravelry-card="${view.focus}"]`) ||
       '.knitting-shelf-nav'
     surface.current?.querySelector<HTMLElement>(target)?.focus()
   }, [view])
@@ -125,8 +142,14 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
           return { kind: 'shelf', focus: 'gallery' }
         case 'ravelry':
           return { kind: 'shelf', focus: 'ravelry' }
+        case 'ravelrySaved':
+          return { kind: 'ravelry', focus: 'saved' }
+        case 'ravelryFind':
+          return { kind: 'ravelry', focus: 'find' }
         case 'ravelryPattern':
-          return { kind: 'ravelry', focus: current.id }
+          return { kind: 'ravelrySaved', focus: current.id }
+        case 'ravelryInstructions':
+          return { kind: 'ravelryPattern', id: current.id }
         case 'pattern':
           if (current.from === 'project') return { kind: 'project' }
           if (current.from === 'patterns') return { kind: 'patterns', focus: current.id }
@@ -155,6 +178,9 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
             knitting: {
               ...current.knitting,
               patterns: current.knitting.patterns.map((pattern) =>
+                pattern.id === patternId ? { ...pattern, lastPage: page } : pattern
+              ),
+              ravelry: current.knitting.ravelry.map((pattern) =>
                 pattern.id === patternId ? { ...pattern, lastPage: page } : pattern
               )
             }
@@ -189,6 +215,14 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
   function openPatterns(): void {
     if (patterns.length === 1) setView({ kind: 'pattern', id: patterns[0]!.id, from: 'shelf' })
     else setView({ kind: 'patterns' })
+  }
+
+  /** Straight to the only thing there is, or the choosing screen when there's more than one. */
+  function openRavelryCard(): void {
+    if (ravelryChoices > 1) setView({ kind: 'ravelry' })
+    else if (ravelry.length > 0) setView({ kind: 'ravelrySaved' })
+    else if (canFind) setView({ kind: 'ravelryFind' })
+    else void openRavelry()
   }
 
   async function openRavelry(): Promise<void> {
@@ -250,17 +284,46 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
     content = (
       <GalleryViewer pieces={pieces} onBack={goBack} onHome={onClose} musicStop={musicStop} />
     )
-  } else if (view.kind === 'ravelry' && ravelry.length) {
+  } else if (view.kind === 'ravelry' && ravelryChoices > 1) {
     content = (
-      <RavelryList
+      <RavelryHub
         patterns={ravelry}
+        canFind={canFind}
         showWebsite={showRavelry}
         openingWebsite={openingRavelry}
         websiteFailed={ravelryFailed}
-        onOpen={(id) => setView({ kind: 'ravelryPattern', id })}
+        onSaved={() => setView({ kind: 'ravelrySaved' })}
+        onFind={() => setView({ kind: 'ravelryFind' })}
         onOpenWebsite={() => void openRavelry()}
         onBack={goBack}
         onHome={onClose}
+        musicStop={musicStop}
+      />
+    )
+  } else if (view.kind === 'ravelrySaved' && ravelry.length) {
+    content = (
+      <RavelryList
+        patterns={ravelry}
+        backLabel={ravelryChoices > 1 ? 'Back to Ravelry' : 'Back to Knitting'}
+        onOpen={(id) => setView({ kind: 'ravelryPattern', id })}
+        onBack={goBack}
+        onHome={onClose}
+        musicStop={musicStop}
+      />
+    )
+  } else if (view.kind === 'ravelryFind' && canFind) {
+    content = (
+      <RavelryFind savedIds={savedIds} onBack={goBack} onHome={onClose} musicStop={musicStop} />
+    )
+  } else if (view.kind === 'ravelryInstructions' && openRavelryPattern?.pages.length) {
+    content = (
+      <PatternViewer
+        key={openRavelryPattern.id}
+        pattern={openRavelryPattern}
+        backLabel="Back to this pattern"
+        onBack={goBack}
+        onHome={onClose}
+        onPage={(page) => rememberPage(openRavelryPattern.id, page)}
         musicStop={musicStop}
       />
     )
@@ -269,6 +332,7 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
       <RavelryViewer
         key={openRavelryPattern.id}
         pattern={openRavelryPattern}
+        onRead={() => setView({ kind: 'ravelryInstructions', id: openRavelryPattern.id })}
         onBack={goBack}
         onHome={onClose}
         musicStop={musicStop}
@@ -299,16 +363,13 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
           !patterns.length &&
           !pieces.length &&
           !ravelry.length &&
+          !canFind &&
           !showRavelry && (
             <p className="knitting-shelf-calm" role="status">
               Your knitting will be here once your family sets it up.
             </p>
           )}
-        {(project ||
-          patterns.length > 0 ||
-          pieces.length > 0 ||
-          ravelry.length > 0 ||
-          showRavelry) && (
+        {(project || patterns.length > 0 || pieces.length > 0 || ravelryChoices > 0) && (
           <div className="knitting-shelf-grid">
             {project && (
               <ProjectCard project={project} onOpen={() => setView({ kind: 'project' })} />
@@ -317,12 +378,12 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
             {pieces.length > 0 && (
               <GalleryCard pieces={pieces} onOpen={() => setView({ kind: 'gallery' })} />
             )}
-            {(showRavelry || ravelry.length > 0) && (
-              // With nothing picked yet the card is just the website, as it always was.
+            {ravelryChoices > 0 && (
               <RavelryCard
                 patterns={ravelry}
+                canFind={canFind}
                 disabled={openingRavelry}
-                onOpen={() => (ravelry.length ? setView({ kind: 'ravelry' }) : void openRavelry())}
+                onOpen={openRavelryCard}
               />
             )}
           </div>

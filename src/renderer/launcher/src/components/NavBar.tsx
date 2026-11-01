@@ -6,13 +6,16 @@ export function NavBar({
   onBack,
   onStopMusic,
   message,
-  readerToggle
+  readerToggle,
+  ravelrySave
 }: {
   onHome: () => void
   onBack: () => void
   onStopMusic?: () => void
   message?: string | null
   readerToggle?: { article: boolean; onToggle: () => void }
+  /** On a Ravelry pattern page: save the pattern she is looking at. */
+  ravelrySave?: { saved: boolean; saving: boolean; onSave: () => void }
 }) {
   return (
     <div
@@ -40,6 +43,22 @@ export function NavBar({
       {readerToggle && (
         <button style={navButtonStyle} onClick={readerToggle.onToggle}>
           {readerToggle.article ? 'Show page' : 'Show article'}
+        </button>
+      )}
+      {ravelrySave && (
+        <button
+          data-ravelry-page-save
+          disabled={ravelrySave.saved || ravelrySave.saving}
+          onClick={ravelrySave.onSave}
+          style={{
+            ...navButtonStyle,
+            fontWeight: 800,
+            background: 'linear-gradient(180deg, var(--a1, #bce5cb), var(--a2, #89cba7))',
+            color: 'var(--ink, #30291f)',
+            opacity: ravelrySave.saved ? 0.75 : 1
+          }}
+        >
+          {ravelrySave.saved ? '✓ Saved' : ravelrySave.saving ? 'Saving…' : 'Save this pattern'}
         </button>
       )}
       {onStopMusic && (

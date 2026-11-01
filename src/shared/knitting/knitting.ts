@@ -112,6 +112,10 @@ export interface HomeRavelryPattern {
   notes: string
   thumbnailUrl?: string
   pictures: { url?: string }[]
+  ravelryId: number
+  /** Her saved instructions as page pictures; empty when they couldn't be saved. */
+  pages: { url?: string }[]
+  lastPage: number
 }
 
 /** What Home is told: what she sees, plus pattern IDs to remember her page by. */
@@ -127,6 +131,8 @@ export interface HomeKnitting {
   patterns: HomePattern[]
   pieces: HomePiece[]
   ravelry: HomeRavelryPattern[]
+  /** A read-only key is saved, so she can browse and save patterns herself. */
+  ravelryFind: boolean
 }
 
 /** What the caregiver's Knitting tab edits. */
@@ -140,6 +146,7 @@ export interface AdminKnitting {
     name: string
     designer: string
     thumbnailUrl?: string
+    pageCount: number
   }[]
 }
 

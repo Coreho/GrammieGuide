@@ -17,7 +17,13 @@ import {
   type KnittingPattern,
   type KnittingPiece
 } from '@shared/knitting/knitting'
-import { MAX_RAVELRY_PATTERNS, type RavelryPattern } from '@shared/knitting/ravelry'
+import {
+  MAX_RAVELRY_PATTERNS,
+  parseRavelryPatternPage,
+  type RavelryPattern,
+  type RavelryPatternDetails,
+  type RavelrySaveResult
+} from '@shared/knitting/ravelry'
 import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
 import { isSafeMediaFileName } from '@shared/media/mediaPath'
 import type { LibraryEntry } from '@shared/media/libraryTypes'
@@ -30,7 +36,11 @@ import {
 } from '../services/knitting/knittingPictures'
 import { createNativePhotoCodec } from '../services/photos/nativePhotoCodec'
 import type { PhotoCodec } from '../services/photos/photoLibrary'
-import { importRavelryPictures } from '../services/ravelry/ravelryPictures'
+import type { RenderPdf } from '../services/ravelry/pdfPages'
+import {
+  importRavelryInstructions,
+  importRavelryPictures
+} from '../services/ravelry/ravelryPictures'
 import type { RavelrySource } from '../services/ravelry/ravelryService'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { getAdminWindow, getLauncherWindow } from '../windows/windowManager'
@@ -47,6 +57,12 @@ export interface KnittingIpcOptions {
   /** The one shared store for the ravelry media library: saved pictures of her picked patterns. */
   ravelryPictures: () => KnittingLibrary
   ravelry: () => RavelrySource
+  /** Draws a saved pattern's PDF into pages; see services/ravelry/pdfPages.ts. */
+  ravelryPdf?: RenderPdf
+  /** Whether main served this pattern to her, so Home can't save an arbitrary ID. */
+  ravelryServed?: (ravelryId: number) => boolean
+  /** The address of the embedded page she is on, or null. */
+  currentPage?: () => string | null
   photo?: (id: string | undefined) => Promise<KnittingPhoto | undefined>
   folder?: () => string
   /** Where a downloaded picture waits to be decoded. */
@@ -97,6 +113,11 @@ export function registerKnittingIpc({
   gallery,
   ravelryPictures,
   ravelry,
+  ravelryPdf = async () => {
+    throw new Error('No PDF renderer')
+  },
+  ravelryServed = () => false,
+  currentPage = () => null,
   photo = async () => undefined,
   folder = () => join(app.getPath('userData'), 'knitting'),
   temporaryFolder = () => app.getPath('temp'),
@@ -165,8 +186,17 @@ export function registerKnittingIpc({
       ...thumbnail('ravelry', saved.get(pattern.pictures[0] ?? '')),
       pictures: pattern.pictures.map((id) => ({
         url: mediaUrl('ravelry', saved.get(id)?.fileName)
-      }))
+      })),
+      ravelryId: pattern.ravelryId,
+      pages: pattern.pages.map((id) => ({ url: mediaUrl('ravelry', saved.get(id)?.fileName) })),
+      lastPage: pattern.lastPage
     }))
+    let ravelryFind = false
+    try {
+      ravelryFind = ravelry().status().connected
+    } catch {
+      // Without a readable key she simply isn't offered Find a pattern.
+    }
     const patternsForHome = file.patterns.map((pattern) => ({
       id: pattern.id,
       name: pattern.name,
@@ -189,7 +219,8 @@ export function registerKnittingIpc({
         project: null,
         patterns: patternsForHome,
         pieces: piecesForHome,
-        ravelry: ravelryForHome
+        ravelry: ravelryForHome,
+        ravelryFind
       }
     }
     // A photo removed from the library just leaves the yarn icon in its place.
@@ -205,7 +236,8 @@ export function registerKnittingIpc({
       },
       patterns: patternsForHome,
       pieces: piecesForHome,
-      ravelry: ravelryForHome
+      ravelry: ravelryForHome,
+      ravelryFind
     }
   }
 
@@ -241,7 +273,8 @@ export function registerKnittingIpc({
         ravelryId: pattern.ravelryId,
         name: pattern.name,
         designer: pattern.designer,
-        ...thumbnail('ravelry', saved.get(pattern.pictures[0] ?? ''))
+        ...thumbnail('ravelry', saved.get(pattern.pictures[0] ?? '')),
+        pageCount: pattern.pages.length
       }))
     }
   }
@@ -296,6 +329,17 @@ export function registerKnittingIpc({
       }
       // Only remembered, not announced: Home already shows the page, and admin doesn't.
       await knitting().update((current) => {
+        const saved = current.ravelry.find((item) => item.id === patternId)
+        if (saved) {
+          const lastPage = Math.min(page as number, Math.max(0, saved.pages.length - 1))
+          if (lastPage === saved.lastPage) return current
+          return {
+            ...current,
+            ravelry: current.ravelry.map((item) =>
+              item.id === patternId ? { ...item, lastPage } : item
+            )
+          }
+        }
         const pattern = current.patterns.find((item) => item.id === patternId)
         if (!pattern) return current
         const lastPage = Math.min(page as number, pattern.pages.length - 1)
@@ -561,6 +605,125 @@ export function registerKnittingIpc({
   }
 
   let addingRavelry = false
+  const logRavelry = (detail: string): void => {
+    logReliabilityEvent({ op: 'ravelry-instructions', ok: false, detail })
+  }
+
+  /** The caregiver's Add and her Save end the same way: one saved copy that works offline. */
+  const saveRavelryCopy = async (
+    details: RavelryPatternDetails,
+    stillAllowed: () => void
+  ): Promise<{ file: KnittingFile; failed: number; pages: number }> => {
+    const wanted = details.ravelryId
+    const { pictures, failed } = await importRavelryPictures(
+      details.pictureUrls,
+      ravelry(),
+      ravelryPictures(),
+      codec(),
+      temporaryFolder(),
+      wanted
+    )
+    const pages = details.instructionsUrl
+      ? await importRavelryInstructions(
+          details.instructionsUrl,
+          ravelry(),
+          ravelryPdf,
+          ravelryPictures(),
+          codec(),
+          temporaryFolder(),
+          wanted,
+          logRavelry
+        )
+      : []
+    try {
+      stillAllowed()
+      const file = await knitting().update((current) => {
+        alreadySaved(current, wanted)
+        const pattern: RavelryPattern = {
+          id: randomUUID(),
+          ravelryId: wanted,
+          name: details.name,
+          designer: details.designer,
+          facts: details.facts,
+          notes: details.notes,
+          pictures,
+          ...(details.permalink && { permalink: details.permalink }),
+          pages,
+          lastPage: 0
+        }
+        return { ...current, ravelry: [...current.ravelry, pattern] }
+      })
+      return { file, failed, pages: pages.length }
+    } catch (error) {
+      // Pictures with no pattern record would be unreachable files; take them back out.
+      await removePictures(ravelryPictures(), [...pictures, ...pages])
+      throw error
+    }
+  }
+
+  /** Her Save, from either screen. Never throws: every outcome is something calm to show. */
+  const saveForHer = async (
+    load: () => Promise<RavelryPatternDetails>
+  ): Promise<RavelrySaveResult> => {
+    if (addingRavelry) return { ok: false, reason: 'unavailable' }
+    addingRavelry = true
+    try {
+      const before = await knitting().read()
+      const details = await load()
+      const existing = before.ravelry.find((item) => item.ravelryId === details.ravelryId)
+      if (existing) return { ok: true, withInstructions: existing.pages.length > 0 }
+      if (before.ravelry.length >= MAX_RAVELRY_PATTERNS) return { ok: false, reason: 'full' }
+      const { pages } = await saveRavelryCopy(details, () => undefined)
+      logActivity('knitting-ravelry-saved-by-her')
+      announce()
+      return { ok: true, withInstructions: pages > 0 }
+    } catch {
+      return { ok: false, reason: 'unavailable' }
+    } finally {
+      addingRavelry = false
+    }
+  }
+
+  ipcMain.handle(
+    'knitting:saveRavelry',
+    async (event, req: { ravelryId?: unknown }): Promise<IpcResponse<'knitting:saveRavelry'>> => {
+      requireHome(event)
+      const id = req?.ravelryId
+      if (!Number.isSafeInteger(id) || !ravelryServed(id as number)) {
+        return { ok: false, reason: 'unavailable' }
+      }
+      return saveForHer(() => ravelry().pattern(id as number))
+    }
+  )
+
+  ipcMain.handle(
+    'knitting:ravelryPageState',
+    async (event): Promise<IpcResponse<'knitting:ravelryPageState'>> => {
+      requireHome(event)
+      const permalink = parseRavelryPatternPage(currentPage())
+      if (!permalink) return { savable: false, saved: false }
+      try {
+        if (!ravelry().status().connected) return { savable: false, saved: false }
+        const file = await knitting().read()
+        return {
+          savable: true,
+          saved: file.ravelry.some((item) => item.permalink === permalink)
+        }
+      } catch {
+        return { savable: false, saved: false }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'knitting:saveRavelryPage',
+    async (event): Promise<IpcResponse<'knitting:saveRavelryPage'>> => {
+      requireHome(event)
+      const permalink = parseRavelryPatternPage(currentPage())
+      if (!permalink) return { ok: false, reason: 'unavailable' }
+      return saveForHer(() => ravelry().patternByPermalink(permalink))
+    }
+  )
   ipcMain.handle(
     'knitting:addRavelry',
     async (event, req: { ravelryId?: unknown }): Promise<IpcResponse<'knitting:addRavelry'>> => {
@@ -577,35 +740,7 @@ export function registerKnittingIpc({
         const details = await ravelry().pattern(wanted)
         // The lock or the window may have changed while Ravelry was answering.
         requireCaregiver(event)
-        const { pictures, failed } = await importRavelryPictures(
-          details.pictureUrls,
-          ravelry(),
-          ravelryPictures(),
-          codec(),
-          temporaryFolder(),
-          wanted
-        )
-        let file: KnittingFile
-        try {
-          requireCaregiver(event)
-          file = await knitting().update((current) => {
-            alreadySaved(current, wanted)
-            const pattern: RavelryPattern = {
-              id: randomUUID(),
-              ravelryId: wanted,
-              name: details.name,
-              designer: details.designer,
-              facts: details.facts,
-              notes: details.notes,
-              pictures
-            }
-            return { ...current, ravelry: [...current.ravelry, pattern] }
-          })
-        } catch (error) {
-          // Pictures with no pattern record would be unreachable files; take them back out.
-          await removePictures(ravelryPictures(), pictures)
-          throw error
-        }
+        const { file, failed } = await saveRavelryCopy(details, () => requireCaregiver(event))
         logActivity('knitting-ravelry-added')
         announce()
         return { knitting: await forAdmin(file), failedPictures: failed }
@@ -629,7 +764,7 @@ export function registerKnittingIpc({
         return { ...current, ravelry: current.ravelry.filter((pattern) => pattern.id !== id) }
       })
       if (removed) {
-        await removePictures(ravelryPictures(), removed.pictures)
+        await removePictures(ravelryPictures(), [...removed.pictures, ...removed.pages])
         logActivity('knitting-ravelry-removed')
         announce()
       }

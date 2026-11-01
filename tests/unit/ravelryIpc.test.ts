@@ -5,16 +5,20 @@ const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
   unlocked: vi.fn(),
   activity: vi.fn(),
-  admin: { webContents: { mainFrame: {} } }
+  admin: { webContents: { mainFrame: {} } },
+  home: { webContents: { mainFrame: {}, send: vi.fn() } }
 }))
 vi.mock('electron', () => ({ ipcMain: { handle: mocks.handle } }))
 vi.mock('../../src/main/ipc/requireAdminUnlocked', () => ({ requireAdminUnlocked: mocks.unlocked }))
 vi.mock('../../src/main/services/activityLog/activityLog', () => ({ logActivity: mocks.activity }))
-vi.mock('../../src/main/windows/windowManager', () => ({ getAdminWindow: () => mocks.admin }))
+vi.mock('../../src/main/windows/windowManager', () => ({
+  getAdminWindow: () => mocks.admin,
+  getLauncherWindow: () => mocks.home
+}))
 import { registerRavelryIpc } from '../../src/main/ipc/ravelryIpc'
 
 const admin = { sender: mocks.admin.webContents, senderFrame: mocks.admin.webContents.mainFrame }
-const home = { sender: { mainFrame: {} }, senderFrame: {} }
+const home = { sender: mocks.home.webContents, senderFrame: mocks.home.webContents.mainFrame }
 const CHECKED = { username: 'read-abc', key: 'sekret-value' }
 
 const service = {
@@ -27,13 +31,23 @@ const service = {
   picture: vi.fn()
 } as unknown as RavelryService
 
+const homeBrowse = {
+  categories: vi.fn(async () => ({ ok: false as const })),
+  browse: vi.fn(async () => ({ ok: false as const })),
+  preview: vi.fn(async () => ({ ok: false as const })),
+  isServed: vi.fn(() => false)
+}
+
 type Handler = (event: unknown, request?: unknown) => Promise<unknown>
 const handler = (channel: string): Handler =>
   mocks.handle.mock.calls.find(([name]) => name === channel)![1] as Handler
 
 beforeEach(() => {
   vi.clearAllMocks()
-  registerRavelryIpc(() => service)
+  registerRavelryIpc(
+    () => service,
+    () => homeBrowse
+  )
 })
 
 describe('Ravelry channels', () => {
@@ -89,6 +103,21 @@ describe('Ravelry channels', () => {
       })
     await expect(handler('ravelry:search')(admin, { query: 'hat' })).rejects.toThrow('Admin locked')
   })
+
+  it('tells Home when a key is saved or removed, so it can offer Find a pattern', async () => {
+    await handler('ravelry:saveKey')(admin, { username: 'read-abc', key: 'x' })
+    await handler('ravelry:removeKey')(admin)
+    expect(mocks.home.webContents.send).toHaveBeenCalledTimes(2)
+    expect(mocks.home.webContents.send).toHaveBeenCalledWith('knitting:changed', {})
+  })
+
+  it.each(['ravelry:homeCategories', 'ravelry:homeBrowse', 'ravelry:homePattern'])(
+    '%s answers only Home',
+    async (channel) => {
+      await expect(handler(channel)(admin, {})).rejects.toThrow('Home window required')
+      await expect(handler(channel)(home, {})).resolves.toEqual({ ok: false })
+    }
+  )
 
   it('removes the key', async () => {
     await handler('ravelry:removeKey')(admin)
