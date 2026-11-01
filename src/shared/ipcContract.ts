@@ -42,7 +42,15 @@ import type {
   RavelryAddResult,
   RowDirection
 } from './knitting/knitting'
-import type { RavelrySearchResult, RavelryStatus } from './knitting/ravelry'
+import type {
+  RavelryBrowseResult,
+  RavelryCategoriesResult,
+  RavelryPageState,
+  RavelryPreviewResult,
+  RavelrySaveResult,
+  RavelrySearchResult,
+  RavelryStatus
+} from './knitting/ravelry'
 
 /**
  * Single source of truth for every IPC channel: name, request payload, and
@@ -184,6 +192,17 @@ export interface IpcApi {
   'ravelry:saveKey': { request: { username: string; key: string }; response: RavelryStatus }
   'ravelry:removeKey': { request: void; response: RavelryStatus }
   'ravelry:search': { request: { query: string }; response: RavelrySearchResult[] }
+  /** Home-only. Fixed categories, then only patterns main has already served her. */
+  'ravelry:homeCategories': { request: void; response: RavelryCategoriesResult }
+  'ravelry:homeBrowse': {
+    request: { category: string; page: number }
+    response: RavelryBrowseResult
+  }
+  'ravelry:homePattern': { request: { ravelryId: number }; response: RavelryPreviewResult }
+  'knitting:saveRavelry': { request: { ravelryId: number }; response: RavelrySaveResult }
+  /** Home-only and takes nothing: main works out the pattern from the page she is on. */
+  'knitting:ravelryPageState': { request: void; response: RavelryPageState }
+  'knitting:saveRavelryPage': { request: void; response: RavelrySaveResult }
   'admin:setContactCredentials': { request: ContactCredentials | null; response: { ok: true } }
   'photos:recordNarration': {
     request: { id: string; bytes: Uint8Array }
@@ -333,6 +352,8 @@ export type IpcResponse<C extends IpcChannel> = IpcApi[C]['response']
 export interface IpcEvents {
   'whatsapp:setupChanged': WhatsAppSetupState
   'whatsapp:changed': WhatsAppCallState
+  /** The embedded page moved; Home asks again whether a Save button belongs. */
+  'browser:page-changed': Record<string, never>
   'browser:reader': import('./news/reader').ReaderState
   'browser:video': import('./browser/videoControls').VideoState
   'audio:changed': AudioUpdate

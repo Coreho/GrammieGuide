@@ -4,8 +4,11 @@ import { join } from 'node:path'
 import {
   MAX_RAVELRY_PICTURES,
   htmlToPlainText,
+  parseRavelryLastPage,
   parseRavelryPattern,
-  parseRavelrySearch
+  parseRavelryPatternPage,
+  parseRavelrySearch,
+  type RavelryPatternDetails
 } from '../../src/shared/knitting/ravelry'
 import { knittingFileSchema } from '../../src/shared/knitting/knitting'
 
@@ -26,7 +29,9 @@ describe('Ravelry search replies', () => {
       name: 'Sweet Shop Blanket',
       designer: 'Laura Penrose',
       thumbnailSource:
-        'https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_small.jpg'
+        'https://images4-f.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_small.jpg',
+      pictureSource:
+        'https://images4-g.ravelrycache.com/uploads/PenroseKnits/942623264/bed2_medium.jpg'
     })
     // Real pictures aren't all JPEGs: this one is a PNG, and its small name differs too.
     expect(found[2]!.thumbnailSource).toBe(
@@ -191,5 +196,65 @@ describe('notes as plain text', () => {
 describe('the knitting file', () => {
   it('reads files saved before Ravelry picks existed', () => {
     expect(knittingFileSchema.parse({ version: 1, project: null }).ravelry).toEqual([])
+  })
+})
+
+describe('a Ravelry pattern page address', () => {
+  it('gives the pattern name only for a pattern page on Ravelry itself', () => {
+    const page = parseRavelryPatternPage
+    expect(page('https://www.ravelry.com/patterns/library/sweet-shop-blanket')).toBe(
+      'sweet-shop-blanket'
+    )
+    expect(page('https://ravelry.com/patterns/library/hat-2/')).toBe('hat-2')
+    expect(page('https://www.ravelry.com/patterns/library/hat?buy=1')).toBe('hat')
+    for (const other of [
+      null,
+      undefined,
+      'not a url',
+      'http://www.ravelry.com/patterns/library/hat',
+      'https://www.ravelry.com/patterns/search',
+      'https://www.ravelry.com/patterns/library/',
+      'https://www.ravelry.com/patterns/library/hat/comments',
+      'https://www.ravelry.com/patterns/library/..%2f..%2fcurrent_user',
+      'https://ravelry.com.evil.example/patterns/library/hat',
+      'https://evil.example/patterns/library/hat'
+    ]) {
+      expect(page(other)).toBeNull()
+    }
+  })
+})
+
+describe('instructions and page counts in replies', () => {
+  const download = { url: 'https://designer.example.com/hat.pdf' }
+
+  it('offers an instructions address only for a free pattern', () => {
+    const details = (fields: Record<string, unknown>): RavelryPatternDetails =>
+      parseRavelryPattern(pattern(fields))!
+    expect(details({ free: true, download_location: download }).instructionsUrl).toBe(download.url)
+    expect(details({ free: false, download_location: download })).not.toHaveProperty(
+      'instructionsUrl'
+    )
+    expect(details({ download_location: download })).not.toHaveProperty('instructionsUrl')
+    expect(details({ free: true, download_location: null })).not.toHaveProperty('instructionsUrl')
+  })
+
+  it('upgrades Ravelry links, which the real API lists as http, so her sign-in stays encrypted', () => {
+    const details = (url: string): RavelryPatternDetails =>
+      parseRavelryPattern(pattern({ free: true, download_location: { url } }))!
+    expect(details('http://www.ravelry.com/dls/79598/634788').instructionsUrl).toBe(
+      'https://www.ravelry.com/dls/79598/634788'
+    )
+    expect(details('http://designer.example.com/hat.pdf').instructionsUrl).toBe(
+      'http://designer.example.com/hat.pdf'
+    )
+    for (const bad of ['javascript:alert(1)', 'file:///c:/secret.pdf', 'not an address']) {
+      expect(details(bad)).not.toHaveProperty('instructionsUrl')
+    }
+  })
+
+  it('treats a reply with no usable page count as one page', () => {
+    expect(parseRavelryLastPage({ paginator: { last_page: 7 } })).toBe(7)
+    expect(parseRavelryLastPage({})).toBe(1)
+    expect(parseRavelryLastPage({ paginator: { last_page: 'lots' } })).toBe(1)
   })
 })

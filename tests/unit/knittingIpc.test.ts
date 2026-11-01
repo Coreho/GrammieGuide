@@ -105,6 +105,7 @@ const addPiece = async (
   return (await handler('knitting:addPiece')(admin, { what, forWhom })) as PieceImportResult
 }
 const empty = { project: null, patterns: [], pieces: [], ravelry: [] }
+const emptyHome = { ...empty, ravelryFind: false }
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -137,8 +138,8 @@ afterEach(() => rmSync(folder, { recursive: true, force: true }))
 
 describe('knitting IPC: her project', () => {
   it('shows Home a calm empty state before anything is set up', async () => {
-    expect(await homeState()).toEqual(empty)
-    expect(await handler('knitting:changeRows')(home, { direction: 'add' })).toEqual(empty)
+    expect(await homeState()).toEqual(emptyHome)
+    expect(await handler('knitting:changeRows')(home, { direction: 'add' })).toEqual(emptyHome)
     expect(mocks.activity).not.toHaveBeenCalled()
   })
 
@@ -183,7 +184,7 @@ describe('knitting IPC: her project', () => {
     await handler('knitting:changeRows')(home, { direction: 'add' })
     expect(await handler('knitting:resetRows')(admin)).toMatchObject({ project: { rows: 0 } })
     expect(await handler('knitting:removeProject')(admin)).toEqual(empty)
-    expect(await homeState()).toEqual(empty)
+    expect(await homeState()).toEqual(emptyHome)
   })
 
   it.each([

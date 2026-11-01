@@ -76,8 +76,25 @@ const pictures = {
 }
 const ravelry = {
   pattern: vi.fn(async (ravelryId: number) => ({ ...DETAILS, ravelryId })),
-  picture: vi.fn(async () => ({ bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' }))
+  picture: vi.fn(async () => ({ bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' })),
+  instructions: vi.fn(async () => new Uint8Array([1])),
+  patternByPermalink: vi.fn(async () => ({ ...DETAILS, ravelryId: 3003, permalink: 'paid-shawl' })),
+  browse: vi.fn(),
+  status: vi.fn(() => ({ connected: true, canSave: true }))
 }
+let served: number[]
+let page: string | null
+const renderPdf = vi.fn(
+  async (
+    _bytes: Uint8Array,
+    _max: number,
+    _edge: number,
+    onPage: (jpeg: Buffer) => Promise<void>
+  ): Promise<void> => {
+    await onPage(Buffer.from('one'))
+    await onPage(Buffer.from('two'))
+  }
+)
 
 type Handler = (event: unknown, request?: unknown) => Promise<unknown>
 const handler = (channel: string): Handler =>
@@ -92,6 +109,8 @@ const adminState = async (): Promise<AdminKnitting> =>
 beforeEach(() => {
   vi.clearAllMocks()
   entries = []
+  served = [1001]
+  page = null
   folder = mkdtempSync(join(tmpdir(), 'grammieguide-ravelry-picks-'))
   temporary = mkdtempSync(join(tmpdir(), 'grammieguide-ravelry-temp-'))
   const empty = { addImage: vi.fn(), remove: vi.fn(), list: vi.fn(async () => []) }
@@ -100,6 +119,9 @@ beforeEach(() => {
     gallery: () => empty,
     ravelryPictures: () => pictures,
     ravelry: () => ravelry,
+    ravelryPdf: renderPdf,
+    ravelryServed: (id) => served.includes(id),
+    currentPage: () => page,
     folder: () => folder,
     temporaryFolder: () => temporary,
     codec: () => codec
@@ -121,7 +143,8 @@ describe('adding a Ravelry pattern for her', () => {
         ravelryId: 1001,
         name: 'Garter Baby Blanket',
         designer: 'Ann Example',
-        thumbnailUrl: `grammie-media://ravelry/${entries[0]!.thumbFileName}`
+        thumbnailUrl: `grammie-media://ravelry/${entries[0]!.thumbFileName}`,
+        pageCount: 0
       }
     ])
     const state = await homeState()
@@ -133,7 +156,10 @@ describe('adding a Ravelry pattern for her', () => {
         facts: [{ label: 'Yarn', value: 'DK' }],
         notes: 'A simple blanket.',
         thumbnailUrl: `grammie-media://ravelry/${entries[0]!.thumbFileName}`,
-        pictures: entries.map((entry) => ({ url: `grammie-media://ravelry/${entry.fileName}` }))
+        pictures: entries.map((entry) => ({ url: `grammie-media://ravelry/${entry.fileName}` })),
+        ravelryId: 1001,
+        pages: [],
+        lastPage: 0
       }
     ])
     expect(JSON.stringify(state)).not.toContain('images.example.com')
@@ -275,5 +301,134 @@ describe('a picture that has gone missing', () => {
     expect(saved!.pictures[0]).toEqual({ url: undefined })
     expect(saved!.pictures[1]!.url).toMatch(/^grammie-media:\/\/ravelry\//)
     expect(saved).not.toHaveProperty('thumbnailUrl')
+  })
+})
+
+describe('her own Save', () => {
+  const save = (ravelryId: unknown): Promise<unknown> =>
+    handler('knitting:saveRavelry')(home, { ravelryId })
+
+  it('saves a pattern main served her, and its instructions as pages she can return to', async () => {
+    ravelry.pattern.mockResolvedValueOnce({
+      ...DETAILS,
+      pictureUrls: [],
+      instructionsUrl: 'https://designer.example.com/pattern.pdf'
+    })
+    expect(await save(1001)).toEqual({ ok: true, withInstructions: true })
+    const [saved] = (await homeState()).ravelry
+    expect(saved!.pages).toHaveLength(2)
+    expect(saved!.pages[0]!.url).toMatch(/^grammie-media:\/\/ravelry\//)
+    expect(JSON.stringify(saved)).not.toContain('designer.example.com')
+
+    await handler('knitting:patternPage')(home, { patternId: saved!.id, page: 1 })
+    expect((await homeState()).ravelry[0]!.lastPage).toBe(1)
+    await handler('knitting:patternPage')(home, { patternId: saved!.id, page: 99 })
+    expect((await homeState()).ravelry[0]!.lastPage).toBe(1)
+  })
+
+  it('refuses any pattern main did not serve, without asking Ravelry', async () => {
+    for (const id of [999, 'x', undefined, 1.5]) {
+      expect(await save(id)).toEqual({ ok: false, reason: 'unavailable' })
+    }
+    expect(ravelry.pattern).not.toHaveBeenCalled()
+  })
+
+  it('still saves the words and pictures when the PDF fails, and leaves no partial pages', async () => {
+    ravelry.pattern.mockResolvedValueOnce({
+      ...DETAILS,
+      instructionsUrl: 'https://designer.example.com/pattern.pdf'
+    })
+    renderPdf.mockImplementationOnce(async (_bytes, _max, _edge, onPage) => {
+      await onPage(Buffer.from('one'))
+      throw new Error('https://designer.example.com/pattern.pdf broke halfway')
+    })
+    expect(await save(1001)).toEqual({ ok: true, withInstructions: false })
+    const [saved] = (await homeState()).ravelry
+    expect(saved!.pages).toEqual([])
+    // The two pictures stay, and the one page drawn before the failure is gone.
+    expect(entries).toHaveLength(2)
+  })
+
+  it('never fetches instructions for a pattern without a free address', async () => {
+    await save(1001)
+    expect(ravelry.instructions).not.toHaveBeenCalled()
+  })
+
+  it('answers a second save of the same pattern without a second copy', async () => {
+    await save(1001)
+    expect(await save(1001)).toEqual({ ok: true, withInstructions: false })
+    expect((await homeState()).ravelry).toHaveLength(1)
+  })
+
+  it(`says the shelf is full at ${MAX_RAVELRY_PATTERNS}, keeping what she has`, async () => {
+    served = Array.from({ length: MAX_RAVELRY_PATTERNS + 1 }, (_, index) => index + 1)
+    ravelry.pattern.mockImplementation(async (ravelryId) => ({
+      ...DETAILS,
+      ravelryId,
+      pictureUrls: []
+    }))
+    for (let id = 1; id <= MAX_RAVELRY_PATTERNS; id++) await save(id)
+    expect(await save(MAX_RAVELRY_PATTERNS + 1)).toEqual({ ok: false, reason: 'full' })
+    expect((await homeState()).ravelry).toHaveLength(MAX_RAVELRY_PATTERNS)
+    ravelry.pattern.mockImplementation(async (ravelryId) => ({ ...DETAILS, ravelryId }))
+  })
+
+  it('turns any failure into a calm answer, never an error on Home', async () => {
+    ravelry.pattern.mockRejectedValueOnce(new Error("Ravelry can't be reached right now."))
+    expect(await save(1001)).toEqual({ ok: false, reason: 'unavailable' })
+  })
+
+  it('answers only Home', async () => {
+    await expect(handler('knitting:saveRavelry')(admin, { ravelryId: 1001 })).rejects.toThrow(
+      'Home window required'
+    )
+    await expect(handler('knitting:saveRavelryPage')(admin)).rejects.toThrow('Home window required')
+    await expect(handler('knitting:ravelryPageState')(admin)).rejects.toThrow(
+      'Home window required'
+    )
+  })
+
+  it('logs that she saved something, never what', async () => {
+    await save(1001)
+    expect(mocks.activity.mock.calls).toEqual([['knitting-ravelry-saved-by-her']])
+  })
+})
+
+describe('the Save button on Ravelry pages', () => {
+  const state = (): Promise<unknown> => handler('knitting:ravelryPageState')(home)
+
+  it('appears only on a pattern page, and only with a key', async () => {
+    page = 'https://www.ravelry.com/patterns/library/paid-shawl'
+    expect(await state()).toEqual({ savable: true, saved: false })
+    page = 'https://www.ravelry.com/patterns/search'
+    expect(await state()).toEqual({ savable: false, saved: false })
+    page = 'https://evil.example.com/patterns/library/paid-shawl'
+    expect(await state()).toEqual({ savable: false, saved: false })
+    page = null
+    expect(await state()).toEqual({ savable: false, saved: false })
+    page = 'https://www.ravelry.com/patterns/library/paid-shawl'
+    ravelry.status.mockReturnValueOnce({ connected: false, canSave: true })
+    expect(await state()).toEqual({ savable: false, saved: false })
+  })
+
+  it('saves the page she is on, taking nothing from Home, and then shows it as saved', async () => {
+    page = 'https://www.ravelry.com/patterns/library/paid-shawl'
+    expect(
+      await handler('knitting:saveRavelryPage')(home, { permalink: 'something-else' })
+    ).toEqual({
+      ok: true,
+      withInstructions: false
+    })
+    expect(ravelry.patternByPermalink).toHaveBeenCalledWith('paid-shawl')
+    expect(await state()).toEqual({ savable: true, saved: true })
+  })
+
+  it('refuses to save when she is not on a pattern page', async () => {
+    page = 'https://www.ravelry.com/'
+    expect(await handler('knitting:saveRavelryPage')(home)).toEqual({
+      ok: false,
+      reason: 'unavailable'
+    })
+    expect(ravelry.patternByPermalink).not.toHaveBeenCalled()
   })
 })

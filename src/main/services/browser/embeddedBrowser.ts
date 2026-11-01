@@ -318,6 +318,7 @@ export function openUrl(
     })
     view.webContents.on('did-navigate', (_event, targetUrl) => {
       committedPage = targetUrl
+      announcePageChanged()
     })
 
     view.webContents.on('did-start-navigation', (details) => {
@@ -333,6 +334,7 @@ export function openUrl(
     }
     view.webContents.on('dom-ready', enableVideo)
     view.webContents.on('did-navigate-in-page', enableVideo)
+    view.webContents.on('did-navigate-in-page', announcePageChanged)
 
     view.webContents.on(
       'did-fail-load',
@@ -532,6 +534,17 @@ export function closeEmbeddedBrowser(): void {
   // A site's beforeunload handler must never keep it alive after she leaves.
   if (!closingView.webContents.isDestroyed()) {
     closingView.webContents.close({ waitForBeforeUnload: false })
+  }
+}
+
+/** The address of the page she is on, or null. Main decides from this; Home never supplies one. */
+export function currentPageUrl(): string | null {
+  return view && !problem ? view.webContents.getURL() : null
+}
+
+function announcePageChanged(): void {
+  if (hostWindow && !hostWindow.isDestroyed()) {
+    hostWindow.webContents.send('browser:page-changed', {})
   }
 }
 

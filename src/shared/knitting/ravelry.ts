@@ -8,8 +8,25 @@ export const MAX_RAVELRY_RESULTS = 12
 export const RAVELRY_PICTURE_EDGE = 1600
 const MAX_NAME = 120
 const MAX_DESIGNER = 80
-const MAX_FACT = 120
+const MAX_FACT = 240
 const MAX_NOTES = 3000
+/** Matches MAX_PATTERN_PAGES, so her saved instructions fit the same page viewer. */
+const RAVELRY_MAX_PAGES = 60
+
+/**
+ * What she can browse. Fixed here so nothing she does can make up a search. `pc` values were
+ * checked against the real API on 2026-11-01. Ravelry's mature content category is not offered.
+ */
+export const RAVELRY_CATEGORIES = [
+  { id: 'blankets', label: 'Blankets', pc: 'blanket' },
+  { id: 'scarves', label: 'Scarves', pc: 'scarf' },
+  { id: 'hats', label: 'Hats', pc: 'hat' },
+  { id: 'sweaters', label: 'Sweaters', pc: 'pullover' },
+  { id: 'cardigans', label: 'Cardigans', pc: 'cardigan' },
+  { id: 'socks', label: 'Socks', pc: 'socks' },
+  { id: 'mittens', label: 'Mittens', pc: 'mittens' },
+  { id: 'toys', label: 'Toys', pc: 'softies' }
+] as const
 
 /** A pattern as saved for her: a plain-text copy, so Home never needs Ravelry to show it. */
 export const ravelryPatternSchema = z.object({
@@ -20,7 +37,12 @@ export const ravelryPatternSchema = z.object({
   facts: z.array(z.object({ label: z.string(), value: z.string().max(MAX_FACT) })).max(5),
   notes: z.string().max(MAX_NOTES),
   /** Library entry IDs; the pictures live in the ravelry media library. */
-  pictures: z.array(z.string().uuid()).max(MAX_RAVELRY_PICTURES)
+  pictures: z.array(z.string().uuid()).max(MAX_RAVELRY_PICTURES),
+  /** The name in its Ravelry address, so a pattern page can show it's already saved. */
+  permalink: z.string().max(200).optional(),
+  /** Page pictures of the instructions, when a free pattern's PDF could be saved. */
+  pages: z.array(z.string().uuid()).max(RAVELRY_MAX_PAGES).default([]),
+  lastPage: z.number().int().min(0).default(0)
 })
 export type RavelryPattern = z.infer<typeof ravelryPatternSchema>
 
@@ -45,6 +67,43 @@ export interface RavelrySearchPattern {
   name: string
   designer: string
   thumbnailSource?: string
+  /** A larger picture, for the cards she browses. */
+  pictureSource?: string
+}
+
+/** One pattern on a page she is browsing. Pictures are data: URLs fetched in main. */
+export interface RavelryBrowseItem {
+  ravelryId: number
+  name: string
+  designer: string
+  thumbnailUrl?: string
+}
+
+export type RavelryCategoriesResult =
+  { ok: true; categories: { id: string; label: string; thumbnailUrl?: string }[] } | { ok: false }
+
+export type RavelryBrowseResult =
+  { ok: true; items: RavelryBrowseItem[]; page: number; lastPage: number } | { ok: false }
+
+export type RavelryPreviewResult =
+  | {
+      ok: true
+      ravelryId: number
+      name: string
+      designer: string
+      facts: { label: string; value: string }[]
+      notes: string
+      pictures: string[]
+    }
+  | { ok: false }
+
+export type RavelrySaveResult =
+  /** withInstructions: the pattern's own pages were saved, so she can read them here. */
+  { ok: true; withInstructions: boolean } | { ok: false; reason: 'full' | 'unavailable' }
+
+export interface RavelryPageState {
+  savable: boolean
+  saved: boolean
 }
 
 /** What the API parsers keep from one full pattern. */
@@ -55,6 +114,23 @@ export interface RavelryPatternDetails {
   facts: { label: string; value: string }[]
   notes: string
   pictureUrls: string[]
+  permalink?: string
+  /** Only for a free pattern. A paid pattern's address leads to a shop, not instructions. */
+  instructionsUrl?: string
+}
+
+/** The pattern's name from a Ravelry pattern page's address, or null for any other page. */
+export function parseRavelryPatternPage(url: string | null | undefined): string | null {
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:') return null
+    if (!['ravelry.com', 'www.ravelry.com'].includes(parsed.hostname)) return null
+    const match = parsed.pathname.match(/^\/patterns\/library\/([a-z0-9][a-z0-9-]{0,190})\/?$/i)
+    return match ? match[1]! : null
+  } catch {
+    return null
+  }
 }
 
 const NAMED_ENTITIES: Record<string, string> = {
@@ -100,8 +176,12 @@ function tidy(text: string): string {
     .trim()
 }
 
+/** Ends at a whole word where there is one, so a shortened line never stops mid-word. */
 function cut(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`
+  if (text.length <= max) return text
+  const kept = text.slice(0, max - 1)
+  const space = kept.lastIndexOf(' ')
+  return `${(space > max / 2 ? kept.slice(0, space) : kept).trimEnd()}…`
 }
 
 /** Long notes stop at the end of a sentence or line: a thought cut off mid-word reads as a fault. */
@@ -181,7 +261,10 @@ const fullPatternSchema = baseSchema.extend({
     .union([z.string(), z.array(z.object({ name: optionalText }))])
     .nullish()
     .catch(undefined),
-  photos: z.array(photoSchema).nullish().catch(undefined)
+  photos: z.array(photoSchema).nullish().catch(undefined),
+  permalink: optionalText,
+  free: z.boolean().nullish().catch(undefined),
+  download_location: z.object({ url: optionalText }).nullish().catch(undefined)
 })
 
 const designerOf = (pattern: z.infer<typeof baseSchema>): string =>
@@ -190,6 +273,10 @@ const designerOf = (pattern: z.infer<typeof baseSchema>): string =>
 /** Largest first: she sees these filling half the screen. */
 const pictureOf = (photo: ApiPhoto): string | undefined =>
   photo.medium2_url ?? photo.medium_url ?? photo.small2_url ?? photo.small_url ?? undefined
+
+/** A card's picture is about 400 pixels across, and the 640-pixel photos can pass the size cap. */
+const cardPictureOf = (photo: ApiPhoto): string | undefined =>
+  photo.medium_url ?? photo.small2_url ?? photo.small_url ?? photo.medium2_url ?? undefined
 
 /** Smallest first: admin shows these as small thumbnails in a list. */
 const thumbnailOf = (photo: ApiPhoto): string | undefined =>
@@ -203,15 +290,42 @@ export function parseRavelrySearch(data: unknown): RavelrySearchPattern[] | null
     const parsed = searchPatternSchema.safeParse(raw)
     if (!parsed.success) return []
     const thumbnailSource = parsed.data.first_photo && thumbnailOf(parsed.data.first_photo)
+    const pictureSource = parsed.data.first_photo && cardPictureOf(parsed.data.first_photo)
     return [
       {
         ravelryId: parsed.data.id,
         name: line(parsed.data.name, MAX_NAME),
         designer: designerOf(parsed.data),
-        ...(thumbnailSource && { thumbnailSource })
+        ...(thumbnailSource && { thumbnailSource }),
+        ...(pictureSource && { pictureSource })
       }
     ]
   })
+}
+
+/** How many pages a browse has. A reply without a usable count is treated as one page. */
+export function parseRavelryLastPage(data: unknown): number {
+  const parsed = z
+    .object({ paginator: z.object({ last_page: z.number().int().positive() }) })
+    .safeParse(data)
+  return parsed.success ? parsed.data.paginator.last_page : 1
+}
+
+/**
+ * Ravelry lists its own download links as http, checked against real replies on 2026-11-01. They
+ * are upgraded, because her browser's sign-in may go with them. A designer's own site may really
+ * be http; that is only ever a file to read, sent nothing private and redrawn in a sandbox.
+ */
+function instructionsAddress(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined
+    if (['ravelry.com', 'www.ravelry.com'].includes(parsed.hostname)) parsed.protocol = 'https:'
+    return parsed.href
+  } catch {
+    return undefined
+  }
 }
 
 function needlesOf(sizes: z.infer<typeof fullPatternSchema>['pattern_needle_sizes']): string {
@@ -236,6 +350,7 @@ export function parseRavelryPattern(data: unknown): RavelryPatternDetails | null
   })
   const notes =
     pattern.notes_html != null ? htmlToPlainText(pattern.notes_html) : tidy(pattern.notes ?? '')
+  const instructionsUrl = instructionsAddress(pattern.download_location?.url)
   return {
     ravelryId: pattern.id,
     name: line(pattern.name, MAX_NAME),
@@ -247,6 +362,8 @@ export function parseRavelryPattern(data: unknown): RavelryPatternDetails | null
         const url = pictureOf(photo)
         return url ? [url] : []
       })
-      .slice(0, MAX_RAVELRY_PICTURES)
+      .slice(0, MAX_RAVELRY_PICTURES),
+    ...(pattern.permalink && { permalink: pattern.permalink }),
+    ...(pattern.free === true && instructionsUrl && { instructionsUrl })
   }
 }

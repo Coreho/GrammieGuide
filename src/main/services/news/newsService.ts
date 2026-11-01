@@ -99,7 +99,8 @@ export async function download(
   maxBytes: number,
   timeoutMs: number,
   image: boolean,
-  lookupImpl: Lookup
+  lookupImpl: Lookup,
+  allowedTypes: ReadonlySet<string> = IMAGE_TYPES
 ): Promise<{ bytes: Uint8Array; mime: string; charset: string | undefined }> {
   if (!httpUrl(url)) throw new NewsFetchError('Unsupported address')
   const controller = new AbortController()
@@ -129,7 +130,7 @@ export async function download(
     const charsetMatch = contentType.match(/;\s*charset\s*=\s*(?:"([^"]+)"|'([^']+)'|([^;\s]+))/i)
     const charset = charsetMatch?.[1] ?? charsetMatch?.[2] ?? charsetMatch?.[3]
     // Raster formats only: SVG is a document, not a passive thumbnail.
-    if (image && !IMAGE_TYPES.has(mime)) throw new NewsFetchError('Not a supported image')
+    if (image && !allowedTypes.has(mime)) throw new NewsFetchError('Not a supported image')
     if (Number(response.headers.get('content-length')) > maxBytes) {
       throw new NewsFetchError('Response too large')
     }

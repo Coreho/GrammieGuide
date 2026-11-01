@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Draws a downloaded PDF and nothing else: no network, no frames, no objects. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; worker-src 'self' blob:; style-src 'unsafe-inline'; font-src data: blob:; img-src data: blob:"
+    />
+    <title>Pattern pages</title>
+  </head>
+  <body>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

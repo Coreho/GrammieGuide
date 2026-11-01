@@ -38,7 +38,7 @@ It is built for one particular person rather than a category of users. Her famil
 
 ## Capabilities and Constraints
 
-**What she can do:** open tiles for websites, installed apps and built-ins (Weather, News, Photos, Music, Games, Knitting, Family calls); chat with Buddy, a 3D cat companion, by typing or talking; browse approved sites in a protected browser; count knitting rows, read patterns and look through her finished pieces; browse Ravelry patterns picked for her.
+**What she can do:** open tiles for websites, installed apps and built-ins (Weather, News, Photos, Music, Games, Knitting, Family calls); chat with Buddy, a 3D cat companion, by typing or talking; browse approved sites in a protected browser; count knitting rows, read patterns and look through her finished pieces; find, save and read Ravelry patterns without its website.
 
 **Rules future work must keep:**
 
@@ -58,6 +58,8 @@ It is built for one particular person rather than a category of users. Her famil
 - Whether she actually double-clicks, uses the wheel or can drag a scrollbar. The app now handles all three, but none has been tried with her.
 - Whether her pointer is large enough for her to follow, which is a Windows setting.
 - How long a text she can use on a bad day, which affects long descriptions such as Ravelry notes.
+- Whether four patterns at a time, and saving at all, suit her. Nobody has tried it with her yet.
+- Whether Ravelry's API terms allow saving designers' pictures, descriptions and free PDFs on her computer.
 
 ## Brand Commitments
 
@@ -69,6 +71,7 @@ It is built for one particular person rather than a category of users. Her famil
 ## Evidence on Hand
 
 - Real content on her computer: her family photos, DROPS knitting patterns and her games. These stay on her computer, out of this repo.
+- Ravelry patterns are other people's work: designers' pictures and PDFs stay on her computer and never go in this repo.
 - Earlier visual approvals: `UI Screenshots/clay-launcher-design/` and `design/home-cards/`.
 - Setup and verification notes: `docs/`, the README's Status section, and Backlog tasks.
 - Several features are recorded as not yet checked on the real computer, and TASK-13, TASK-49 and TASK-51 still need hands-on walkthroughs.

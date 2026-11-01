@@ -43,7 +43,9 @@ export default defineConfig({
       rollupOptions: {
         input: {
           launcher: resolve('src/renderer/launcher/index.html'),
-          admin: resolve('src/renderer/admin/index.html')
+          admin: resolve('src/renderer/admin/index.html'),
+          // Draws downloaded knitting PDFs in a hidden sandbox (services/ravelry/pdfPages.ts).
+          pdfPages: resolve('src/renderer/pdfPages/index.html')
         }
       }
     },

@@ -1,8 +1,9 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import type { IpcResponse } from '@shared/ipcContract'
 import { logActivity } from '../services/activityLog/activityLog'
+import type { RavelryHomeBrowse } from '../services/ravelry/homeBrowse'
 import type { RavelryService } from '../services/ravelry/ravelryService'
-import { getAdminWindow } from '../windows/windowManager'
+import { getAdminWindow, getLauncherWindow } from '../windows/windowManager'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 
 function requireCaregiver(event: IpcMainInvokeEvent): void {
@@ -15,12 +16,58 @@ function requireCaregiver(event: IpcMainInvokeEvent): void {
   }
 }
 
+function requireHome(event: IpcMainInvokeEvent): void {
+  if (
+    event.sender !== getLauncherWindow()?.webContents ||
+    event.senderFrame !== event.sender.mainFrame
+  ) {
+    throw new Error('Home window required')
+  }
+}
+
+/** Home shows or hides Find a pattern and the Save button by whether a key is saved. */
+function tellHome(): void {
+  try {
+    getLauncherWindow()?.webContents.send('knitting:changed', {})
+  } catch {
+    // Home reads it again the next time the shelf opens.
+  }
+}
+
 /**
- * Caregiver-only, and Home never reaches any of it: she only ever sees the saved copies
- * that knitting:home serves. The key arrives from the admin form once and never goes back
- * out, and logs say a key changed, never what it was or what was searched for.
+ * The key arrives from the admin form once and never goes back out, and logs say a key changed,
+ * never what it was or what was searched for. Key and free search are caregiver-only. Home gets
+ * the fixed categories and patterns main served her, and any failure is just `ok: false`.
  */
-export function registerRavelryIpc(service: () => RavelryService): void {
+export function registerRavelryIpc(
+  service: () => RavelryService,
+  homeBrowse: () => RavelryHomeBrowse
+): void {
+  ipcMain.handle(
+    'ravelry:homeCategories',
+    async (event): Promise<IpcResponse<'ravelry:homeCategories'>> => {
+      requireHome(event)
+      return homeBrowse().categories()
+    }
+  )
+  ipcMain.handle(
+    'ravelry:homeBrowse',
+    async (
+      event,
+      req: { category?: unknown; page?: unknown }
+    ): Promise<IpcResponse<'ravelry:homeBrowse'>> => {
+      requireHome(event)
+      return homeBrowse().browse(req?.category, req?.page)
+    }
+  )
+  ipcMain.handle(
+    'ravelry:homePattern',
+    async (event, req: { ravelryId?: unknown }): Promise<IpcResponse<'ravelry:homePattern'>> => {
+      requireHome(event)
+      return homeBrowse().preview(req?.ravelryId)
+    }
+  )
+
   ipcMain.handle('ravelry:status', async (event): Promise<IpcResponse<'ravelry:status'>> => {
     requireCaregiver(event)
     return service().status()
@@ -38,6 +85,7 @@ export function registerRavelryIpc(service: () => RavelryService): void {
       requireCaregiver(event)
       service().saveKey(checked)
       logActivity('ravelry-key-saved')
+      tellHome()
       return service().status()
     }
   )
@@ -46,6 +94,7 @@ export function registerRavelryIpc(service: () => RavelryService): void {
     requireCaregiver(event)
     service().removeKey()
     logActivity('ravelry-key-removed')
+    tellHome()
     return service().status()
   })
 

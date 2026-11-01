@@ -36,6 +36,7 @@ import { openBuddyTile } from './buddy/openBuddyTile'
 import { IdleDimOverlay } from './components/IdleDimOverlay'
 import { useAudioHold, useIdleDim } from './components/useIdleDim'
 import { useRepeatClickGuard } from './components/useRepeatClickGuard'
+import { useRavelrySitePattern } from './tiles/useRavelrySitePattern'
 import { useContactFlow } from './contacts/useContactFlow'
 import { ContactButton } from './contacts/ContactButton'
 import { ContactOverlay } from './contacts/ContactOverlay'
@@ -265,6 +266,7 @@ export default function App() {
   recoveryCheckAllowed.current = buddyMenuAvailable && !buddyMenuAnchor
 
   useRepeatClickGuard()
+  const sitePattern = useRavelrySitePattern(view === 'browser', flashToast)
   const audioHold = useAudioHold()
   const idleDimmed = useIdleDim(config?.display.idleDim, {
     embeddedWebOpen: view === 'browser',
@@ -611,6 +613,15 @@ export default function App() {
                     void window.launcher.readerMode(
                       reader.mode === 'article' || reader.mode === 'loading' ? 'page' : 'article'
                     )
+                }
+              : undefined
+          }
+          ravelrySave={
+            sitePattern.savable
+              ? {
+                  saved: sitePattern.saved,
+                  saving: sitePattern.saving,
+                  onSave: sitePattern.save
                 }
               : undefined
           }

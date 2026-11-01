@@ -113,8 +113,9 @@ export function RavelryPicker({
       </h4>
       <p style={{ fontSize: '.9rem', color: '#555' }}>
         These show on her shelf as large picture cards with plain words, without Ravelry&apos;s
-        website. A copy is saved when you add one, so they still work offline. Ravelry only shares a
-        pattern&apos;s pictures and description this way, not its full instructions.
+        website, and she can save more herself once a key is saved here. A copy is saved each time,
+        so they still work offline. When a free pattern&apos;s instructions are a PDF, its pages are
+        saved too. Otherwise, add the pages under Patterns above. Only you can remove one here.
       </p>
       <ul aria-labelledby="ravelry-picks-heading" style={{ listStyle: 'none', padding: 0 }}>
         {picks.map((pick) => (
@@ -123,6 +124,9 @@ export function RavelryPicker({
             <span style={{ flex: 1 }}>
               <strong>{pick.name}</strong>
               {pick.designer && ` · ${pick.designer}`}
+              {pick.pageCount > 0
+                ? ` · ${pick.pageCount} ${pick.pageCount === 1 ? 'page' : 'pages'} of instructions`
+                : ' · no instructions saved'}
             </span>
             <button
               type="button"

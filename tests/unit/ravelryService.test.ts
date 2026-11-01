@@ -235,3 +235,157 @@ describe('fetching a pattern', () => {
     expect(everythingLogged()).not.toContain(READ_KEY.username)
   })
 })
+
+describe('browsing for her', () => {
+  beforeEach(() => store.save(READ_KEY))
+
+  it('asks only for free knitting patterns, most popular first, four at a time', async () => {
+    fetchImpl.mockImplementation(async (input) =>
+      String(input).startsWith('https://api.ravelry.com/')
+        ? json(fixture('search.json'))
+        : new Response(Buffer.from('picture'), { headers: { 'content-type': 'image/jpeg' } })
+    )
+    const { items, lastPage } = await service().browse('blanket', 3)
+    const url = new URL(String(fetchImpl.mock.calls[0]![0]))
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      craft: 'knitting',
+      availability: 'free',
+      sort: 'popularity',
+      pc: 'blanket',
+      page: '3',
+      page_size: '4'
+    })
+    expect(lastPage).toBe(200)
+    expect(items[0]!.thumbnailUrl).toMatch(/^data:image\/jpeg;base64,/)
+    // The card-sized picture, not the small thumbnail admin uses.
+    expect(fetchImpl.mock.calls.map(([url]) => String(url)).join()).toContain('_medium.')
+  })
+})
+
+describe('fetching a pattern from its page', () => {
+  beforeEach(() => store.save(READ_KEY))
+
+  it('looks it up by the name in the address', async () => {
+    fetchImpl.mockResolvedValue(json(fixture('pattern.json')))
+    const details = await service().patternByPermalink('sweet-shop-blanket')
+    expect(String(fetchImpl.mock.calls[0]![0])).toBe(
+      'https://api.ravelry.com/patterns/sweet-shop-blanket.json'
+    )
+    expect(details.ravelryId).toBe(1359829)
+  })
+})
+
+describe('fetching instructions', () => {
+  const PDF = Buffer.from('%PDF-1.4 a pattern')
+  const pdfReply = (type = 'application/pdf'): Response =>
+    new Response(PDF, { headers: { 'content-type': type } })
+
+  it('accepts a real PDF, and never sends the Ravelry key with it', async () => {
+    store.save(READ_KEY)
+    fetchImpl.mockResolvedValue(pdfReply())
+    const bytes = await service().instructions('https://designer.example.com/hat.pdf')
+    expect(Buffer.from(bytes).toString()).toBe(PDF.toString())
+    expect(JSON.stringify(fetchImpl.mock.calls[0]![1])).not.toContain('authorization')
+  })
+
+  it('decides by the file itself when a host sends generic bytes', async () => {
+    fetchImpl.mockResolvedValueOnce(pdfReply('application/octet-stream'))
+    await expect(service().instructions('https://designer.example.com/a')).resolves.toBeDefined()
+    fetchImpl.mockResolvedValueOnce(
+      new Response('<html>', { headers: { 'content-type': 'application/octet-stream' } })
+    )
+    await expect(service().instructions('https://designer.example.com/b')).rejects.toThrow()
+  })
+
+  it('refuses a web page, a private address and an oversized file', async () => {
+    fetchImpl.mockResolvedValueOnce(
+      new Response('<html>', { headers: { 'content-type': 'text/html' } })
+    )
+    await expect(service().instructions('https://designer.example.com/page')).rejects.toThrow()
+    fetchImpl.mockClear()
+    await expect(service().instructions('https://127.0.0.1/hat.pdf')).rejects.toThrow()
+    expect(fetchImpl).not.toHaveBeenCalled()
+    fetchImpl.mockResolvedValueOnce(
+      new Response(PDF, {
+        headers: { 'content-type': 'application/pdf', 'content-length': String(31 * 1024 * 1024) }
+      })
+    )
+    await expect(service().instructions('https://designer.example.com/huge.pdf')).rejects.toThrow()
+  })
+
+  describe('when a link needs her browser sign-in', () => {
+    const htmlReply = (): Response =>
+      new Response('<html>Sign in', { headers: { 'content-type': 'text/html' } })
+    const withSignIn = (signedInFetch: typeof fetch): ReturnType<typeof createRavelryService> =>
+      createRavelryService({
+        store: () => store,
+        canEncrypt: () => true,
+        fetchImpl,
+        signedInFetch,
+        lookupImpl: async () => [{ address: '93.184.216.34', family: 4 }],
+        log: () => undefined
+      })
+    const signedInReply = (url: string): Response => {
+      const reply = pdfReply()
+      Object.defineProperty(reply, 'url', { value: url })
+      return reply
+    }
+
+    it('is not used when the plain route already gets the PDF', async () => {
+      const signedInFetch = vi.fn<typeof fetch>()
+      fetchImpl.mockImplementation(async () => pdfReply())
+      await withSignIn(signedInFetch).instructions('https://www.ravelry.com/dls/1/2')
+      expect(signedInFetch).not.toHaveBeenCalled()
+    })
+
+    it('follows a plain redirect to the PDF, checking where it goes', async () => {
+      const signedInFetch = vi.fn<typeof fetch>()
+      fetchImpl.mockImplementation(async (input) =>
+        String(input).includes('ravelry.com/dls')
+          ? new Response(null, {
+              status: 302,
+              headers: { location: 'https://pdf.ravelrycache.com/designer/hat.pdf' }
+            })
+          : pdfReply()
+      )
+      await withSignIn(signedInFetch).instructions('https://www.ravelry.com/dls/1/2')
+      expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+        'https://www.ravelry.com/dls/1/2',
+        'https://pdf.ravelrycache.com/designer/hat.pdf'
+      ])
+      expect(signedInFetch).not.toHaveBeenCalled()
+    })
+
+    it('tries it for a Ravelry link that only gave a web page, following its redirects', async () => {
+      fetchImpl.mockImplementation(async () => htmlReply())
+      const signedInFetch = vi.fn<typeof fetch>(async () =>
+        signedInReply('https://pdf.ravelrycache.com/designer/hat.pdf')
+      )
+      const bytes = await withSignIn(signedInFetch).instructions('https://www.ravelry.com/dls/1/2')
+      expect(Buffer.from(bytes).toString()).toBe(PDF.toString())
+      expect(signedInFetch.mock.calls[0]![1]?.redirect).toBe('follow')
+    })
+
+    it('never uses it for anyone but Ravelry', async () => {
+      fetchImpl.mockImplementation(async () => htmlReply())
+      const signedInFetch = vi.fn<typeof fetch>()
+      for (const url of [
+        'https://designer.example.com/hat.pdf',
+        'https://www.ravelry.com.evil.example/hat.pdf'
+      ]) {
+        await expect(withSignIn(signedInFetch).instructions(url)).rejects.toThrow()
+      }
+      expect(signedInFetch).not.toHaveBeenCalled()
+    })
+
+    it('refuses a signed-in redirect that ends up somewhere else', async () => {
+      fetchImpl.mockImplementation(async () => htmlReply())
+      const signedInFetch = vi.fn<typeof fetch>(async () =>
+        signedInReply('https://evil.example.com/hat.pdf')
+      )
+      await expect(
+        withSignIn(signedInFetch).instructions('https://www.ravelry.com/dls/1/2')
+      ).rejects.toThrow('Left Ravelry')
+    })
+  })
+})

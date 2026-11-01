@@ -41,6 +41,14 @@ const launcherApi = {
   getTileImages: () => invoke('photos:tileImages'),
   onPhotosChanged: (cb: () => void) => on('photos:changed', cb),
   getKnitting: () => invoke('knitting:home'),
+  ravelryCategories: () => invoke('ravelry:homeCategories'),
+  ravelryBrowse: (category: string, page: number) =>
+    invoke('ravelry:homeBrowse', { category, page }),
+  ravelryPattern: (ravelryId: number) => invoke('ravelry:homePattern', { ravelryId }),
+  saveRavelry: (ravelryId: number) => invoke('knitting:saveRavelry', { ravelryId }),
+  ravelryPageState: () => invoke('knitting:ravelryPageState'),
+  saveRavelryPage: () => invoke('knitting:saveRavelryPage'),
+  onBrowserPageChanged: (cb: () => void) => on('browser:page-changed', cb),
   changeKnittingRows: (direction: IpcRequest<'knitting:changeRows'>['direction']) =>
     invoke('knitting:changeRows', { direction }),
   onKnittingChanged: (cb: () => void) => on('knitting:changed', cb),
