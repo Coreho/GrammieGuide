@@ -9,6 +9,7 @@ import {
 import { TilePhotoPicker } from './TilePhotoPicker'
 import { useConfigStore } from '../state/useConfigStore'
 import { WhatsAppControlsPanel } from './WhatsAppControls'
+import { CallbackTest } from './CallbackTest'
 import './ContactsTab.css'
 
 const emptyPerson = (id: ContactPerson['id']): ContactPerson => ({ id, name: '', phone: '' })
@@ -28,6 +29,8 @@ export function ContactsTab() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('Loading contact settings…')
   const [credentials, setCredentials] = useState(emptyCredentials)
+  // Bumped after each save so the test panel re-reads who and what it can test.
+  const [saves, setSaves] = useState(0)
   const loadConfig = useConfigStore((s) => s.load)
   useEffect(() => {
     let live = true
@@ -53,6 +56,7 @@ export function ContactsTab() {
     setMessage('Saving…')
     try {
       await work()
+      setSaves((count) => count + 1)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not save. Try again.')
     } finally {
@@ -218,7 +222,7 @@ export function ContactsTab() {
         <p>
           Use a registered Twilio SMS sender and an API key with messaging access. A messaging
           service must have a sender that can receive YES replies. Saving these fields does not test
-          delivery.
+          delivery; use the test below.
         </p>
         <form onSubmit={saveCredentials} autoComplete="off">
           <fieldset disabled={!ready || busy}>
@@ -261,6 +265,7 @@ export function ContactsTab() {
           </fieldset>
         </form>
       </details>
+      <CallbackTest refreshKey={saves} />
       <p>
         This is a callback request feature, not an emergency service. Complete sender registration
         and verify delivery and YES replies before relying on it.

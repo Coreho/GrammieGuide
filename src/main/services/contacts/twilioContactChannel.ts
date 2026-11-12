@@ -1,5 +1,10 @@
 import type { ContactPurpose } from '@shared/contacts'
-import type { ContactAttempt, ContactChannel, ContactReply } from './types'
+import {
+  ContactRejectedError,
+  type ContactAttempt,
+  type ContactChannel,
+  type ContactReply
+} from './types'
 
 export interface TwilioContactConfig {
   accountSid: string
@@ -63,6 +68,10 @@ export class TwilioContactChannel implements ContactChannel {
       })
       if (!response.ok || !response.body) {
         await response.body?.cancel()
+        // Twilio creates no message on a 4xx. Only the status is used: its error body
+        // can quote the number or the key and is never read.
+        if (body && response.status >= 400 && response.status < 500)
+          throw new ContactRejectedError()
         throw unavailable()
       }
       const reader = response.body.getReader()
@@ -80,7 +89,8 @@ export class TwilioContactChannel implements ContactChannel {
         await reader.cancel().catch(() => undefined)
       }
       return record(JSON.parse(Buffer.concat(chunks).toString('utf8')))
-    } catch {
+    } catch (error) {
+      if (error instanceof ContactRejectedError) throw error
       // Neither fetch errors nor Twilio error bodies are safe to forward or log.
       throw unavailable()
     }

@@ -47,6 +47,8 @@ const adminApi = {
   getContactSettings: () => invoke('contacts:getSettings'),
   saveContactSettings: (settings: IpcRequest<'contacts:saveSettings'>) =>
     invoke('contacts:saveSettings', settings),
+  getContactTest: () => invoke('contacts:testState'),
+  startContactTest: (contactId: string) => invoke('contacts:startTest', { contactId }),
   setContactCredentials: (credentials: IpcRequest<'admin:setContactCredentials'>) =>
     invoke('admin:setContactCredentials', credentials),
   recordNarration: (request: IpcRequest<'photos:recordNarration'>) =>

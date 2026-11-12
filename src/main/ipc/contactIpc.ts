@@ -87,6 +87,28 @@ export function registerContactIpc(
     }
   )
   ipcMain.handle(
+    'contacts:testState',
+    async (event): Promise<IpcResponse<'contacts:testState'>> => {
+      requireCaregiver(event)
+      return control().testState()
+    }
+  )
+  ipcMain.handle(
+    'contacts:startTest',
+    async (event, value: unknown): Promise<IpcResponse<'contacts:startTest'>> => {
+      requireCaregiver(event)
+      const contactId =
+        value && typeof value === 'object' ? (value as { contactId?: unknown }).contactId : null
+      const result = await control().startTest(contactId)
+      // Which person and what happened next stay out of the log; outcomes are
+      // logged by the runtime as contact-test-<status>.
+      logActivity(
+        result.problem ? `contact-test-refused-${result.problem}` : 'contact-test-started'
+      )
+      return result
+    }
+  )
+  ipcMain.handle(
     'admin:setContactCredentials',
     async (event, value: unknown): Promise<IpcResponse<'admin:setContactCredentials'>> => {
       requireCaregiver(event)

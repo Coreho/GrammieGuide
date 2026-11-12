@@ -22,7 +22,7 @@ import type {
   VoiceStart
 } from './checks/caregiverChecks'
 import type { BuiltinGameKey } from './games/gamesSchema'
-import type { ContactRequestSummary, HomeContactState } from './contacts'
+import type { ContactRequestSummary, ContactTestState, HomeContactState } from './contacts'
 import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
 import type {
   WhatsAppCallState,
@@ -167,6 +167,8 @@ export interface IpcApi {
   'contacts:request': { request: void; response: HomeContactState }
   'contacts:getSettings': { request: void; response: AdminContactSetup }
   'contacts:saveSettings': { request: ContactSetup; response: AdminContactSetup }
+  'contacts:testState': { request: void; response: ContactTestState }
+  'contacts:startTest': { request: { contactId: string }; response: ContactTestState }
   /** Her project as Home shows it; Home only. */
   'knitting:home': { request: void; response: HomeKnitting }
   /** One tap on Home's counter; main applies the double-tap guard. */

@@ -24,11 +24,21 @@ export function startContactRequests(
   )
   let polling = false
   let errorReported = false
+  // Outcomes of caregiver tests, as content-free events. Tests already saved when
+  // the app starts are noted silently so a restart doesn't log them again.
+  const testStatus = new Map<string, string>()
+  let primed = false
   const poll = async (): Promise<void> => {
     if (polling) return
     polling = true
     try {
       await service!.poll()
+      for (const request of await service!.list()) {
+        if (request.purpose !== 'test' || testStatus.get(request.id) === request.status) continue
+        testStatus.set(request.id, request.status)
+        if (primed) logActivity(`contact-test-${request.status}`)
+      }
+      primed = true
     } catch {
       if (!errorReported) {
         // A single generic event: no phones, credential values, SMS text or provider errors.
