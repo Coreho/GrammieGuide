@@ -189,14 +189,17 @@ test('saves real JPEGs and thumbnails with the correct longer-edge dimensions an
 test('saves captions, visibility and caregiver order through the Photos cards', async () => {
   const cards = admin.locator('.photo-editor')
   const first = cards.nth(0)
-  await first.getByLabel('Caption (optional)').fill('Family in the garden')
+  await first.getByLabel('About this photo (optional)').fill('Family in the garden')
   await first.getByRole('switch', { name: 'Show to her' }).uncheck()
   await first.getByLabel('Order', { exact: true }).fill('10')
   await first.getByRole('button', { name: 'Save changes', exact: true }).click()
-  await expect(cards.nth(2).getByLabel('Caption (optional)')).toHaveValue('Family in the garden')
+  await expect(cards.nth(2).getByLabel('About this photo (optional)')).toHaveValue(
+    'Family in the garden'
+  )
   await expect(cards.nth(2).getByText('Saved.', { exact: true })).toBeVisible()
   const second = cards.nth(0)
-  await second.getByLabel('Caption (optional)').fill('A happy afternoon')
+  await second.getByLabel('About this photo (optional)').fill('A happy afternoon')
+  await second.getByLabel('When it was taken (optional)').fill('Summer 1962 ')
   await second.getByRole('button', { name: 'Save changes', exact: true }).click()
   const all = await admin.evaluate(() => window.admin.listPhotos())
   expect(all.map((photo) => photo.id)).toEqual([imported[1]!.id, imported[2]!.id, imported[0]!.id])
@@ -204,6 +207,10 @@ test('saves captions, visibility and caregiver order through the Photos cards', 
   const visible = await launcher.evaluate(() => window.launcher.listPhotos())
   expect(visible.map((photo) => photo.id)).toEqual([imported[1]!.id, imported[2]!.id])
   expect(visible[0]!.caption).toBe('A happy afternoon')
+  expect(visible[0]!.date).toBe('Summer 1962')
+  // The tidied date is shown back, so the card is not left looking unsaved.
+  await expect(second.getByLabel('When it was taken (optional)')).toHaveValue('Summer 1962')
+  await expect(second.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled()
   await admin.screenshot({ path: test.info().outputPath('photos-admin.png'), fullPage: true })
   expect(rendererErrors).toEqual([])
 })

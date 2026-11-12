@@ -156,6 +156,14 @@ async function openViewer(): Promise<void> {
   await expect(page.getByRole('dialog', { name: 'Family photos' })).toBeVisible()
 }
 
+/** Which photo is up. Her words stay hidden until she taps, so the picture itself is checked. */
+async function showing(index: number): Promise<void> {
+  await expect(page.locator('.photo-viewer-picture img')).toHaveAttribute(
+    'src',
+    `grammie-media://photos/${entries[index]!.fileName}`
+  )
+}
+
 async function imageLoaded(): Promise<void> {
   await expect
     .poll(() =>
@@ -181,7 +189,7 @@ test('caregiver creates a Photos tile by name and opens its registered viewer', 
   await page.getByRole('button', { name: 'Our family album', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Our family album' })).toBeVisible()
   await imageLoaded()
-  await expect(page.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await showing(0)
   await page.getByRole('button', { name: '🏠 Home', exact: true }).click()
   await admin.evaluate(async () => {
     const config = await window.admin.getConfig()
@@ -194,14 +202,14 @@ test('opens locally while offline, pages through visible photos, and keeps their
   await page.context().setOffline(true)
   await openViewer()
   await imageLoaded()
-  await expect(page.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await showing(0)
   await expect(page.getByRole('button', { name: '🏠 Home', exact: true })).toBeFocused()
   await page.getByRole('button', { name: 'Next photo', exact: true }).click()
-  await expect(page.getByText(captions[1]!, { exact: true })).toBeVisible()
+  await showing(1)
   await page.getByRole('button', { name: 'Previous photo', exact: true }).click()
-  await expect(page.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await showing(0)
   await page.keyboard.press('ArrowLeft')
-  await expect(page.getByText(captions[2]!, { exact: true })).toBeVisible()
+  await showing(2)
   await expect(page.getByText('PRIVATE FAMILY NOTE')).toHaveCount(0)
   const log = await admin.evaluate(() => window.admin.getActivityLog())
   expect(log.some((event) => event.type === 'photos-viewer-opened')).toBe(true)
@@ -213,11 +221,90 @@ test('opens locally while offline, pages through visible photos, and keeps their
   expect(rendererErrors).toEqual([])
 })
 
+test('tapping a photo shows its words and date; each new photo starts plain', async () => {
+  const updated = await admin.evaluate(
+    (id) => window.admin.updatePhoto({ id, patch: { date: '  Summer \n 1962 ' } }),
+    entries[0]!.id
+  )
+  expect(updated.date).toBe('Summer 1962')
+  await admin.evaluate(
+    (id) => window.admin.updatePhoto({ id, patch: { caption: '' } }),
+    entries[2]!.id
+  )
+  await openViewer()
+  await imageLoaded()
+  const hint = page.getByText('Tap the photo to read about it', { exact: true })
+  const about = page.locator('.photo-viewer-about')
+  await expect(hint).toBeVisible()
+  await expect(about).toHaveCount(0)
+  await expect(page.getByText(captions[0]!, { exact: true })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Family photo. Read about it' }).click()
+  await expect(about.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await expect(about.getByText('Summer 1962', { exact: true })).toBeVisible()
+  await expect(hint).toHaveCount(0)
+  await page.screenshot({ path: test.info().outputPath('photo-about.png') })
+  // The card sits inside the picture and leaves her buttons alone.
+  const inside = await page.evaluate(() => {
+    const picture = document.querySelector('.photo-viewer-picture')!.getBoundingClientRect()
+    const card = document.querySelector('.photo-viewer-about')!.getBoundingClientRect()
+    return card.top >= picture.top && card.bottom <= picture.bottom && card.height > 0
+  })
+  expect(inside).toBe(true)
+  await page.getByRole('button', { name: 'Family photo. Hide the words' }).click()
+  await expect(about).toHaveCount(0)
+  await expect(hint).toBeVisible()
+
+  // A card left open does not follow her to the next photo.
+  await page.getByRole('button', { name: 'Family photo. Read about it' }).click()
+  await page.getByRole('button', { name: 'Next photo', exact: true }).click()
+  await showing(1)
+  await imageLoaded()
+  await expect(about).toHaveCount(0)
+  await page.getByRole('button', { name: 'Family photo. Read about it' }).click()
+  await expect(about.getByText(captions[1]!, { exact: true })).toBeVisible()
+  await expect(about.locator('.photo-viewer-date')).toHaveCount(0)
+
+  // Nothing to read: the picture is not a button and there is no hint.
+  await page.getByRole('button', { name: 'Next photo', exact: true }).click()
+  await showing(2)
+  await imageLoaded()
+  await expect(page.locator('.photo-viewer-photo')).toHaveCount(0)
+  await expect(hint).toHaveCount(0)
+  await expect(page.getByRole('img', { name: 'Family photo' })).toBeVisible()
+  await page.getByRole('button', { name: '🏠 Home', exact: true }).click()
+
+  const logged = JSON.stringify(await admin.evaluate(() => window.admin.getActivityLog()))
+  expect(logged).not.toContain('1962')
+  await admin.evaluate(({ id, caption }) => window.admin.updatePhoto({ id, patch: { caption } }), {
+    id: entries[2]!.id,
+    caption: captions[2]!
+  })
+})
+
+test('the slideshow waits while she is reading about a photo', async () => {
+  await admin.getByRole('checkbox', { name: /Gentle slideshow/ }).check()
+  await expect
+    .poll(() => admin.evaluate(() => window.admin.getConfig()))
+    .toHaveProperty('photos.slideshowEnabled', true)
+  await openViewer()
+  await imageLoaded()
+  await page.getByRole('button', { name: 'Family photo. Read about it' }).click()
+  await page.clock.fastForward(120_000)
+  await showing(0)
+  await expect(page.locator('.photo-viewer-about')).toBeVisible()
+  await page.getByRole('button', { name: 'Family photo. Hide the words' }).click()
+  await page.clock.fastForward(31_000)
+  await showing(1)
+  await page.getByRole('button', { name: '🏠 Home', exact: true }).click()
+  await admin.getByRole('checkbox', { name: /Gentle slideshow/ }).uncheck()
+})
+
 test('never advances automatically with the caregiver slideshow setting off', async () => {
   await openViewer()
   await imageLoaded()
   await page.clock.fastForward(120_000)
-  await expect(page.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await showing(0)
   await expect(page.getByRole('button', { name: /Pause photos|Play photos/ })).toHaveCount(0)
 })
 
@@ -229,25 +316,25 @@ test('caregiver enables slow advances; manual paging resets the wait and she can
   await openViewer()
   await imageLoaded()
   await page.clock.fastForward(29_000)
-  await expect(page.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await showing(0)
   await page.clock.fastForward(2_000)
-  await expect(page.getByText(captions[1]!, { exact: true })).toBeVisible()
+  await showing(1)
   await imageLoaded()
   await page.clock.fastForward(28_000)
   await page.getByRole('button', { name: 'Previous photo', exact: true }).click()
   await imageLoaded()
   await page.clock.fastForward(3_000)
-  await expect(page.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await showing(0)
   await page.getByRole('button', { name: 'Pause photos', exact: true }).click()
   await page.clock.fastForward(90_000)
-  await expect(page.getByText(captions[0]!, { exact: true })).toBeVisible()
+  await showing(0)
   await page.getByRole('button', { name: 'Play photos', exact: true }).click()
   await page.clock.fastForward(31_000)
-  await expect(page.getByText(captions[1]!, { exact: true })).toBeVisible()
+  await showing(1)
   await admin.getByRole('checkbox', { name: /Gentle slideshow/ }).uncheck()
   await expect(page.getByRole('button', { name: 'Pause photos', exact: true })).toHaveCount(0)
   await page.clock.fastForward(60_000)
-  await expect(page.getByText(captions[1]!, { exact: true })).toBeVisible()
+  await showing(1)
 })
 
 test('closing the viewer cancels its pending slideshow timer', async () => {
@@ -334,7 +421,7 @@ test('a missing picture stays calm, stops automatic advances, and lets her go ba
   await expect(page.getByText('Missing picture', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Previous photo', exact: true }).click()
   await imageLoaded()
-  await expect(page.getByText(captions[2]!, { exact: true })).toBeVisible()
+  await showing(2)
   await page.getByRole('button', { name: '🏠 Home', exact: true }).click()
   await admin.evaluate(
     (id) => window.admin.updatePhoto({ id, patch: { showToHer: false } }),
@@ -386,6 +473,7 @@ test('picture and controls fit at every text size, including a long caption', as
       }, fontStep)
       await openViewer()
       await imageLoaded()
+      await page.getByRole('button', { name: 'Family photo. Read about it' }).click()
       await expect(page.locator('.photo-viewer-caption')).toHaveText(caption)
       const bounds = await page.evaluate(() => {
         const image = document.querySelector('.photo-viewer-picture')!.getBoundingClientRect()

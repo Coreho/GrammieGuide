@@ -55,6 +55,7 @@ export function registerNarrationIpc(getStore: (kind: MediaLibrary) => LibrarySt
       url: '',
       thumbnailUrl: '',
       caption: '',
+      date: '',
       showToHer: false,
       order: 0,
       importIndex: 0
