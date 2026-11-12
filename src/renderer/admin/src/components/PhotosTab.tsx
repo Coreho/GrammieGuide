@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Photo, PhotoImportProgress } from '@shared/media/photoTypes'
+import { PHOTO_DATE_MAX, type Photo, type PhotoImportProgress } from '@shared/media/photoTypes'
 import './PhotosTab.css'
 import { useConfigStore } from '../state/useConfigStore'
 import { PhotoNarrationEditor } from './PhotoNarrationEditor'
@@ -18,6 +18,7 @@ function PhotoEditor({
   onRecording: (active: boolean) => void
 }) {
   const [caption, setCaption] = useState(photo.caption)
+  const [date, setDate] = useState(photo.date)
   const [showToHer, setShowToHer] = useState(photo.showToHer)
   const [order, setOrder] = useState(String(photo.order))
   const [busy, setBusy] = useState(false)
@@ -27,19 +28,23 @@ function PhotoEditor({
   const orderNumber = Number(order)
   const validOrder = order.trim() !== '' && Number.isSafeInteger(orderNumber) && orderNumber >= 0
   const dirty =
-    caption !== photo.caption || showToHer !== photo.showToHer || orderNumber !== photo.order
+    caption !== photo.caption ||
+    date !== photo.date ||
+    showToHer !== photo.showToHer ||
+    orderNumber !== photo.order
 
   const save = async (): Promise<void> => {
     setBusy(true)
     setError('')
     setSaved(false)
     try {
-      onSaved(
-        await window.admin.updatePhoto({
-          id: photo.id,
-          patch: { caption, showToHer, order: orderNumber }
-        })
-      )
+      const updated = await window.admin.updatePhoto({
+        id: photo.id,
+        patch: { caption, date, showToHer, order: orderNumber }
+      })
+      // Main tidies the date's spacing; show what was saved so the form isn't left "changed".
+      setDate(updated.date)
+      onSaved(updated)
       setSaved(true)
     } catch {
       setError('Could not save this photo. Your changes are still here; try again.')
@@ -73,13 +78,26 @@ function PhotoEditor({
       >
         <fieldset disabled={disabled || busy || recording}>
           <label>
-            Caption (optional)
+            About this photo (optional)
             <textarea
               value={caption}
               maxLength={2000}
               rows={3}
               onChange={(event) => {
                 setCaption(event.target.value)
+                setSaved(false)
+              }}
+            />
+          </label>
+          <label>
+            When it was taken (optional)
+            <input
+              type="text"
+              value={date}
+              maxLength={PHOTO_DATE_MAX}
+              placeholder="Summer 1962"
+              onChange={(event) => {
+                setDate(event.target.value)
                 setSaved(false)
               }}
             />
@@ -203,8 +221,8 @@ export function PhotosTab() {
     <section className="photos-tab" aria-labelledby="photos-title">
       <h2 id="photos-title">Photos</h2>
       <p>
-        Add family photos and a caption for each. Choose which photos to show her and the order they
-        appear.
+        Add family photos, with a few words about each and when it was taken. She sees those when
+        she taps the photo. Choose which photos to show her and the order they appear.
       </p>
       <p>JPG, PNG and WebP are supported. HEIC works when this Windows device can decode it.</p>
       <label className="photo-slideshow-setting">

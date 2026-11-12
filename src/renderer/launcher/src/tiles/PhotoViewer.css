@@ -33,6 +33,7 @@
 }
 
 .photo-viewer-picture {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -49,25 +50,74 @@
   object-fit: contain;
 }
 
-.photo-viewer-picture p,
-.photo-viewer-caption {
+.photo-viewer-picture > p,
+.photo-viewer-about p,
+.photo-viewer-hint {
   font-size: calc(30px * var(--font-scale, 1));
   line-height: 1.35;
   text-align: center;
   margin: 0;
 }
 
-.photo-viewer-picture p {
+.photo-viewer-picture > p {
   padding: 32px;
 }
 
-.photo-viewer-caption {
-  flex: none;
-  max-height: 28%;
+/* The picture is the button. It must not pick up the clay button look below. */
+.photo-viewer button.photo-viewer-photo {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border-radius: 24px;
+  background: none;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.photo-viewer button.photo-viewer-photo:focus-visible {
+  outline-offset: -3px;
+}
+
+/*
+ * The words sit over the bottom of the picture on the page color, so they read
+ * the same over a dark photo or a pale one, in every theme and background.
+ */
+.photo-viewer-about {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  max-height: 55%;
   overflow: auto;
+  box-sizing: border-box;
+  padding: 20px 28px;
+  border-radius: 20px;
+  background: var(--page);
+  color: var(--ink);
+  /* The picture's own backing is the page color too; the edge keeps the card a card. */
+  border: 2px solid var(--ink2);
+  box-shadow: 0 8px 24px rgba(var(--sh), 0.35);
+}
+
+.photo-viewer-caption {
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  padding: 0 16px;
+}
+
+.photo-viewer-about .photo-viewer-date {
+  font-size: calc(26px * var(--font-scale, 1));
+  font-weight: 700;
+  overflow-wrap: break-word;
+}
+
+.photo-viewer-caption + .photo-viewer-date {
+  margin-top: 8px;
+}
+
+.photo-viewer-hint {
+  flex: none;
+  font-size: calc(24px * var(--font-scale, 1));
 }
 
 .photo-viewer-controls {

@@ -13,12 +13,17 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
   const [paused, setPaused] = useState(false)
   const [loadedId, setLoadedId] = useState<string | null>(null)
   const [failedId, setFailedId] = useState<string | null>(null)
+  // Which photo's card is open. Keyed by photo, so every new photo starts plain
+  // and a photo the caregiver swaps in mid-view can't inherit an open card.
+  const [aboutId, setAboutId] = useState<string | null>(null)
   const home = useRef<HTMLButtonElement>(null)
   const surface = useRef<HTMLElement>(null)
   const photo = photos?.[index]
   const count = photos?.length ?? 0
   const imageReady = Boolean(photo && loadedId === photo.id && failedId !== photo.id)
   const playing = config.photos.slideshowEnabled && !paused
+  const hasAbout = Boolean(photo && (photo.caption || photo.date))
+  const aboutOpen = Boolean(photo && hasAbout && imageReady && aboutId === photo.id)
   const narration = useNarration(imageReady ? photo?.narration?.url : undefined)
   const autoPlayed = useRef<string | null>(null)
 
@@ -66,12 +71,13 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
   }, [])
 
   useEffect(() => {
-    if (!playing || !imageReady || count < 2 || narration.playing) return
+    // An open card means she is reading: the photo stays until she closes it.
+    if (!playing || !imageReady || count < 2 || narration.playing || aboutOpen) return
     // Wait from the displayed photo, not from when loading began. Manual paging,
     // pause, a failed image, or leaving the viewer cancels this pending advance.
     const timer = window.setTimeout(() => setIndex((current) => (current + 1) % count), 30_000)
     return () => window.clearTimeout(timer)
-  }, [playing, imageReady, count, index, narration.playing])
+  }, [playing, imageReady, count, index, narration.playing, aboutOpen])
 
   function move(direction: number): void {
     narration.stop()
@@ -82,6 +88,7 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
     }
     setFailedId(null)
     setLoadedId(null)
+    setAboutId(null)
     setIndex((current) => (current + direction + count) % count)
   }
 
@@ -137,7 +144,7 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
           {photo && failedId === photo.id && (
             <p role="status">This photo isn&apos;t ready right now.</p>
           )}
-          {photo && failedId !== photo.id && (
+          {photo && failedId !== photo.id && !hasAbout && (
             <img
               key={photo.id}
               src={photo.url}
@@ -147,11 +154,36 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
               onError={() => setFailedId(photo.id)}
             />
           )}
+          {photo && failedId !== photo.id && hasAbout && (
+            // The whole picture is the target: no small control to find or aim at.
+            <button
+              key={photo.id}
+              className="photo-viewer-photo"
+              aria-expanded={aboutOpen}
+              aria-controls="photo-viewer-about"
+              aria-label={
+                aboutOpen ? 'Family photo. Hide the words' : 'Family photo. Read about it'
+              }
+              onClick={() => setAboutId(aboutOpen ? null : photo.id)}
+            >
+              <img
+                src={photo.url}
+                alt=""
+                draggable={false}
+                onLoad={() => setLoadedId(photo.id)}
+                onError={() => setFailedId(photo.id)}
+              />
+            </button>
+          )}
+          {photo && aboutOpen && (
+            <div id="photo-viewer-about" className="photo-viewer-about" tabIndex={0}>
+              {photo.caption && <p className="photo-viewer-caption">{photo.caption}</p>}
+              {photo.date && <p className="photo-viewer-date">{photo.date}</p>}
+            </div>
+          )}
         </div>
-        {photo?.caption && failedId !== photo.id && (
-          <p className="photo-viewer-caption" tabIndex={0}>
-            {photo.caption}
-          </p>
+        {imageReady && hasAbout && !aboutOpen && (
+          <p className="photo-viewer-hint">Tap the photo to read about it</p>
         )}
         {imageReady && photo?.narration && (
           <div className="photo-viewer-story">
