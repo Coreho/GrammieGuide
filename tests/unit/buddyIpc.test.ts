@@ -79,6 +79,23 @@ describe('buddy:chat', () => {
     expect(mocks.create).toHaveBeenCalledTimes(1)
   })
 
+  it('never points her to the callback button while SMS callbacks are hidden', async () => {
+    const config = defaultConfig()
+    config.contacts.enabled = true
+    config.contacts.people = [{ id: 'preferred', name: 'Sarah', phone: '+15551111111' }]
+    mocks.getConfig.mockReturnValue(config)
+    const invoke = mocks.handle.mock.calls.find(([channel]) => channel === 'buddy:chat')![1]
+    const request = { turns: [{ role: 'user', text: 'I am scared' }] }
+    expect((await invoke({ sender: mocks.sender }, request)).reply).not.toContain('Ask Sarah')
+    vi.stubEnv('GRAMMIEGUIDE_E2E', '1')
+    vi.stubEnv('GRAMMIEGUIDE_SMS_CALLBACKS', '1')
+    try {
+      expect((await invoke({ sender: mocks.sender }, request)).reply).toContain('Ask Sarah to call')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('refuses an unverified model without calling inference', async () => {
     const config = defaultConfig()
     config.buddy.model = 'unverified'

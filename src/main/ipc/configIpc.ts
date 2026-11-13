@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { getConfig, setConfig } from '../config/store'
 import { toPublicConfig, mergeAdminPatch, tileSchema, type Config } from '@shared/configSchema'
+import { smsCallbacksAvailable } from '../services/contacts/smsCallbacks'
 import { nextTileColor } from '@shared/tileColors'
 import {
   availableSlots,
@@ -13,7 +14,7 @@ import { logActivity } from '../services/activityLog/activityLog'
 import { getLauncherWindow } from '../windows/windowManager'
 
 export function registerConfigIpc(): void {
-  ipcMain.handle('config:get', () => toPublicConfig(getConfig()))
+  ipcMain.handle('config:get', () => toPublicConfig(getConfig(), smsCallbacksAvailable()))
 
   ipcMain.handle('config:set', (_e, patch: Partial<Config>) => {
     requireAdminUnlocked()
@@ -60,7 +61,7 @@ export function registerConfigIpc(): void {
     // setConfig validates and throws before touching the cache or the file, so
     // this log line - and the config:changed push below it - only ever describe a
     // change that actually happened.
-    const updated = toPublicConfig(setConfig(sanitized))
+    const updated = toPublicConfig(setConfig(sanitized), smsCallbacksAvailable())
     logActivity('config-updated', Object.keys(sanitized).join(','))
     // The launcher only reads config on mount - push admin edits to it so
     // a new tile or theme shows up on her screen without a restart.

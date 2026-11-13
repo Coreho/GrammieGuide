@@ -54,7 +54,7 @@ describe('settings backups', () => {
     const source = setup()
     const before = structuredClone(source)
     const restored = parseConfigBackup(buildConfigBackup(source), defaultConfig())
-    expect(toPublicConfig(restored)).toEqual(toPublicConfig(source))
+    expect(toPublicConfig(restored, true)).toEqual(toPublicConfig(source, true))
     expect(source).toEqual(before)
     expect(restored.buddy).not.toHaveProperty('anthropicApiKey')
     expect(restored.buddy).not.toHaveProperty('openrouterApiKey')
