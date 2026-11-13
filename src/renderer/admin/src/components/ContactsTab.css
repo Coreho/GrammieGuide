@@ -49,3 +49,27 @@
   cursor: pointer;
   padding: 12px 0;
 }
+
+.contacts-test {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #b8c4d1;
+  border-radius: 8px;
+}
+.contacts-test select {
+  display: block;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 8px;
+  font: inherit;
+}
+.contacts-test-result ul {
+  padding: 0;
+  list-style: none;
+}
+.contacts-test-result li {
+  margin: 8px 0;
+}
+.contacts-test-checked {
+  font-size: 0.9em;
+}
