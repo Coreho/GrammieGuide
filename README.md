@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-11-01_
+_Last updated: 2026-11-12_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -30,7 +30,7 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 - **ChatGPT-only Buddy (TASK-60)** - admin → Buddy connects a ChatGPT account, discovers its models and requires a completed reply test before selecting a model. Tokens stay encrypted in main. Anthropic/OpenRouter and API-key setup have been removed; schema 020 preserves unrelated settings and media. Owner sign-in, GPT-6.1-Sol completed inference and four synthetic conversations passed; suitability with the kiosk user remains unverified. See [setup and checks](docs/buddy-chatgpt.md).
 
-- **Ask family to call (TASK-22 / TASK-33)** - admin → Contacts sets a preferred person, optional fallback, photos, SMS numbers, request timing and write-only Twilio credentials. Home has a fixed **Ask {name} to call** button and truthful delivery, YES, fallback and failure states. Repeated taps reuse saved requests; Buddy points her to the button when she seems upset. Live SMS proof and real-kiosk verification remain outstanding. See [setup and checks](docs/contact-requests.md).
+- **Ask family to call (TASK-22 / TASK-33)** - admin → Contacts sets a preferred person, optional fallback, photos, SMS numbers, request timing and write-only Twilio credentials. Home has a fixed **Ask {name} to call** button and truthful delivery, YES, fallback and failure states. Repeated taps reuse saved requests; Buddy points her to the button when she seems upset. The texts name GrammieGuide and say how to opt out, matching the samples registered with the US carriers (A2P 10DLC). Live SMS proof and real-kiosk verification remain outstanding. See [setup and checks](docs/contact-requests.md).
 - **WhatsApp calls (development, TASK-61 / TASK-63 / TASK-64)** - isolated in-app account linking, a Family calls built-in tile, up to six ordered photo contacts with call/answer/end controls (TASK-76), call audio priority and local teardown fallback. Voice calls, full reboot persistence and automatic network recovery are owner-confirmed. Video adds an in-app picture and self preview with explicit camera access; fake-camera checks pass, while real video still needs verification. Keep the separate Windows WhatsApp app closed to avoid duplicate incoming-call windows. See [setup and limits](docs/whatsapp-call-controls.md).
 
 - **Reader mode and personal facts** - News feed stories open as readable clay articles, with Show page/Show article and full-article Read aloud. Ordinary article pages can use the reader too. Admin → Buddy now saves caregiver-approved personal facts and dated plans; cancelled/expired plans are excluded, and changes take effect during an ongoing chat. See [details and checks](docs/video-reader-and-buddy-facts.md).

@@ -22,6 +22,25 @@ unlock and the caregiver main-frame identity. Saving setup or credentials sends
 no text and does not verify the account or sender. Contact settings and provider
 credentials cannot change until any active real/test request guard expires.
 
+## Registered wording (A2P 10DLC)
+
+US carriers deliver texts from a 10-digit number only under a registered
+campaign, and filter texts that drift from its sample messages. The two texts
+the app sends are fixed in `twilioContactChannel.ts` and are the campaign's
+samples word for word:
+
+- `GrammieGuide: Grammie asked you to call her. Reply YES to confirm you saw this request. Reply STOP to opt out.`
+- `GrammieGuide: TEST. This is a caregiver check, not a request for help. Reply YES to confirm you saw this test. Reply STOP to opt out.`
+
+The campaign (Sole Proprietor use case) links two public pages, which quote the
+request text and the spoken consent script: <https://koreokorp.com/grammieguide/terms>
+and <https://koreokorp.com/grammieguide/privacy>. They are static files on the
+web server in `/opt/stacks/grammieguide-pages`, not part of this repo. Change
+the code, the campaign samples and the terms page together. Family members
+agree in person before their number is entered in admin. Twilio answers STOP and
+HELP itself; after a STOP it refuses later texts to that number, which the app
+reports as a failed request and so moves on to the fallback person.
+
 TASK-17's real delivery/YES proof remains outstanding. No live messages were
 sent during this work. Run that proof with the registered sender before enabling
 this for daily use; also check the photo, text, touch targets and fallback on her
