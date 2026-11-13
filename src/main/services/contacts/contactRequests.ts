@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import type { ContactRequestSummary } from '@shared/contacts'
+import { testSettled, type ContactRequestSummary } from '@shared/contacts'
 import {
+  ContactRejectedError,
   summarize,
   type ContactChannel,
   type RequestJournal,
@@ -96,8 +97,10 @@ export class ContactRequests {
       if (!result.sid) throw new Error('Missing message ID')
       saved.sid = result.sid
       saved.sender = result.sender
-    } catch {
-      saved.status = 'unknown'
+    } catch (error) {
+      // A refusal is certain, so the fallback can be tried at once. A lost
+      // response is not: the text may have gone, and is never sent again.
+      saved.status = error instanceof ContactRejectedError ? 'failed' : 'unknown'
     }
     await this.persist(journal, request)
   }
@@ -106,16 +109,19 @@ export class ContactRequests {
     return this.run(async () => {
       validateOptions(options)
       const journal = await this.load()
-      const active = journal.requests.find(
-        (r) => r.purpose === options.purpose && r.expiresAt > this.now()
-      )
-      // Even answered/failed requests keep their tap guard until expiry. A new
+      const open = journal.requests.filter((r) => r.expiresAt > this.now() && !testSettled(r))
+      const active = open.find((r) => r.purpose === options.purpose)
+      // Even answered/failed real requests keep their tap guard until expiry. A new
       // request becomes possible at the exact expiry boundary, never via a retry.
       if (active) return summarize(active)
       const phones = new Set(options.contacts.map((c) => c.phone))
+      // A test may not share a recipient with anything still open. Her real request
+      // is never refused because of a caregiver test.
       if (
-        journal.requests.some(
-          (r) => r.expiresAt > this.now() && r.contacts.some((c) => phones.has(c.phone))
+        open.some(
+          (r) =>
+            (options.purpose === 'test' || r.purpose === 'real') &&
+            r.contacts.some((c) => phones.has(c.phone))
         )
       ) {
         throw new Error('A request for this contact is already active')
@@ -147,7 +153,12 @@ export class ContactRequests {
   poll(): Promise<void> {
     return this.run(async () => {
       const journal = await this.load()
-      for (const request of journal.requests) {
+      // Her real requests first: if a test is open for the same person, one YES
+      // must count for her request, not be used up by the test.
+      const ordered = [...journal.requests].sort(
+        (a, b) => Number(a.purpose === 'test') - Number(b.purpose === 'test')
+      )
+      for (const request of ordered) {
         if (this.now() >= request.expiresAt) {
           if (request.status !== 'expired' && request.status !== 'answered')
             await this.persist(journal, request)

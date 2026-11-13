@@ -4,8 +4,13 @@ import {
   type ContactConfig,
   type AdminContactSetup
 } from '@shared/contactSettings'
-import type { HomeContactState } from '@shared/contacts'
+import { testSettled, type ContactTestState, type HomeContactState } from '@shared/contacts'
 import type { ContactRequests } from './contactRequests'
+
+/** Long enough for someone to notice a text and reply YES; short enough to try again soon. */
+export const TEST_EXPIRES_MS = 5 * 60_000
+/** After this, a test text with no delivery report reads as unconfirmed. */
+export const TEST_UNCONFIRMED_MS = 2 * 60_000
 
 /** Derives every destination from saved settings. Home never supplies a phone or a URL. */
 export class ContactController {
@@ -31,7 +36,9 @@ export class ContactController {
 
   private async requireNoActiveRequest(): Promise<void> {
     const requests = await this.requests.list()
-    if (requests.some((request) => request.expiresAt > this.now())) {
+    // A test carries its own copy of the person it texted, so only her real
+    // request needs the settings held still.
+    if (requests.some((r) => r.purpose === 'real' && r.expiresAt > this.now())) {
       throw new Error('A callback request is active. Contact settings can change after it expires.')
     }
   }
@@ -95,6 +102,55 @@ export class ContactController {
     } catch {
       return { contact, request: null, problem: 'unavailable' }
     }
+  }
+
+  /** The latest test only. Reading it never sends or resends anything. */
+  async testState(problem?: ContactTestState['problem']): Promise<ContactTestState> {
+    const config = this.config()
+    const base = {
+      people: config.people.slice(0, 2).map(({ id, name }) => ({ id, name })),
+      hasCredentials: Boolean(config.credentials),
+      checkedAt: this.now()
+    }
+    try {
+      const test =
+        (await this.requests.list()).filter((request) => request.purpose === 'test').at(-1) ?? null
+      return { ...base, test, ...(problem ? { problem } : {}) }
+    } catch {
+      return { ...base, test: null, problem: 'unavailable' }
+    }
+  }
+
+  /** One marked test text to one saved person. The panel supplies an ID, never a number. */
+  startTest(contactId: unknown): Promise<ContactTestState> {
+    return this.run(async () => {
+      const config = this.config()
+      const person = config.people.slice(0, 2).find((item) => item.id === contactId)
+      if (!person || !config.credentials) return this.testState('not-configured')
+      const now = this.now()
+      let open
+      try {
+        open = (await this.requests.list()).filter((request) => request.expiresAt > now)
+      } catch {
+        return this.testState('unavailable')
+      }
+      // Her request comes first: no test text goes out while family may be answering her.
+      if (open.some((request) => request.purpose === 'real'))
+        return this.testState('help-request-active')
+      if (open.some((request) => request.purpose === 'test' && !testSettled(request)))
+        return this.testState('test-active')
+      try {
+        await this.requests.request({
+          purpose: 'test',
+          contacts: [person],
+          expiresAfterMs: TEST_EXPIRES_MS,
+          fallbackAfterMs: TEST_UNCONFIRMED_MS
+        })
+      } catch {
+        return this.testState('unavailable')
+      }
+      return this.testState()
+    })
   }
 
   request(): Promise<HomeContactState> {
