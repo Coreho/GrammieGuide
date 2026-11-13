@@ -24,6 +24,25 @@ settings and provider credentials cannot change while her real request's guard i
 active. A caregiver test does not hold them: it keeps its own copy of the person
 it texted.
 
+## Registered wording (A2P 10DLC)
+
+US carriers deliver texts from a 10-digit number only under a registered
+campaign, and filter texts that drift from its sample messages. The two texts
+the app sends are fixed in `twilioContactChannel.ts` and are the campaign's
+samples word for word:
+
+- `GrammieGuide: Grammie asked you to call her. Reply YES to confirm you saw this request. Reply STOP to opt out.`
+- `GrammieGuide: TEST. This is a caregiver check, not a request for help. Reply YES to confirm you saw this test. Reply STOP to opt out.`
+
+The campaign (Sole Proprietor use case) links two public pages, which quote the
+request text and the spoken consent script: <https://koreokorp.com/grammieguide/terms>
+and <https://koreokorp.com/grammieguide/privacy>. They are static files on the
+web server in `/opt/stacks/grammieguide-pages`, not part of this repo. Change
+the code, the campaign samples and the terms page together. Family members
+agree in person before their number is entered in admin. Twilio answers STOP and
+HELP itself; after a STOP it refuses later texts to that number, which the app
+reports as a failed request and so moves on to the fallback person.
+
 ## Twilio setup
 
 1. In the Twilio Console, buy or choose a phone number that can send and receive
@@ -45,7 +64,7 @@ it texted.
 ## Caregiver test text (TASK-54)
 
 **admin > Contacts > Test a callback text** sends one real text, worded as a
-test ("TEST from GrammieGuide. This is a caregiver check, not a request for
+test ("GrammieGuide: TEST. This is a caregiver check, not a request for
 help. Reply YES..."), to the first or second saved person, through the same
 saved request lifecycle as her own requests. The panel shows three separate
 lines, each needing its own evidence:

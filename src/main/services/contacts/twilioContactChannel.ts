@@ -13,6 +13,17 @@ export interface TwilioContactConfig {
   sender: string
   messagingServiceSid?: string
 }
+/**
+ * These are the sample messages in the A2P 10DLC campaign registration and on
+ * koreokorp.com/grammieguide/terms, word for word. US carriers filter texts that
+ * drift from the registered samples, so change all three together. Each names
+ * the program and says how to opt out, which the registration requires, and
+ * fits one 160-character SMS.
+ */
+const CONTACT_SMS_TEXT: Record<ContactPurpose, string> = {
+  real: 'GrammieGuide: Grammie asked you to call her. Reply YES to confirm you saw this request. Reply STOP to opt out.',
+  test: 'GrammieGuide: TEST. This is a caregiver check, not a request for help. Reply YES to confirm you saw this test. Reply STOP to opt out.'
+}
 const ORIGIN = 'https://api.twilio.com'
 const phone = /^\+[1-9]\d{7,14}$/
 const messageId = /^SM[0-9a-fA-F]{32}$/
@@ -104,10 +115,7 @@ export class TwilioContactChannel implements ContactChannel {
     if (!phone.test(attempt.phone)) throw unavailable()
     const body = new URLSearchParams({
       To: attempt.phone,
-      Body:
-        purpose === 'test'
-          ? 'TEST from GrammieGuide. This is a caregiver check, not a request for help. Reply YES to confirm you saw this test.'
-          : 'Grammie asked you to call her. Reply YES to confirm you saw this request.'
+      Body: CONTACT_SMS_TEXT[purpose]
     })
     if (config.messagingServiceSid) body.set('MessagingServiceSid', config.messagingServiceSid)
     else body.set('From', config.sender)
