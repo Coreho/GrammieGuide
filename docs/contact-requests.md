@@ -1,5 +1,23 @@
 # Family callback requests (TASK-22, TASK-33 and TASK-54)
 
+> **Hidden for now (TASK-78).** US carriers deliver these texts only once the
+> A2P 10DLC campaign is approved, and until then every text would read "Sent"
+> and never "Delivered". `SMS_CALLBACKS_RELEASED` in
+> `src/main/services/contacts/smsCallbacks.ts` is `false`, and main's
+> `smsCallbacksAvailable()` gates every surface: `toPublicConfig` reports
+> `contacts.enabled` as false to both renderers (so neither Home nor admin's
+> Home preview draws the button), `contacts:home` returns no contact,
+> `contacts:request` and `contacts:startTest` refuse as `not-configured`
+> without sending, Buddy gets no button to point to, and admin → Contacts hides
+> Callback requests, SMS credentials, Test a callback text and the disclaimer
+> (`AdminContactSetup.smsCallbacks`). People, photos and Family calls are
+> untouched. Nothing saved is cleared: the caregiver's on/off choice, timing
+> and credentials stay on disk, and saving the people keeps them. To release,
+> set the constant to `true`. The e2e suites that exercise the feature opt in
+> with `GRAMMIEGUIDE_SMS_CALLBACKS=1`, which is honoured only together with
+> `GRAMMIEGUIDE_E2E=1`; `tests/e2e/sms-callbacks-hidden.spec.ts` launches
+> without it and checks the hidden state.
+
 Home offers **Ask {name} to call** in its reserved footer space when enabled.
 The button shows the preferred person's library photo, with a phone icon if the
 photo is missing. It opens a calm status screen with Back to Home and, while

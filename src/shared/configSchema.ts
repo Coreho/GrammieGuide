@@ -203,14 +203,15 @@ export type PublicConfig = Omit<Config, 'buddy' | 'reliability' | 'contacts'> & 
   reliability: Omit<Config['reliability'], 'adminPinHash' | 'adminPinSalt'>
 }
 
-export function toPublicConfig(cfg: Config): PublicConfig {
+/** `smsCallbacks` is required so no renderer-bound copy can skip main's release switch. */
+export function toPublicConfig(cfg: Config, smsCallbacks: boolean): PublicConfig {
   const publicBuddy = buddyConfigSchema.parse(cfg.buddy)
   const { adminPinHash: _hash, adminPinSalt: _salt, ...publicReliability } = cfg.reliability
   return {
     ...cfg,
     buddy: publicBuddy,
     reliability: publicReliability,
-    contacts: publicContacts(cfg.contacts)
+    contacts: publicContacts(cfg.contacts, smsCallbacks)
   }
 }
 

@@ -1,11 +1,15 @@
 import { toPublicConfig } from '@shared/configSchema'
+import { smsCallbacksAvailable } from '../contacts/smsCallbacks'
 import { getConfig, setConfig } from '../../config/store'
 import { getLauncherWindow } from '../../windows/windowManager'
 import type { MusicSettings } from '@shared/music/musicSchema'
 
 export function saveMusicSettings(music: MusicSettings): MusicSettings {
   const config = setConfig({ music })
-  getLauncherWindow()?.webContents.send('config:changed', toPublicConfig(config))
+  getLauncherWindow()?.webContents.send(
+    'config:changed',
+    toPublicConfig(config, smsCallbacksAvailable())
+  )
   return config.music
 }
 

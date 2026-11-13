@@ -1,6 +1,7 @@
 import { dialog, ipcMain } from 'electron'
 import { readFile, writeFile } from 'node:fs/promises'
 import { toPublicConfig } from '@shared/configSchema'
+import { smsCallbacksAvailable } from '../services/contacts/smsCallbacks'
 import type { IpcResponse } from '@shared/ipcContract'
 import { getConfig, setConfig } from '../config/store'
 import { buildConfigBackup, ConfigBackupError, parseConfigBackup } from '../services/config/backup'
@@ -69,7 +70,7 @@ export function registerBackupIpc(): void {
     requireAdminUnlocked()
     try {
       const restored = parseConfigBackup(text, getConfig())
-      const config = toPublicConfig(setConfig(restored))
+      const config = toPublicConfig(setConfig(restored), smsCallbacksAvailable())
       getLauncherWindow()?.webContents.send('config:changed', config)
       logActivity('settings-backup-restored')
       return { ok: true, config }

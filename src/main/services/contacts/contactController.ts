@@ -29,7 +29,7 @@ export class ContactController {
     return result
   }
 
-  settings(): AdminContactSetup {
+  settings(): Omit<AdminContactSetup, 'smsCallbacks'> {
     const { credentials, ...settings } = this.config()
     return { ...settings, hasCredentials: Boolean(credentials) }
   }
@@ -43,7 +43,7 @@ export class ContactController {
     }
   }
 
-  saveSettings(value: unknown): Promise<AdminContactSetup> {
+  saveSettings(value: unknown): Promise<Omit<AdminContactSetup, 'smsCallbacks'>> {
     return this.run(async () => {
       const parsed = contactSetupSchema.safeParse(value)
       if (!parsed.success)

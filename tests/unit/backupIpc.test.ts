@@ -86,11 +86,11 @@ describe('admin backup IPC', () => {
       device.reliability.adminPinHash = 'latest-hash'
       return buildConfigBackup(source)
     })
-    expect(await invoke('backup:restore')).toEqual({ ok: true, config: toPublicConfig(source) })
+    expect(await invoke('backup:restore')).toEqual({ ok: true, config: toPublicConfig(source, false) })
     expect(device.display.fontStep).toBe(3)
     expect(device.buddy).not.toHaveProperty('anthropicApiKey')
     expect(device.reliability).toEqual({ adminPinHash: 'latest-hash', adminPinSalt: 'device-salt' })
-    expect(mocks.send).toHaveBeenCalledWith('config:changed', toPublicConfig(source))
+    expect(mocks.send).toHaveBeenCalledWith('config:changed', toPublicConfig(source, false))
   })
 
   it.each([

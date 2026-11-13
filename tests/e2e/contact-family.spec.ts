@@ -37,7 +37,7 @@ test.beforeAll(async () => {
   app = await electron.launch({
     args: ['.', `--user-data-dir=${folder}`],
     cwd: process.cwd(),
-    env: { ...process.env, GRAMMIEGUIDE_E2E: '1' }
+    env: { ...process.env, GRAMMIEGUIDE_E2E: '1', GRAMMIEGUIDE_SMS_CALLBACKS: '1' }
   })
   home = await app.firstWindow()
   home.on('pageerror', (error) => errors.push(error.message))

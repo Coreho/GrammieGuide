@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { BuddyChatTurn } from '@shared/ipcContract'
 import { getConfig } from '../config/store'
+import { smsCallbacksAvailable } from '../services/contacts/smsCallbacks'
 import { buddyChat } from '../services/ai/buddyChatService'
 import { chatGptBuddyReply } from '../services/chatgpt/buddyAdapter'
 import { getChatGptSession } from '../services/chatgpt/runtime'
@@ -82,8 +83,9 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       log: logActivity,
       personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
       contactButton: () => {
+        // A hidden button must never be suggested to her (see smsCallbacks.ts).
         const contacts = getConfig().contacts
-        return contacts.enabled && contacts.people[0]
+        return smsCallbacksAvailable() && contacts.enabled && contacts.people[0]
           ? `Ask ${contacts.people[0].name} to call`
           : null
       },
