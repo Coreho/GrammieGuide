@@ -1,11 +1,11 @@
 ---
 id: TASK-25
 title: Caregiver status dashboard
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-09-29 05:55'
-updated_date: '2026-11-14 20:49'
+updated_date: '2026-11-15 03:02'
 labels: []
 milestone: m-11
 dependencies:
@@ -25,13 +25,13 @@ The caregiver has Reliability and Activity tabs, but no at-a-glance answer to "i
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A dashboard shows whether the device is online and since when, the last successful startup, crashes or watchdog restarts in the last 7 days, and failed help requests
-- [ ] #2 Audio is checked with a Test sound button that the caregiver confirms they heard; the dashboard shows when that was last confirmed
-- [ ] #3 Crashes are told apart from power loss and deliberate quits
-- [ ] #4 This health record survives restarts and has a fixed maximum size on disk
-- [ ] #5 Wording reports what happened and never describes inactivity or repeated taps as distress
-- [ ] #6 The dashboard is admin-only
-- [ ] #7 Tests cover the health record: saving, the size limit and crash counting
+- [x] #1 A dashboard shows whether the device is online and since when, the last successful startup, crashes or watchdog restarts in the last 7 days, and failed help requests
+- [x] #2 Audio is checked with a Test sound button that the caregiver confirms they heard; the dashboard shows when that was last confirmed
+- [x] #3 Crashes are told apart from power loss and deliberate quits
+- [x] #4 This health record survives restarts and has a fixed maximum size on disk
+- [x] #5 Wording reports what happened and never describes inactivity or repeated taps as distress
+- [x] #6 The dashboard is admin-only
+- [x] #7 Tests cover the health record: saving, the size limit and crash counting
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -50,6 +50,8 @@ The caregiver has Reliability and Activity tabs, but no at-a-glance answer to "i
 
 <!-- SECTION:NOTES:BEGIN -->
 Built as planned. Also fixed a TASK-49 bug the new e2e found: the voice check's windowsVoicesReady took Chromium's first, empty voiceschanged as 'no voices', so Test sound reported 'No voice is available' when clicked soon after admin opened (57 ms, never waited); it now waits for a non-empty list or 5 s. The network check now also runs once at startup so the Status tab isn't blank for 10 s. Unit: 1659 passed; lint/typecheck clean; status-dashboard + caregiver-checks e2e 18/18 twice.
+
+Full e2e on 66a270f: 245 passed, 1 skipped, 1 failed (contact-test.spec.ts 'one test text...', the known activity-log race fixed by #75's expect.poll; this branch is from main without #75), 2 did not run (the rest of that serial file). PR #76.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -61,3 +63,9 @@ created: 2026-10-14 17:18
 TASK-49 adds the initial caregiver test panel without waiting for contact delivery. Coordinate its heard-sound confirmation with this dashboard's existing Test sound AC rather than creating competing health records. TASK-54 adds contact testing once the SMS request lifecycle and Home flow are ready; test failures must remain distinct from real help-request failures.
 ---
 <!-- COMMENTS:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added admin's Status tab: internet state, start and last successful startup, 7-day counts of unexpected stops, watchdog restarts, power loss, Windows shutdowns, deliberate closes and failed real help requests, and a Test sound counted only after 'I heard it'. Backed by a saved health record (30 days, 200 runs, 256 KB cap, atomic writes, damaged file set aside); unended runs are classified at next start by boot time vs last heartbeat. health:get is admin-only. Also fixed the voice check giving up on Chromium's first empty voiceschanged. Verified: 1659 unit tests, typecheck/lint, status-dashboard + checks e2e 18/18 twice, full e2e 245 passed (the one failure is the known contact-test race fixed in #75), crc review on 66a270f with no findings. PR #76.
+<!-- SECTION:FINAL_SUMMARY:END -->
