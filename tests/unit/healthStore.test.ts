@@ -71,7 +71,8 @@ describe('the saved health record', () => {
     const size = statSync(join(dir, HEALTH_FILE)).size
     expect(size).toBeLessThan(MAX_HEALTH_FILE_BYTES)
     expect(open(T0 + 10 * 86_400_000).record().runs).toHaveLength(MAX_RUNS)
-  })
+    // About 460 real synchronous writes; slow on Windows when the whole suite runs in parallel.
+  }, 30_000)
 
   it('sets a damaged file aside and starts again, without blocking startup', () => {
     writeFileSync(join(dir, HEALTH_FILE), '{"version":1,"runs":[', 'utf8')

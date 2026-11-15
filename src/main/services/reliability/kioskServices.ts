@@ -108,9 +108,19 @@ export function startKioskServices(): void {
       checking = false
     }
   }
+  // A failed check is logged, never left as an unhandled rejection in main.
+  const runWifiCheck = (): void => {
+    checkWifi().catch((err) =>
+      logReliabilityEvent({
+        op: 'wifi-check',
+        ok: false,
+        detail: err instanceof Error ? err.name : 'unknown'
+      })
+    )
+  }
   // Check once now too, so the caregiver's Status tab knows within seconds of startup.
-  void checkWifi()
-  timers.push(setInterval(() => void checkWifi(), CHECK_INTERVAL_MS))
+  runWifiCheck()
+  timers.push(setInterval(runWifiCheck, CHECK_INTERVAL_MS))
 }
 
 async function healWifi(): Promise<void> {
