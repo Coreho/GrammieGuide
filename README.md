@@ -1,6 +1,6 @@
 # GrammieGuide
 
-_Last updated: 2026-11-13_
+_Last updated: 2026-11-14_
 
 A clean rewrite of `grandmas-launcher` - a dementia-friendly kiosk launcher for an elderly user, with a caregiver admin panel. Electron + React + TypeScript.
 
@@ -45,6 +45,7 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 - **Only one GrammieGuide at a time** - opening it again (a desktop shortcut, the installer's "run now") just brings the running Home to the front instead of starting a second kiosk on top of it.
 - **Illustrated Home cards** - the built-in Photos, Music, Weather and News tiles show sculpted clay pictures, and any tile can be given Games or Websites artwork. The new **Clay cards** theme matches the approved design (cream background, bigger labels). Not yet checked on the real kiosk.
 - **Buddy opens Home tiles by name** - in chat she can say or type "open Family Albums" (or "go to …", "show me …") to open any tile showing on Home, with no AI key needed. Two tiles with the same name get large choices instead of a guess, and Buddy only says it opened once it actually did. Not yet tried with the kiosk's microphone.
+- **Status at a glance (TASK-25)** - admin → Status answers "is it working?": whether the internet is up and since when, when GrammieGuide started and when Home last loaded, and for the last 7 days how often it stopped unexpectedly, was restarted by the watchdog, lost power, was shut down with Windows or closed on purpose, plus any of her help requests that failed. **Test sound** plays Buddy's voice and counts only when you say you heard it; the last confirmation is kept. The history is saved on her computer (30 days, never more than 200 starts), so it survives restarts. It reports what happened to the computer and the app, never anything about her. Not yet checked on the real kiosk.
 - **Caregiver checks** - admin → Checks tests, on her computer, that Buddy's voice can be heard (you confirm it), that the microphone hears speech, that the internet is reachable, and that a page which won't load still leaves her a way back Home. Each result shows when it was checked; nothing carries over a restart. Not yet run on the real kiosk.
 - **Gentle idle dimming (optional)** - in admin → Display, Home can dim a little after 2 to 60 minutes without a tap. Moving the mouse brightens it and swallows nothing, so her next click counts. A first click or tap with no movement only brightens it again and never opens anything; it never dims mid-use (web pages, Buddy's chat, voice or listening), and music's Stop still works. Off unless you turn it on. Not yet checked for legibility on the real kiosk.
 - **Home preview in admin** - in admin → Tiles and admin → Display, a scaled-down, non-interactive replica of Home shows the caregiver how Home looks to her at her chosen text size, layout, theme and tiles, updating immediately as changes are saved without affecting her real Home screen.

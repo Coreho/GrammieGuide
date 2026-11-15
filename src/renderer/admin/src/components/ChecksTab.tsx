@@ -45,18 +45,39 @@ function windowsVoicesReady(): Promise<boolean> {
   if (!('speechSynthesis' in window)) return Promise.resolve(false)
   if (speechSynthesis.getVoices().length > 0) return Promise.resolve(true)
   return new Promise((resolve) => {
-    const done = (): void => {
+    const finish = (): void => {
       clearTimeout(timer)
-      speechSynthesis.removeEventListener('voiceschanged', done)
+      speechSynthesis.removeEventListener('voiceschanged', changed)
       resolve(speechSynthesis.getVoices().length > 0)
     }
-    const timer = setTimeout(done, 1500)
-    speechSynthesis.addEventListener('voiceschanged', done)
+    // Chromium fires voiceschanged once with an empty list before the real
+    // voices arrive, so an empty event means "keep waiting", not "none". Taking
+    // the first event reported "no voice" on a computer that had three when
+    // the caregiver clicked soon after opening admin.
+    const changed = (): void => {
+      if (speechSynthesis.getVoices().length > 0) finish()
+    }
+    const timer = setTimeout(finish, 5000)
+    speechSynthesis.addEventListener('voiceschanged', changed)
   })
 }
 
-export function ChecksTab() {
-  const [results, setResults] = useState<CheckResults>({})
+/**
+ * `only` shows a subset without the tab's heading; the Status tab uses it to
+ * offer Test sound through this same voice check, so a heard sound is recorded
+ * in one place (TASK-49 and TASK-25 share it).
+ */
+export function ChecksTab({
+  only,
+  onResults
+}: { only?: readonly CheckId[]; onResults?: (results: CheckResults) => void } = {}) {
+  const [results, setResultsState] = useState<CheckResults>({})
+  const onResultsRef = useRef(onResults)
+  onResultsRef.current = onResults
+  const setResults = (next: CheckResults): void => {
+    setResultsState(next)
+    onResultsRef.current?.(next)
+  }
   const [heard, setHeard] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const voiceGeneration = useRef(0)
@@ -157,12 +178,16 @@ export function ChecksTab() {
 
   return (
     <div>
-      <h2>Checks</h2>
-      <p style={{ maxWidth: 640 }}>
-        Run these on her computer to see that each part actually works. Each result shows when it
-        was checked; a pass earlier doesn't mean it still works now.
-      </p>
-      {CHECK_IDS.map((id) => {
+      {!only && (
+        <>
+          <h2>Checks</h2>
+          <p style={{ maxWidth: 640 }}>
+            Run these on her computer to see that each part actually works. Each result shows when
+            it was checked; a pass earlier doesn't mean it still works now.
+          </p>
+        </>
+      )}
+      {(only ?? CHECK_IDS).map((id) => {
         const result = results[id]
         const checking = result?.status === 'checking'
         return (
@@ -184,7 +209,7 @@ export function ChecksTab() {
                 disabled={checking}
                 onClick={() => void (id === 'voice' ? runVoice() : run(id))}
               >
-                Check now
+                {only && id === 'voice' ? 'Test sound' : 'Check now'}
               </button>
               {(checking || result?.status === 'played') && (
                 <button onClick={() => stop(id)}>Stop</button>

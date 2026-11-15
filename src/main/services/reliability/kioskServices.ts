@@ -67,6 +67,16 @@ export async function registerSystemTasks(opts: { force?: boolean } = {}): Promi
 
 const timers: NodeJS.Timeout[] = []
 
+/**
+ * What the 10-second check last saw, for the caregiver's Status tab. `since`
+ * is when it last changed (or when GrammieGuide started, before the first
+ * check), so it never claims to know about time before the app was running.
+ */
+let network: { online: boolean | null; since: number } = { online: null, since: Date.now() }
+export function getNetworkStatus(): { online: boolean | null; since: number } {
+  return network
+}
+
 export function startKioskServices(): void {
   // Starting at all means the watchdog should look after us again.
   clearQuitFlag(app.getPath('userData'))
@@ -87,7 +97,9 @@ export function startKioskServices(): void {
     if (checking) return
     checking = true
     try {
-      const decision = decideWifi(wifi, await isOnline(), Date.now())
+      const online = await isOnline()
+      if (network.online !== online) network = { online, since: Date.now() }
+      const decision = decideWifi(wifi, online, Date.now())
       wifi = decision.state
       if (decision.transition === 'lost') logActivity('network-lost')
       if (decision.transition === 'restored') logActivity('network-restored')
@@ -96,7 +108,19 @@ export function startKioskServices(): void {
       checking = false
     }
   }
-  timers.push(setInterval(() => void checkWifi(), CHECK_INTERVAL_MS))
+  // A failed check is logged, never left as an unhandled rejection in main.
+  const runWifiCheck = (): void => {
+    checkWifi().catch((err) =>
+      logReliabilityEvent({
+        op: 'wifi-check',
+        ok: false,
+        detail: err instanceof Error ? err.name : 'unknown'
+      })
+    )
+  }
+  // Check once now too, so the caregiver's Status tab knows within seconds of startup.
+  runWifiCheck()
+  timers.push(setInterval(runWifiCheck, CHECK_INTERVAL_MS))
 }
 
 async function healWifi(): Promise<void> {

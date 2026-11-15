@@ -64,6 +64,8 @@ export type CaregiverChecksDeps = {
   }
   log(type: string): void
   onChange(results: CheckResults): void
+  /** TASK-25 saves this so the Status tab can say when sound was last confirmed, across restarts. */
+  onSoundHeard?(sound: { at: number; path: VoicePath }): void
 }
 
 type Run = { id: number; controller: AbortController; done: Promise<void> }
@@ -328,7 +330,10 @@ export function createCaregiverChecks(deps: CaregiverChecksDeps): CaregiverCheck
         set('voice', runId, 'unavailable', M.voiceUnavailable)
       } else if (run.stage === 'played' && (report === 'heard' || report === 'not-heard')) {
         run.stage = 'done'
-        if (report === 'heard') heardSound = { at: deps.now(), path: run.path }
+        if (report === 'heard') {
+          heardSound = { at: deps.now(), path: run.path }
+          deps.onSoundHeard?.(heardSound)
+        }
         set(
           'voice',
           runId,

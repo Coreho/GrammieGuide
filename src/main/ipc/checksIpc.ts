@@ -13,6 +13,7 @@ import {
   openUrl
 } from '../services/browser/embeddedBrowser'
 import { createCaregiverChecks } from '../services/checks/caregiverChecks'
+import { getHealthStore } from '../services/health/healthStore'
 import { runPowerShell } from '../services/reliability/shellExec'
 import { listenOnce } from '../services/speech/sttService'
 import { createTtsService } from '../services/speech/ttsService'
@@ -83,6 +84,7 @@ export const caregiverChecks = createCaregiverChecks({
     returnHome: () => sendTo(getLauncherWindow()?.webContents, 'browser:return-home', {})
   },
   log: (type) => logActivity(type),
+  onSoundHeard: (sound) => getHealthStore()?.soundHeard(sound),
   onChange: (results) => sendTo(getAdminWindow()?.webContents, 'checks:changed', results)
 })
 

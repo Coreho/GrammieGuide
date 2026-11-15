@@ -2,6 +2,8 @@ import { app } from 'electron'
 import { join } from 'path'
 import { loadConfig, getConfig } from './config/store'
 import { startHeartbeat, stopHeartbeat } from './services/reliability/watchdog'
+import { uptime } from 'os'
+import { endHealthRun, getHealthStore, startHealthRecord } from './services/health/healthStore'
 import { startKioskServices, stopKioskServices } from './services/reliability/kioskServices'
 import { registerAllIpc } from './ipc'
 import {
@@ -95,6 +97,12 @@ function startInactivityWatch(): void {
 
 app.whenReady().then(() => {
   loadConfig()
+  // Before startHeartbeat: the record reads the last run's final heartbeat to
+  // tell a power cut (Windows booted since) from the app stopping on its own.
+  startHealthRecord(app.getPath('userData'), { bootAt: Date.now() - uptime() * 1000 })
+  // Ctrl+Shift+Q and Home giving up record their own ending first; this only
+  // catches every other way of closing, and the first ending recorded wins.
+  app.on('before-quit', () => endHealthRun('closed'))
   const contactFixture =
     process.env['GRAMMIEGUIDE_E2E'] === '1' ? createContactFixture() : undefined
   startContactRequests(
@@ -107,6 +115,11 @@ app.whenReady().then(() => {
   installMediaProtocol()
   installAdminMicrophonePermissions()
   const win = createLauncherWindow()
+  // Home's page loaded: this start counts as a successful one. Later reloads
+  // (Home recovery) don't move it.
+  win.webContents.once('did-finish-load', () => getHealthStore()?.homeReady())
+  // Windows shutting down, restarting or signing out is not a crash or a power cut.
+  win.on('session-end', () => endHealthRun('windows-session-end'))
   initEmbeddedBrowser(win)
   startInactivityWatch()
   startHeartbeat(join(app.getPath('userData'), 'heartbeat.txt'))
