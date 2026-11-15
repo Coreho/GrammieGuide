@@ -34,7 +34,7 @@ test.beforeAll(async () => {
   app = await electron.launch({
     args: ['.', `--user-data-dir=${folder}`],
     cwd: process.cwd(),
-    env: { ...process.env, GRAMMIEGUIDE_E2E: '1' }
+    env: { ...process.env, GRAMMIEGUIDE_E2E: '1', GRAMMIEGUIDE_SMS_CALLBACKS: '1' }
   })
   home = await app.firstWindow()
   await expect(home.getByText(/No tiles configured yet/)).toBeVisible({ timeout: 15_000 })
@@ -111,10 +111,13 @@ test('one test text shows sent, delivered and a YES reply as separate results', 
   await expect(result.getByText(/Checked at/)).toBeVisible()
   await admin.screenshot({ path: info.outputPath('contact-test.png'), fullPage: true })
 
-  const log = JSON.stringify(await admin.evaluate(() => window.admin.getActivityLog()))
-  expect(log).toContain('contact-test-started')
-  expect(log).toContain('contact-test-answered')
-  expect(log).not.toMatch(/\+1555|Tom|Sarah|not-a-real-key/)
+  // Outcomes are logged by main's 10-second poll (contactRuntime.ts), which can
+  // lag the panel's own read, so wait for the line rather than racing it.
+  const log = (): Promise<string> =>
+    admin.evaluate(async () => JSON.stringify(await window.admin.getActivityLog()))
+  await expect.poll(log, { timeout: 15_000 }).toContain('contact-test-answered')
+  expect(await log()).toContain('contact-test-started')
+  expect(await log()).not.toMatch(/\+1555|Tom|Sarah|not-a-real-key/)
 })
 
 test('a failed submission is reported plainly, survives a restart of the panel, and is not resent', async () => {

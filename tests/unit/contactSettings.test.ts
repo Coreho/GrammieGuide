@@ -90,7 +90,7 @@ describe('private contact settings', () => {
       apiKeySecret: 'provider-secret',
       sender: '+15552222222'
     }
-    const publicJson = JSON.stringify(toPublicConfig(config))
+    const publicJson = JSON.stringify(toPublicConfig(config, true))
     expect(publicJson).toContain('Sarah')
     for (const secret of [
       '+15551111111',
