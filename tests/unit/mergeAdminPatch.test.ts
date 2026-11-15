@@ -18,7 +18,7 @@ describe('mergeAdminPatch', () => {
     const buddy = { ...current.buddy, anthropicApiKey: 'old-ant', openrouterApiKey: 'old-or' }
     const result = mergeAdminPatch(current, { buddy })
     expect(result.buddy).toEqual(current.buddy)
-    expect(toPublicConfig({ ...current, buddy }).buddy).toEqual(current.buddy)
+    expect(toPublicConfig({ ...current, buddy }, true).buddy).toEqual(current.buddy)
   })
   it('saves ChatGPT models without changing unrelated sections', () => {
     const current = defaultConfig()

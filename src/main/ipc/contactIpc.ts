@@ -4,6 +4,7 @@ import { getContactRequests, contactNow } from '../services/contacts/contactRunt
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { getConfig, setConfig } from '../config/store'
 import { toPublicConfig } from '@shared/configSchema'
+import { smsCallbacksAvailable } from '../services/contacts/smsCallbacks'
 import { getAdminWindow, getLauncherWindow } from '../windows/windowManager'
 import { ContactController } from '../services/contacts/contactController'
 import { logActivity } from '../services/activityLog/activityLog'
@@ -38,7 +39,7 @@ export function registerContactIpc(
       getContactRequests(),
       () => getConfig().contacts,
       (contacts) => {
-        const updated = toPublicConfig(setConfig({ contacts }))
+        const updated = toPublicConfig(setConfig({ contacts }), smsCallbacksAvailable())
         try {
           getLauncherWindow()?.webContents.send('config:changed', updated)
         } catch {
@@ -67,15 +68,19 @@ export function registerContactIpc(
   })
   ipcMain.handle('contacts:home', async (event): Promise<IpcResponse<'contacts:home'>> => {
     requireHome(event)
+    // While SMS callbacks are hidden, Home learns of no contact and so draws no
+    // button or status, even if a caregiver saved the feature as on.
+    if (!smsCallbacksAvailable()) return { contact: null, request: null }
     return control().home()
   })
   ipcMain.handle('contacts:request', async (event): Promise<IpcResponse<'contacts:request'>> => {
     requireHome(event)
+    if (!smsCallbacksAvailable()) return { contact: null, request: null, problem: 'not-configured' }
     return control().request()
   })
   ipcMain.handle('contacts:getSettings', (event): IpcResponse<'contacts:getSettings'> => {
     requireCaregiver(event)
-    return control().settings()
+    return { ...control().settings(), smsCallbacks: smsCallbacksAvailable() }
   })
   ipcMain.handle(
     'contacts:saveSettings',
@@ -83,7 +88,7 @@ export function registerContactIpc(
       requireCaregiver(event)
       const result = await control().saveSettings(value)
       logActivity('contact-settings-saved')
-      return result
+      return { ...result, smsCallbacks: smsCallbacksAvailable() }
     }
   )
   ipcMain.handle(
@@ -99,7 +104,11 @@ export function registerContactIpc(
       requireCaregiver(event)
       const contactId =
         value && typeof value === 'object' ? (value as { contactId?: unknown }).contactId : null
-      const result = await control().startTest(contactId)
+      // The panel is hidden with the feature, and main refuses it too, so no
+      // text can leave before the carriers approve the campaign.
+      const result = smsCallbacksAvailable()
+        ? await control().startTest(contactId)
+        : await control().testState('not-configured')
       // Which person and what happened next stay out of the log; outcomes are
       // logged by the runtime as contact-test-<status>.
       logActivity(

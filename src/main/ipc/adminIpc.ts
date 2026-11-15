@@ -1,5 +1,6 @@
 import { app, ipcMain } from 'electron'
 import { toPublicConfig } from '@shared/configSchema'
+import { smsCallbacksAvailable } from '../services/contacts/smsCallbacks'
 import { planOldLauncherImport, readOldLauncherConfig } from '../config/importOldLauncher'
 import { getLauncherWindow } from '../windows/windowManager'
 import { getConfig, setConfig } from '../config/store'
@@ -34,7 +35,7 @@ export function registerAdminIpc(): void {
     const plan = planOldLauncherImport(old, getConfig())
     // Weather, display and confusion only - never tiles (set up fresh) and
     // never buddy/reliability, so no secret can be touched here.
-    const updated = toPublicConfig(setConfig(plan.patch))
+    const updated = toPublicConfig(setConfig(plan.patch), smsCallbacksAvailable())
     getLauncherWindow()?.webContents.send('config:changed', updated)
     logActivity('old-launcher-settings-imported')
     return { ok: true }
