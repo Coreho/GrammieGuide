@@ -71,8 +71,22 @@ export async function whatsAppRuntime(
       invoke(gates, 'isUnsupportedBrowserForWebCalling') !== false
     )
       return { ...unavailable(), failure: stage }
-    for (const name of ['acceptCall', 'rejectCall', 'endCall'])
+    for (const name of ['acceptCall', 'endCall'])
       if (typeof stack[name] !== 'function') return unavailable()
+    // WhatsApp Web replaced rejectCall() with rejectCallWithEndReason(reason) in
+    // November 2026; requiring the old name switched every call off. Its own
+    // Decline click passes RejectEndReason.Self, so ours does too.
+    const decline = ((): (() => unknown) | null => {
+      if (typeof stack.rejectCallWithEndReason === 'function') {
+        const reasons = load('WAWebVoipWaCallEnums').RejectEndReason
+        const self = reasons && typeof reasons === 'object' ? (reasons as Obj).Self : undefined
+        return typeof self === 'number'
+          ? () => invoke(stack, 'rejectCallWithEndReason', self)
+          : null
+      }
+      return typeof stack.rejectCall === 'function' ? () => invoke(stack, 'rejectCall') : null
+    })()
+    if (!decline) return unavailable()
     const start = load('WAWebVoipStartCall')
     if (
       typeof start.startWAWebVoipCall !== 'function' ||
@@ -215,7 +229,7 @@ export async function whatsAppRuntime(
     } else if (request.type === 'decline') {
       stage = 'decline'
       if (before.call.phase !== 'incoming') throw new Error('Cannot decline')
-      await invoke(stack, 'rejectCall')
+      await decline()
     } else {
       stage = 'end'
       const reason = object(load('WAWebVoipSignalingEnums').EndCallReason).Self
