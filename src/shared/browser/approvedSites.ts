@@ -100,7 +100,11 @@ function tilePages(tile: Tile): (string | undefined)[] {
   // The News fallback website is caregiver-saved too; feed hosts are not pages.
   if (tile.builtinKey === 'news')
     return [tile.url, ...(tile.newsSources?.map((source) => source.url) ?? [])]
-  if (tile.builtinKey === 'knitting' && tile.ravelry) return [RAVELRY_URL]
+  if (tile.builtinKey === 'knitting')
+    return [
+      ...(tile.ravelry ? [RAVELRY_URL] : []),
+      ...(tile.knittingLinks?.map((link) => link.url) ?? [])
+    ]
   return []
 }
 

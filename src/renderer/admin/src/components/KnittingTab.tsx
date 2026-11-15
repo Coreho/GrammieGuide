@@ -1,5 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { MAX_PATTERN_PAGES, type AdminKnitting } from '@shared/knitting/knitting'
+import {
+  MAX_PATTERN_PAGES,
+  movePiece,
+  type AdminKnitting,
+  type PieceMove
+} from '@shared/knitting/knitting'
+import {
+  KNITTING_LINK_LABEL_MAX,
+  MAX_KNITTING_LINKS,
+  knittingLinkSchema,
+  type KnittingLink
+} from '@shared/knitting/knittingLinks'
 import type { Tile } from '@shared/configSchema'
 import { useConfigStore } from '../state/useConfigStore'
 import { RavelryPicker } from './RavelryPicker'
@@ -26,8 +37,9 @@ function mainMessage(error: unknown, fallback: string): string {
 /**
  * Her project, patterns and finished pieces live in their own main-process file, not
  * in config: Home updates the row count and her pattern page as she goes, and only
- * this tab can set them up, reorder, reset or remove them. The Ravelry switch is the
- * exception: it lives on the tile, because the approved-sites rule reads it from config.
+ * this tab can set them up, reorder, reset or remove them. The Ravelry switch and her
+ * videos and ideas are the exception: they live on the tile, because the approved-sites
+ * rule reads them from config.
  */
 export function KnittingTab() {
   const config = useConfigStore((s) => s.config)
@@ -36,6 +48,7 @@ export function KnittingTab() {
   const [draft, setDraft] = useState<Draft>({ name: '', forWhom: '' })
   const [patternName, setPatternName] = useState('')
   const [piece, setPiece] = useState({ what: '', forWhom: '' })
+  const [link, setLink] = useState({ label: '', url: '' })
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -178,10 +191,47 @@ export function KnittingTab() {
     }
   }
 
+  /** Saved on every Knitting tile, like the Ravelry switch, so each shelf shows the same links. */
+  async function saveLinks(next: KnittingLink[], done: string): Promise<boolean> {
+    setBusy(true)
+    setMessage('')
+    setError('')
+    try {
+      const latest = useConfigStore.getState().config!
+      await saveConfig({
+        tiles: latest.tiles.map((tile) =>
+          isKnittingTile(tile) ? { ...tile, knittingLinks: next } : tile
+        )
+      })
+      setMessage(done)
+      return true
+    } catch {
+      setError('Could not save her videos and ideas. Try again.')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function addLink(): Promise<void> {
+    const parsed = knittingLinkSchema.safeParse({ id: crypto.randomUUID(), ...link })
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Check the name and the address.')
+      return
+    }
+    if (await saveLinks([...links, parsed.data], `${parsed.data.label} is on her Knitting shelf.`))
+      setLink({ label: '', url: '' })
+  }
+
+  function moveLink(id: string, direction: PieceMove): void {
+    void saveLinks(movePiece(links, id, direction), 'Order saved.')
+  }
+
   const project = knitting?.project ?? null
   const patterns = knitting?.patterns ?? []
   const pieces = knitting?.pieces ?? []
   const knittingTiles = config?.tiles.filter(isKnittingTile) ?? []
+  const links = knittingTiles.find((tile) => tile.knittingLinks?.length)?.knittingLinks ?? []
 
   return (
     <div>
@@ -494,6 +544,112 @@ export function KnittingTab() {
         </label>
         {config && knittingTiles.length === 0 && <p>Add a Knitting tile in the Tiles tab first.</p>}
         {knitting && <RavelryPicker picks={knitting.ravelry} onChange={setKnitting} />}
+      </section>
+
+      <section aria-labelledby="knitting-links-heading" style={{ marginTop: 28 }}>
+        <h3 id="knitting-links-heading">Videos and ideas</h3>
+        <p style={{ fontSize: '.9rem', color: '#555' }}>
+          Save knitting videos and websites she enjoys. They appear behind a Videos and ideas card
+          on her Knitting shelf as large buttons with the name you give them, and open in her
+          protected browser. Saving a link lets her move around that whole website; other websites
+          stay blocked. YouTube videos get her large Play and Pause buttons.
+        </p>
+        <ul aria-label="Saved videos and ideas" style={{ listStyle: 'none', padding: 0 }}>
+          {links.map((item, index) => (
+            <li
+              key={item.id}
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                padding: 10,
+                marginBottom: 8,
+                border: '1px solid #ccc',
+                borderRadius: 12
+              }}
+            >
+              <span style={{ flex: 1, overflowWrap: 'anywhere' }}>
+                <strong>{item.label}</strong> · {new URL(item.url).hostname}
+              </span>
+              <button
+                type="button"
+                disabled={busy || index === 0}
+                aria-label={`Move ${item.label} earlier`}
+                onClick={() => moveLink(item.id, 'earlier')}
+              >
+                Move earlier
+              </button>
+              <button
+                type="button"
+                disabled={busy || index === links.length - 1}
+                aria-label={`Move ${item.label} later`}
+                onClick={() => moveLink(item.id, 'later')}
+              >
+                Move later
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                aria-label={`Remove ${item.label}`}
+                onClick={() => {
+                  if (window.confirm(`Remove "${item.label}" from her Knitting shelf?`))
+                    void saveLinks(
+                      links.filter((saved) => saved.id !== item.id),
+                      `${item.label} is off her Knitting shelf.`
+                    )
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+          {config && knittingTiles.length > 0 && links.length === 0 && (
+            <li>No videos or ideas yet.</li>
+          )}
+        </ul>
+        {links.length >= MAX_KNITTING_LINKS ? (
+          <p>Her shelf has room for {MAX_KNITTING_LINKS}. Remove one to add another.</p>
+        ) : (
+          <form
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault()
+              void addLink()
+            }}
+          >
+            <fieldset
+              disabled={knittingTiles.length === 0 || busy}
+              style={{ display: 'grid', gap: 14, padding: 20 }}
+            >
+              <legend>Add a video or website</legend>
+              <label>
+                Name she sees{' '}
+                <input
+                  required
+                  maxLength={KNITTING_LINK_LABEL_MAX}
+                  placeholder="Cable stitch video"
+                  value={link.label}
+                  onChange={(e) => setLink({ ...link, label: e.target.value })}
+                />
+              </label>
+              <label>
+                Address{' '}
+                <input
+                  required
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=…"
+                  value={link.url}
+                  onChange={(e) => setLink({ ...link, url: e.target.value })}
+                />
+              </label>
+              <div>
+                <button type="submit">Add to her shelf</button>
+              </div>
+            </fieldset>
+          </form>
+        )}
+        {config && knittingTiles.length === 0 && (
+          <p>Add a Knitting tile in the Tiles tab to save links for her.</p>
+        )}
       </section>
     </div>
   )

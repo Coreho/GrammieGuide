@@ -9,6 +9,7 @@ import { TILE_ARTWORK_KEYS } from './tileArtwork'
 import { MAX_APPROVED_SITES, siteFor } from './browser/approvedSites'
 import { defaultGamesConfig, gamesConfigSchema } from './games/gamesSchema'
 import { newsSourceSchema } from './news/sources'
+import { knittingLinksSchema } from './knitting/knittingLinks'
 import { personalFactsSchema } from './buddy/personalFacts'
 import { DEFAULT_LOCAL_VOICE, LOCAL_VOICE_IDS } from './buddy/localVoices'
 import {
@@ -69,6 +70,11 @@ export const tileSchema = z.object({
     .optional(),
   /** Knitting only: adds the Ravelry card to the shelf and approves the site. Optional, so no migration. */
   ravelry: z.boolean().optional(),
+  /**
+   * Knitting only: the caregiver's saved videos and websites, shown on the shelf.
+   * On the tile, not in the knitting file, so the approved-sites rule can read them.
+   */
+  knittingLinks: knittingLinksSchema,
   appPath: z.string().optional(),
   builtinKey: z.string().optional()
 })
