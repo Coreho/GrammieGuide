@@ -24,6 +24,7 @@ import type {
 import type { BuiltinGameKey } from './games/gamesSchema'
 import type { ContactRequestSummary, ContactTestState, HomeContactState } from './contacts'
 import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
+import type { HealthSummary } from './health/healthRecord'
 import type {
   WhatsAppCallState,
   WhatsAppCommand,
@@ -278,6 +279,8 @@ export interface IpcApi {
   'config:set': { request: Partial<Config>; response: PublicConfig }
 
   'reliability:getLog': { request: { limit?: number }; response: ReliabilityEvent[] }
+  /** TASK-25's Status tab; caregiver only. */
+  'health:get': { request: void; response: HealthSummary }
   'reliability:testVolume': { request: void; response: ReliabilityEvent }
   'reliability:testWifiDiscovery': { request: void; response: ReliabilityEvent }
   'reliability:testWatchdogRegistration': { request: void; response: ReliabilityEvent }
