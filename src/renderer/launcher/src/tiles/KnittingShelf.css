@@ -75,6 +75,47 @@
   gap: 28px;
   padding: 8px 8px 16px;
 }
+/* All five parts: the four keep their places, a little shorter, and the fifth is a bar under them. */
+.knitting-shelf-grid-bar {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.6fr);
+}
+.knitting-card-bar {
+  grid-column: 1 / -1;
+}
+.knitting-card-bar .knitting-card-picture {
+  width: auto;
+  aspect-ratio: 1;
+}
+/* The icon is drawn for the taller cards; in the bar it has to fit the smaller picture. */
+.knitting-card-bar .knitting-picture-fallback svg {
+  width: 70%;
+  height: 70%;
+}
+
+/*
+ * Up to eight links, two across. Rows share the height (a few links make big buttons) but never
+ * drop below a quarter, so eight fit without scrolling; very large text grows them and scrolls.
+ */
+.knitting-link-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(calc((100% - 3 * 28px) / 4), auto);
+  gap: 28px;
+  padding: 8px 8px 16px;
+  overflow-y: auto;
+}
+/* Doubled class: .knitting-card comes later in this file and would win at equal weight. */
+.knitting-card.knitting-link {
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 32px;
+}
+.knitting-link .knitting-card-title {
+  overflow-wrap: anywhere;
+}
 .knitting-card {
   display: flex;
   min-width: 0;

@@ -7,15 +7,20 @@ import { PatternList, PatternViewer, PatternsCard } from './KnittingPatterns'
 import { GalleryCard, GalleryViewer } from './KnittingGallery'
 import { RavelryCard, RavelryHub, RavelryList, RavelryViewer } from './KnittingRavelry'
 import { RavelryFind } from './RavelryFind'
+import { LinkList, LinksCard } from './KnittingLinks'
 import './KnittingShelf.css'
 
 type Loaded =
   { state: 'loading' } | { state: 'unavailable' } | { state: 'ready'; knitting: HomeKnitting }
 
+/** A website that just failed to open, so the screen she's on can say which. */
+type Failed = { site: 'ravelry' } | { site: 'link'; name: string }
+
 type View =
   /** `focus` names the card to land on when she comes back to the shelf. */
-  | { kind: 'shelf'; focus?: 'project' | 'patterns' | 'gallery' | 'ravelry' }
+  | { kind: 'shelf'; focus?: 'project' | 'patterns' | 'gallery' | 'ravelry' | 'links' }
   | { kind: 'project' }
+  | { kind: 'links' }
   | { kind: 'patterns'; focus?: string }
   | { kind: 'pattern'; id: string; from: 'shelf' | 'project' | 'patterns' }
   | { kind: 'gallery' }
@@ -40,10 +45,12 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
   const surface = useRef<HTMLElement>(null)
   const [loaded, setLoaded] = useState<Loaded>({ state: 'loading' })
   const [view, setView] = useState<View>({ kind: 'shelf' })
-  const [openingRavelry, setOpeningRavelry] = useState(false)
-  const [ravelryFailed, setRavelryFailed] = useState(false)
+  const [opening, setOpening] = useState(false)
+  const [failed, setFailed] = useState<Failed | null>(null)
   // App holds the tile as it was when she opened it; config is what's saved now.
-  const showRavelry = config.tiles.some((saved) => saved.id === tile.id && saved.ravelry === true)
+  const saved = config.tiles.find((candidate) => candidate.id === tile.id)
+  const showRavelry = saved?.ravelry === true
+  const links = saved?.knittingLinks ?? []
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -102,11 +109,17 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
       (view.kind === 'ravelrySaved' && ravelry.length === 0) ||
       (view.kind === 'ravelryFind' && !canFind) ||
       ((view.kind === 'ravelryPattern' || view.kind === 'ravelryInstructions') &&
-        !openRavelryPattern)
+        !openRavelryPattern) ||
+      (view.kind === 'links' && links.length < 2)
     ) {
-      setView(view.kind === 'ravelry' ? { kind: 'shelf', focus: 'ravelry' } : { kind: 'shelf' })
+      setView(
+        view.kind === 'ravelry' || view.kind === 'links'
+          ? { kind: 'shelf', focus: view.kind }
+          : { kind: 'shelf' }
+      )
     }
   }, [
+    links.length,
     loaded.state,
     view,
     project,
@@ -142,6 +155,8 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
           return { kind: 'shelf', focus: 'gallery' }
         case 'ravelry':
           return { kind: 'shelf', focus: 'ravelry' }
+        case 'links':
+          return { kind: 'shelf', focus: 'links' }
         case 'ravelrySaved':
           return { kind: 'ravelry', focus: 'saved' }
         case 'ravelryFind':
@@ -222,28 +237,53 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
     if (ravelryChoices > 1) setView({ kind: 'ravelry' })
     else if (ravelry.length > 0) setView({ kind: 'ravelrySaved' })
     else if (canFind) setView({ kind: 'ravelryFind' })
-    else void openRavelry()
+    else void openSite(RAVELRY_URL, { site: 'ravelry' })
   }
 
-  async function openRavelry(): Promise<void> {
-    if (openingRavelry) return
-    setOpeningRavelry(true)
-    setRavelryFailed(false)
+  function openLinksCard(): void {
+    if (links.length === 1) void openSite(links[0]!.url, { site: 'link', name: links[0]!.label })
+    else setView({ kind: 'links' })
+  }
+
+  /** In her protected browser, the same way a website tile opens. */
+  async function openSite(url: string, site: Failed): Promise<void> {
+    if (opening) return
+    setOpening(true)
+    setFailed(null)
     try {
-      const result = await window.launcher.openBrowser(RAVELRY_URL)
+      const result = await window.launcher.openBrowser(url)
       if (result.ok) onBrowsing()
-      else setRavelryFailed(true)
+      else setFailed(site)
     } catch {
-      setRavelryFailed(true)
+      setFailed(site)
     } finally {
-      setOpeningRavelry(false)
+      setOpening(false)
     }
   }
 
   const linked = project?.patternId && patterns.some((p) => p.id === project.patternId)
+  const cards = [
+    project,
+    patterns.length > 0,
+    pieces.length > 0,
+    ravelryChoices > 0,
+    links.length > 0
+  ].filter(Boolean).length
 
   let content
-  if (view.kind === 'project' && project) {
+  if (view.kind === 'links' && links.length > 1) {
+    content = (
+      <LinkList
+        links={links}
+        opening={opening}
+        failedName={failed?.site === 'link' ? failed.name : undefined}
+        onOpen={(link) => void openSite(link.url, { site: 'link', name: link.label })}
+        onBack={goBack}
+        onHome={onClose}
+        musicStop={musicStop}
+      />
+    )
+  } else if (view.kind === 'project' && project) {
     content = (
       <ProjectView
         project={project}
@@ -290,11 +330,11 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
         patterns={ravelry}
         canFind={canFind}
         showWebsite={showRavelry}
-        openingWebsite={openingRavelry}
-        websiteFailed={ravelryFailed}
+        openingWebsite={opening}
+        websiteFailed={failed?.site === 'ravelry'}
         onSaved={() => setView({ kind: 'ravelrySaved' })}
         onFind={() => setView({ kind: 'ravelryFind' })}
-        onOpenWebsite={() => void openRavelry()}
+        onOpenWebsite={() => void openSite(RAVELRY_URL, { site: 'ravelry' })}
         onBack={goBack}
         onHome={onClose}
         musicStop={musicStop}
@@ -364,13 +404,19 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
           !pieces.length &&
           !ravelry.length &&
           !canFind &&
-          !showRavelry && (
+          !showRavelry &&
+          !links.length && (
             <p className="knitting-shelf-calm" role="status">
               Your knitting will be here once your family sets it up.
             </p>
           )}
-        {(project || patterns.length > 0 || pieces.length > 0 || ravelryChoices > 0) && (
-          <div className="knitting-shelf-grid">
+        {cards > 0 && (
+          // Five parts: the four keep their places and the fifth runs underneath.
+          <div
+            className={
+              cards > 4 ? 'knitting-shelf-grid knitting-shelf-grid-bar' : 'knitting-shelf-grid'
+            }
+          >
             {project && (
               <ProjectCard project={project} onOpen={() => setView({ kind: 'project' })} />
             )}
@@ -382,15 +428,23 @@ export function KnittingShelf({ tile, config, onClose, onBrowsing, musicStop }: 
               <RavelryCard
                 patterns={ravelry}
                 canFind={canFind}
-                disabled={openingRavelry}
+                disabled={opening}
                 onOpen={openRavelryCard}
               />
             )}
+            {links.length > 0 && (
+              <LinksCard links={links} bar={cards > 4} disabled={opening} onOpen={openLinksCard} />
+            )}
           </div>
         )}
-        {ravelryFailed && showRavelry && (
+        {failed?.site === 'ravelry' && showRavelry && (
           <p className="knitting-shelf-status" role="status">
             Ravelry can&apos;t open right now.
+          </p>
+        )}
+        {failed?.site === 'link' && links.length > 0 && (
+          <p className="knitting-shelf-status" role="status">
+            {failed.name} can&apos;t open right now.
           </p>
         )}
       </>
