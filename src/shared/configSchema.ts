@@ -130,6 +130,14 @@ export const idleDimConfigSchema = z.object({
 })
 export type IdleDimConfig = z.infer<typeof idleDimConfigSchema>
 
+// TASK-79. Off until the caregiver turns it on, so no existing Home changes.
+// Defaults fill a missing value, so (like `background`) no schema bump.
+export const todayCardConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  showTomorrow: z.boolean().default(true)
+})
+export type TodayCardConfig = z.infer<typeof todayCardConfigSchema>
+
 export const displayConfigSchema = z.object({
   /** Index into shared/theme.ts's FONT_STEPS, not a raw scale - matches the
    *  on-screen A-/A+ control's discrete 5-step model exactly. */
@@ -151,7 +159,8 @@ export const displayConfigSchema = z.object({
     enabled: false,
     afterMinutes: 10,
     level: 0.3
-  })
+  }),
+  todayCard: todayCardConfigSchema.default({ enabled: false, showTomorrow: true })
 })
 
 export const reliabilityConfigSchema = z.object({

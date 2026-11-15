@@ -3,6 +3,8 @@ import { useConfigStore } from '../state/useConfigStore'
 import { applyPreviewThemeToElement } from '@shared/theme'
 import { TileGrid } from '../../../launcher/src/components/TileGrid'
 import { HomeHeader, timeParts } from '../../../launcher/src/components/HomeHeader'
+import { TodayCard } from '../../../launcher/src/components/TodayCard'
+import { todayCardLines } from '@shared/today/today'
 import { ContactButton } from '../../../launcher/src/contacts/ContactButton'
 
 /**
@@ -124,7 +126,24 @@ export function HomePreview() {
           }}
         >
           {/* Home's own header; weather is never fetched from the preview. */}
-          <HomeHeader time={time} ampm={ampm} date={date} weather={null} />
+          <HomeHeader
+            time={time}
+            ampm={ampm}
+            date={date}
+            weather={null}
+            today={
+              config.display.todayCard.enabled ? (
+                <TodayCard
+                  lines={todayCardLines(
+                    config.buddy.personalFacts,
+                    now,
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    config.display.todayCard
+                  )}
+                />
+              ) : undefined
+            }
+          />
 
           <TileGrid
             tiles={config.tiles}

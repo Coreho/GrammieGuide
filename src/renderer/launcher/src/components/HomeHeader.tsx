@@ -3,8 +3,9 @@ import type { ReactNode } from 'react'
 import { WeatherGlyph } from './WeatherGlyph'
 import { CHIP_SHADOW } from '../clay'
 import { useLabelFit } from './useLabelFit'
+import { dayPeriod, type DayPeriod } from '@shared/today/today'
 
-export type DayPeriod = 'morning' | 'afternoon' | 'evening' | 'night'
+export type { DayPeriod }
 
 export type TimeParts = {
   time: string
@@ -37,8 +38,7 @@ const PERIOD_LABELS: Record<DayPeriod, TimeParts['periodLabel']> = {
 export function timeParts(now: Date): TimeParts {
   const h = now.getHours()
   const m = now.getMinutes()
-  const period: DayPeriod =
-    h >= 5 && h < 12 ? 'morning' : h >= 12 && h < 17 ? 'afternoon' : h >= 17 && h < 21 ? 'evening' : 'night'
+  const period = dayPeriod(h)
   const periodLabel = PERIOD_LABELS[period]
   const time = `${h % 12 || 12}:${String(m).padStart(2, '0')}`
   const ampm: 'AM' | 'PM' = h < 12 ? 'AM' : 'PM'
@@ -155,7 +155,8 @@ export function HomeHeader({
   date,
   period,
   weather,
-  nowPlaying
+  nowPlaying,
+  today
 }: {
   time: string
   ampm: string
@@ -163,6 +164,8 @@ export function HomeHeader({
   period?: DayPeriod
   weather: WeatherSnapshot | null
   nowPlaying?: ReactNode
+  /** TASK-79's Today card, a fixed-height row under the date while it is switched on. */
+  today?: ReactNode
 }) {
   const dateRef = useLabelFit<HTMLSpanElement>(date, 'date-row')
   const resolvedPeriod = period ?? inferDayPeriod(date, ampm)
@@ -228,7 +231,8 @@ export function HomeHeader({
                 padding: '6px 14px',
                 borderRadius: 999,
                 background: 'linear-gradient(180deg, var(--s1,#FBFAF7), var(--s2,#ECEAE5))',
-                boxShadow: 'inset 0 2px 1px var(--hl,#fff), 0 4px 10px rgba(var(--sh,60,55,45),.12)',
+                boxShadow:
+                  'inset 0 2px 1px var(--hl,#fff), 0 4px 10px rgba(var(--sh,60,55,45),.12)',
                 fontSize: 'calc(24px * var(--font-scale, 1))',
                 fontWeight: 700,
                 lineHeight: 1.1,
@@ -309,6 +313,7 @@ export function HomeHeader({
           {nowPlaying}
         </div>
       </div>
+      {today}
     </header>
   )
 }
