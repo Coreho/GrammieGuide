@@ -149,6 +149,22 @@ passes (module `useWAWebVoipCallHandlers`), and falls back to the older
 showed "Live calling is not available yet" with every call disabled while the
 gates, stack and other methods were all fine.
 
+**Which camera and microphone calls use (TASK-90):** WhatsApp Web chose her laptop's
+built-in camera and microphone although the plugged-in webcam was Chromium's first
+camera and Windows' default microphone. The `whatsAppMedia` preload now installs
+`steerCallMedia` (`src/shared/whatsAppMedia.ts`) in WhatsApp's page before its own
+scripts. Every `getUserMedia` WhatsApp makes gets Windows' default microphone
+(`deviceId: 'default'`, the one Buddy listens with), and a video request gets the
+first camera that reports no `facingMode`: a camera built into the screen reports
+`["user"]`, a plugged-in one reports none. With no plugged-in camera, or when the
+chosen device can't open, WhatsApp's own request runs unchanged. Camera details are
+visible to the page only while the session grants camera access, which it does only
+for video calls; the preload changes device choice, never permissions. To use a
+different microphone for calls (and Buddy), change Windows' default recording device.
+Verified on her kiosk's real devices in a throwaway WhatsApp Web session: a
+front-facing camera request, an exact laptop-camera request and an exact laptop-mic
+request all opened the webcam and its microphone.
+
 **When calling stops after a WhatsApp update:** the reason is not visible in admin,
 because failed reads are deliberately not logged. Quit Home (Ctrl+Shift+Q), start
 the installed exe once with `--remote-debugging-port=<port>` (it binds 127.0.0.1;

@@ -1,3 +1,4 @@
+import { join } from 'path'
 import { BrowserWindow, WebContentsView, session, type Session, type WebContents } from 'electron'
 import type { WhatsAppSetupState } from '@shared/whatsAppCalls'
 import { whatsAppRuntime, type WhatsAppRuntimeRequest } from '@shared/whatsAppRuntime'
@@ -222,6 +223,9 @@ export class EmbeddedWhatsAppSession {
     const view = new WebContentsView({
       webPreferences: {
         session: remoteSession,
+        // Chooses which camera and microphone WhatsApp's calls open; it grants
+        // no access itself (the permission handlers above still decide that).
+        preload: join(__dirname, '../preload/whatsAppMedia.cjs'),
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,

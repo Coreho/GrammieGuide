@@ -27,7 +27,9 @@ export default defineConfig({
         input: {
           launcher: resolve('src/preload/launcher.ts'),
           admin: resolve('src/preload/admin.ts'),
-          browserView: resolve('src/preload/browserView.ts')
+          browserView: resolve('src/preload/browserView.ts'),
+          // WhatsApp's own page: steers call media to the plugged-in webcam (TASK-90).
+          whatsAppMedia: resolve('src/preload/whatsAppMedia.ts')
         },
         // Every window and the web view is sandboxed, and a sandboxed preload runs as a
         // plain script: the default ES module output (.mjs) fails on its first import.

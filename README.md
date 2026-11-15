@@ -10,6 +10,8 @@ Full rewrite plan (context, decisions, architecture, milestones): see the plan d
 
 ## Status
 
+- **Calls use the plugged-in webcam and its microphone (TASK-90)** - WhatsApp picked the laptop's built-in camera and microphone. Video calls now use any camera that isn't built into the screen when one is plugged in, and all calls use Windows' default microphone, the same one Buddy listens with, so changing Windows' default recording device changes both. If the webcam is unplugged or busy, calls fall back to what WhatsApp would have used. Checked with her real devices; a real call on the kiosk is still to try.
+
 - **WhatsApp calls work again (TASK-89)** - a WhatsApp Web update renamed the function GrammieGuide uses to decline a call, and because the app checks for it before offering any call, Family calls said calls were unavailable while WhatsApp was signed in and working. Declining now uses WhatsApp's new function, with the same reason its own Decline button sends, and still works with the old one. Checked inside her real signed-in session before install; a real call and a declined incoming call still need trying.
 
 - **Knitting videos and ideas (TASK-72.04)** - in admin → Knitting the caregiver saves up to eight knitting videos or websites, each with a short name. Her shelf gets a **Videos and ideas** card: one link opens straight away, several open a screen of large named buttons, each marked Video or Website. They open in her protected browser with the usual Home button and recovery screen, YouTube videos get her large playback buttons, and other sites stay blocked. With all five parts set up, Videos and ideas is a wide bar under the other four, which keep their places. Not yet tried with her.
