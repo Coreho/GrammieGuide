@@ -32,8 +32,9 @@ vi.mock('../../src/main/services/reliability/wifiHealer', () => ({
 vi.mock('../../src/main/services/reliability/wifiWatch', () => ({
   CHECK_INTERVAL_MS: 1000,
   INITIAL_WIFI_STATE: {},
-  decideWifi: vi.fn(),
-  isOnline: vi.fn()
+  // Startup now checks the network at once, so these must answer like the real ones.
+  decideWifi: (state: object) => ({ state, transition: null, restart: false }),
+  isOnline: async () => true
 }))
 vi.mock('../../src/main/services/reliability/watchdog', () => ({
   clearQuitFlag: vi.fn(),

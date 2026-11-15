@@ -400,6 +400,21 @@ describe('caregiver checks: voice', () => {
     expect(h.checks.reportVoice(runId, 'not-heard').voice?.status).toBe('passed')
   })
 
+  it('hands a confirmed sound to the saved status record, once, and nothing else', async () => {
+    const onSoundHeard = vi.fn()
+    const h = harness({ onSoundHeard })
+    const missed = await h.checks.startVoice()
+    h.checks.reportVoice(missed.runId, 'played')
+    h.checks.reportVoice(missed.runId, 'not-heard')
+    expect(onSoundHeard).not.toHaveBeenCalled()
+    const { runId } = await h.checks.startVoice()
+    h.checks.reportVoice(runId, 'played')
+    h.checks.reportVoice(runId, 'heard')
+    h.checks.reportVoice(runId, 'heard')
+    expect(onSoundHeard).toHaveBeenCalledTimes(1)
+    expect(onSoundHeard).toHaveBeenCalledWith({ at: h.now(), path: 'online' })
+  })
+
   it("'not heard' is a failure that keeps no heard-sound record", async () => {
     const h = harness()
     const { runId } = await h.checks.startVoice()

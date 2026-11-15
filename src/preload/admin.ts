@@ -47,6 +47,8 @@ const adminApi = {
   getContactSettings: () => invoke('contacts:getSettings'),
   saveContactSettings: (settings: IpcRequest<'contacts:saveSettings'>) =>
     invoke('contacts:saveSettings', settings),
+  getContactTest: () => invoke('contacts:testState'),
+  startContactTest: (contactId: string) => invoke('contacts:startTest', { contactId }),
   setContactCredentials: (credentials: IpcRequest<'admin:setContactCredentials'>) =>
     invoke('admin:setContactCredentials', credentials),
   recordNarration: (request: IpcRequest<'photos:recordNarration'>) =>
@@ -138,6 +140,7 @@ const adminApi = {
   getActivityLog: (limit?: number) => invoke('activity:get', { limit }),
   getBlockedSites: () => invoke('browser:blockedSites'),
   getReliabilityLog: (limit?: number) => invoke('reliability:getLog', { limit }),
+  getHealthSummary: () => invoke('health:get'),
   testVolume: () => invoke('reliability:testVolume'),
   testWifiDiscovery: () => invoke('reliability:testWifiDiscovery'),
   checkSystemTasks: () => invoke('reliability:testWatchdogRegistration'),

@@ -36,6 +36,32 @@ describe('Twilio callback channel', () => {
     expect(init?.redirect).toBe('error')
   })
 
+  it.each([
+    [
+      'real',
+      'GrammieGuide: Grammie asked you to call her. Reply YES to confirm you saw this request. Reply STOP to opt out.'
+    ],
+    [
+      'test',
+      'GrammieGuide: TEST. This is a caregiver check, not a request for help. Reply YES to confirm you saw this test. Reply STOP to opt out.'
+    ]
+  ] as const)(
+    'sends the registered %s wording: program name, YES and STOP, in one SMS',
+    async (purpose, text) => {
+      const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(json({ sid, from: config.sender, status: 'queued' }))
+      await new TwilioContactChannel(() => config, fetcher).submit(attempt, purpose)
+      const body = new URLSearchParams(String(fetcher.mock.calls[0]![1]?.body)).get('Body')
+      // Spelled out here rather than imported: this is the wording registered with the
+      // carriers, so changing it should take a deliberate edit in two places.
+      expect(body).toBe(text)
+      expect(text.length).toBeLessThanOrEqual(160)
+      // Plain ASCII keeps it in the 7-bit alphabet; one curly quote would cut the limit to 70.
+      expect(text).toMatch(/^[\x20-\x7e]+$/)
+    }
+  )
+
   it.each(['queued', 'sent', 'sending', 'accepted', 'receiving', 'read', 'unexpected'])(
     'does not call %s SMS status delivered',
     async (status) => {

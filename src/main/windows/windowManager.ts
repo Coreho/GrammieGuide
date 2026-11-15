@@ -2,6 +2,7 @@ import { BrowserWindow, globalShortcut, app, type BrowserWindowConstructorOption
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { stopHeartbeat, writeQuitFlag } from '../services/reliability/watchdog'
+import { endHealthRun } from '../services/health/healthStore'
 import { closeEmbeddedBrowser } from '../services/browser/embeddedBrowser'
 import { logReliabilityEvent } from '../services/reliability/reliabilityLog'
 import {
@@ -156,6 +157,7 @@ function installHomeRecovery(win: BrowserWindow): void {
     // No quit flag or immediate relaunch: the stale heartbeat gives the watchdog its back-off.
     // Exit cannot be held up by an unresponsive renderer's unload handler.
     stopHeartbeat()
+    endHealthRun('home-gave-up')
     writeHomeRecoveryGiveUp(userDataDir, detail)
     app.exit(1)
   }
@@ -306,6 +308,7 @@ function registerGlobalShortcuts(): void {
   // Always-available escape hatch, regardless of kiosk mode.
   globalShortcut.register('Ctrl+Shift+Q', () => {
     // Deliberate quit: tell the watchdog not to bring the kiosk back.
+    endHealthRun('quit')
     writeQuitFlag(app.getPath('userData'))
     app.quit()
   })

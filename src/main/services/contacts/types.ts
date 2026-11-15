@@ -47,6 +47,15 @@ export interface ContactReply {
   receivedAt: number
   body: string
 }
+/**
+ * The provider answered and refused the text (a 4xx: wrong key, sender or number), so it
+ * was definitely not sent. Anything less certain stays a plain error and becomes unknown.
+ */
+export class ContactRejectedError extends Error {
+  constructor() {
+    super('Contact channel unavailable')
+  }
+}
 /** Implementations must bound network time and must never retry a submission. */
 export interface ContactChannel {
   submit(
@@ -72,6 +81,7 @@ export function summarize(request: SavedRequest): ContactRequestSummary {
       ...(attempt.photoId ? { photoId: attempt.photoId } : {}),
       startedAt: attempt.startedAt,
       status: attempt.status,
+      ...(attempt.sid ? { submitted: true } : {}),
       ...(attempt.deliveredAt === undefined ? {} : { deliveredAt: attempt.deliveredAt }),
       ...(attempt.answeredAt === undefined ? {} : { answeredAt: attempt.answeredAt })
     }))

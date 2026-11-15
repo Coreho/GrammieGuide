@@ -22,8 +22,9 @@ import type {
   VoiceStart
 } from './checks/caregiverChecks'
 import type { BuiltinGameKey } from './games/gamesSchema'
-import type { ContactRequestSummary, HomeContactState } from './contacts'
+import type { ContactRequestSummary, ContactTestState, HomeContactState } from './contacts'
 import type { ContactSetup, ContactCredentials, AdminContactSetup } from './contactSettings'
+import type { HealthSummary } from './health/healthRecord'
 import type {
   WhatsAppCallState,
   WhatsAppCommand,
@@ -167,6 +168,8 @@ export interface IpcApi {
   'contacts:request': { request: void; response: HomeContactState }
   'contacts:getSettings': { request: void; response: AdminContactSetup }
   'contacts:saveSettings': { request: ContactSetup; response: AdminContactSetup }
+  'contacts:testState': { request: void; response: ContactTestState }
+  'contacts:startTest': { request: { contactId: string }; response: ContactTestState }
   /** Her project as Home shows it; Home only. */
   'knitting:home': { request: void; response: HomeKnitting }
   /** One tap on Home's counter; main applies the double-tap guard. */
@@ -276,6 +279,8 @@ export interface IpcApi {
   'config:set': { request: Partial<Config>; response: PublicConfig }
 
   'reliability:getLog': { request: { limit?: number }; response: ReliabilityEvent[] }
+  /** TASK-25's Status tab; caregiver only. */
+  'health:get': { request: void; response: HealthSummary }
   'reliability:testVolume': { request: void; response: ReliabilityEvent }
   'reliability:testWifiDiscovery': { request: void; response: ReliabilityEvent }
   'reliability:testWatchdogRegistration': { request: void; response: ReliabilityEvent }

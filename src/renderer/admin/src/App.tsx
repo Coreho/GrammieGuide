@@ -16,6 +16,7 @@ import { KnittingTab } from './components/KnittingTab'
 import { ChecksTab } from './components/ChecksTab'
 import { SitesTab } from './components/SitesTab'
 import { ContactsTab } from './components/ContactsTab'
+import { StatusTab } from './components/StatusTab'
 import { useConfigStore } from './state/useConfigStore'
 
 declare global {
@@ -40,6 +41,7 @@ type Tab =
   | 'checks'
   | 'sites'
   | 'contacts'
+  | 'status'
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('loading')
@@ -64,6 +66,7 @@ export default function App() {
         <h2>GrammieGuide</h2>
         {(
           [
+            'status',
             'tiles',
             'photos',
             'music',
@@ -124,6 +127,7 @@ export default function App() {
         {tab === 'checks' && <ChecksTab />}
         {tab === 'sites' && <SitesTab />}
         {tab === 'contacts' && <ContactsTab />}
+        {tab === 'status' && <StatusTab />}
       </main>
     </div>
   )

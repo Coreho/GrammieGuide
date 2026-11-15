@@ -65,7 +65,8 @@ export type PublicContacts = Omit<ContactSetup, 'people'> & {
   preferred: PublicContactPerson | null
   fallback: PublicContactPerson | null
 }
-export type AdminContactSetup = ContactSetup & { hasCredentials: boolean }
+/** `smsCallbacks` is main's release switch; while false admin hides every SMS control. */
+export type AdminContactSetup = ContactSetup & { hasCredentials: boolean; smsCallbacks: boolean }
 export function defaultContactSetup(): ContactSetup {
   return {
     enabled: false,
@@ -79,9 +80,14 @@ export function publicContact(person: ContactPerson | null): PublicContactPerson
   const { phone: _phone, ...display } = person
   return display
 }
-export function publicContacts(config: ContactConfig): PublicContacts {
+/**
+ * `smsCallbacks` is main's release switch (services/contacts/smsCallbacks.ts).
+ * While it is off, renderers see the feature as off whatever the caregiver
+ * saved, so Home and admin's Home preview never draw the button.
+ */
+export function publicContacts(config: ContactConfig, smsCallbacks: boolean): PublicContacts {
   return {
-    enabled: config.enabled,
+    enabled: config.enabled && smsCallbacks,
     people: config.people.map((person) => publicContact(person)!),
     preferred: publicContact(config.people[0] ?? null),
     fallback: publicContact(config.people[1] ?? null),

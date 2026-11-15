@@ -20,7 +20,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Validate to allow only schema fields, then strip the known device secrets. */
 export function buildConfigBackup(config: Config): string {
-  const { contacts: _contacts, ...portable } = toPublicConfig(configSchema.parse(config))
+  const { contacts: _contacts, ...portable } = toPublicConfig(configSchema.parse(config), false)
   return JSON.stringify(
     {
       format: FORMAT,
@@ -69,5 +69,6 @@ export function parseConfigBackup(text: string, current: Config): Config {
   const migrated = runMigrations({ ...config, contacts: current.contacts })
   if (!migrated.ok) throw new ConfigBackupError(INVALID)
   // Ignore incoming credentials (including ones added to a hand-edited file).
-  return configSchema.parse(mergeAdminPatch(current, toPublicConfig(migrated.config)))
+  // mergeAdminPatch keeps current.contacts, so the SMS switch passed here never matters.
+  return configSchema.parse(mergeAdminPatch(current, toPublicConfig(migrated.config, false)))
 }
