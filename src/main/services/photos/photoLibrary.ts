@@ -2,6 +2,7 @@ import { extname } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import type { LibraryEntry, LibraryMetadata } from '@shared/media/libraryTypes'
 import {
+  PHOTO_DATE_MAX,
   PHOTO_EXTENSIONS,
   type Photo,
   type PhotoPatch,
@@ -34,12 +35,14 @@ export function downscale(image: PhotoImage, limit: number): PhotoImage {
 }
 
 function photo(entry: LibraryEntry, position: number): Photo {
-  const { caption, showToHer, order } = entry.metadata
+  const { caption, date, showToHer, order } = entry.metadata
   return {
     id: entry.id,
     url: `grammie-media://photos/${entry.fileName}`,
     thumbnailUrl: `grammie-media://photos/${entry.thumbFileName ?? entry.fileName}`,
     caption: typeof caption === 'string' ? caption : '',
+    // Photos saved before dates existed simply have none.
+    date: typeof date === 'string' ? date : '',
     // Older raw media entries have never been approved for her photo viewer.
     showToHer: showToHer === true,
     importIndex: position,
@@ -52,14 +55,18 @@ export function validatePhotoPatch(value: unknown): PhotoPatch {
     throw new Error('Invalid photo changes')
   const patch = value as Record<string, unknown>
   if (
-    Object.keys(patch).some((key) => !['caption', 'showToHer', 'order'].includes(key)) ||
+    Object.keys(patch).some((key) => !['caption', 'date', 'showToHer', 'order'].includes(key)) ||
     ('caption' in patch && (typeof patch.caption !== 'string' || patch.caption.length > 2000)) ||
+    ('date' in patch && (typeof patch.date !== 'string' || patch.date.length > PHOTO_DATE_MAX)) ||
     ('showToHer' in patch && typeof patch.showToHer !== 'boolean') ||
     ('order' in patch &&
       (typeof patch.order !== 'number' || !Number.isSafeInteger(patch.order) || patch.order < 0))
   )
     throw new Error('Invalid photo changes')
-  return { ...patch } as PhotoPatch
+  const validated = { ...patch } as PhotoPatch
+  // One line on her screen: stray spaces and line breaks from a paste are dropped.
+  if (validated.date !== undefined) validated.date = validated.date.replace(/\s+/g, ' ').trim()
+  return validated
 }
 
 export class PhotoLibrary {

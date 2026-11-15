@@ -125,6 +125,8 @@ describe('photo library', () => {
     await library.import(['a.jpg', 'b.png', 'c.webp'], () => undefined)
     const [a, b, c] = await library.listAll()
     await library.update(a!.id, { caption: 'At the lake', showToHer: false })
+    await library.update(a!.id, { date: 'Summer 1962' })
+    expect(b!.date).toBe('')
     await library.update(c!.id, { order: 0 })
     await library.update(b!.id, { order: 5 })
     const restarted = new PhotoLibrary(new LibraryStore(root, 'photos'), {
@@ -133,6 +135,7 @@ describe('photo library', () => {
     expect((await restarted.listVisible()).map((entry) => entry.id)).toEqual([c!.id, b!.id])
     expect((await restarted.listAll())[0]).toMatchObject({
       caption: 'At the lake',
+      date: 'Summer 1962',
       showToHer: false
     })
     for (const photo of await restarted.listAll()) {
@@ -253,6 +256,8 @@ describe('photo library', () => {
   it.each([
     { caption: 1 },
     { caption: 'x'.repeat(2001) },
+    { date: 1962 },
+    { date: 'x'.repeat(61) },
     { showToHer: 'yes' },
     { order: -1 },
     { order: Infinity },
@@ -262,6 +267,10 @@ describe('photo library', () => {
     null,
     []
   ])('rejects malformed photo metadata: %j', (patch) => {
+    // (A date is free text, tidied to one line without touching the caller's object.)
+    const given = { date: '  June \n 1985 ' }
+    expect(validatePhotoPatch(given)).toEqual({ date: 'June 1985' })
+    expect(given.date).toBe('  June \n 1985 ')
     expect(() => validatePhotoPatch(patch)).toThrow('Invalid photo changes')
   })
 })
