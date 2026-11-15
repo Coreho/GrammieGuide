@@ -232,6 +232,68 @@ describe('observed WhatsApp web control contracts', () => {
     })
     expect(f.end).toHaveBeenCalledWith(2, true)
   })
+  describe('declining, across WhatsApp Web versions', () => {
+    const ring = (f: ReturnType<typeof fixture>): void => {
+      f.setState(3)
+      f.calls.activeCall = {
+        id: 'incoming',
+        peerJid: '15551111111@c.us',
+        getState: () => 3,
+        isVideo: false
+      }
+    }
+    const useStack = (f: ReturnType<typeof fixture>, methods: Record<string, unknown>): void => {
+      f.modules.WAWebVoipStackInterface = {
+        getCachedVoipStackInterface: () => ({
+          type: 'web',
+          acceptCall: vi.fn(),
+          endCall: f.end,
+          ...methods
+        })
+      }
+    }
+    const withRejectReasons = (f: ReturnType<typeof fixture>, reasons: unknown): void => {
+      f.modules.WAWebVoipWaCallEnums = {
+        ...(f.modules.WAWebVoipWaCallEnums as object),
+        RejectEndReason: reasons
+      }
+    }
+
+    it("is ready, and declines with WhatsApp's own reason, once rejectCall became rejectCallWithEndReason", async () => {
+      const f = fixture()
+      const reject = vi.fn()
+      useStack(f, { rejectCallWithEndReason: reject })
+      withRejectReasons(f, { Self: 2, Unknown: 0 })
+      expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({ supported: true, idle: true })
+      ring(f)
+      await whatsAppRuntime({ type: 'decline', callId: 'stale' })
+      expect(reject).not.toHaveBeenCalled()
+      await whatsAppRuntime({ type: 'decline', callId: 'incoming' })
+      expect(reject).toHaveBeenCalledExactlyOnceWith(2)
+    })
+
+    it('still declines with rejectCall on an older WhatsApp Web', async () => {
+      const f = fixture()
+      const reject = vi.fn()
+      useStack(f, { rejectCall: reject })
+      ring(f)
+      await whatsAppRuntime({ type: 'decline', callId: 'incoming' })
+      expect(reject).toHaveBeenCalledExactlyOnceWith()
+    })
+
+    it('fails closed with no decline method, or no number to decline with', async () => {
+      const f = fixture()
+      useStack(f, {})
+      expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({ supported: false })
+      useStack(f, { rejectCallWithEndReason: vi.fn() })
+      expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({ supported: false })
+      withRejectReasons(f, { Self: 'self' })
+      expect(await whatsAppRuntime({ type: 'read' })).toMatchObject({ supported: false })
+      await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'voice' })
+      expect(f.start).not.toHaveBeenCalled()
+    })
+  })
+
   it('fails closed for a different origin, missing methods and video', async () => {
     const f = fixture()
     await whatsAppRuntime({ type: 'start', phone: '+15551111111', mode: 'video' })

@@ -141,6 +141,24 @@ media call is preserved if its signaling socket drops. If that call subsequently
 ends locally while signaling remains offline, the adapter destroys the now-idle
 peer to clear the old call and audio hold with main-process teardown proof.
 
+Decline uses the stack's `rejectCallWithEndReason` with
+`WAWebVoipWaCallEnums.RejectEndReason.Self`, the reason WhatsApp's own Decline click
+passes (module `useWAWebVoipCallHandlers`), and falls back to the older
+`rejectCall()` where a WhatsApp Web still has it. In November 2026 WhatsApp removed
+`rejectCall`; the bridge then required it on every read, so a signed-in session
+showed "Live calling is not available yet" with every call disabled while the
+gates, stack and other methods were all fine.
+
+**When calling stops after a WhatsApp update:** the reason is not visible in admin,
+because failed reads are deliberately not logged. Quit Home (Ctrl+Shift+Q), start
+the installed exe once with `--remote-debugging-port=<port>` (it binds 127.0.0.1;
+Windows asks for elevation), and evaluate the bridge's own `read` (compile
+`src/shared/whatsAppRuntime.ts` with esbuild) plus the gates and stack method names
+in the `web.whatsapp.com` page target over CDP. Keep it read-only: never start,
+answer or end a call, and never read chats. Then quit and start it through the
+`GrammieGuide` task so the port closes. A fresh unlinked session is not enough:
+WhatsApp only loads its voip stack after sign-in.
+
 End attempts the native decline/hang-up and, after at most 1.5s, closes the local
 renderer. This path remains available during unknown state or a hung command.
 Timeout/cancellation destroys the remote renderer so late provider promises cannot
