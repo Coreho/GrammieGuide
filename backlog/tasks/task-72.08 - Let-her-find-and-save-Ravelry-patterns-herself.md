@@ -1,11 +1,11 @@
 ---
 id: TASK-72.08
 title: Let her find and save Ravelry patterns herself
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-01T18:09:00Z'
-updated_date: '2026-11-01T18:41:00Z'
+updated_date: '2026-11-01T19:28:00Z'
 labels:
   - knitting
   - browsing
@@ -47,4 +47,12 @@ The owner asked on 2026-11-01 for a simpler way for her to pick and save Ravelry
 
 <!-- SECTION:NOTES:BEGIN -->
 Verified 2026-11-01 against real Ravelry with the owner's read-only key, in throwaway data folders: 8 categories with pictures, a real free pattern saved in 8 to 13 seconds with 12 readable pages, in the built app and in a packaged asInvoker copy. Real data found that the API lists Ravelry links as http, that session.fetch throws on redirect manual, and that the largest photos passed the size cap. Unit 1612 passed; 12 deliberate breaks caught. In a sample of 30 popular free patterns, 14 linked directly to a PDF, 9 were Ravelry pages that gave no PDF unsigned, and 7 were other sites' pages. Not tested: her browser sign-in route against a real signed-in session, real use with her, a physical mouse. Ravelry's API terms are still unchecked.
+
+PR #70 at 779ac85: full e2e 239 passed, 1 skipped; unit 1612 passed; crc 1 minor finding fixed, 0 on the fix. Not yet merged or installed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Merged in PR #70 (8a021c6) and installed on her computer 2026-11-01 14:26. On the Ravelry card she can open her saved patterns, browse fixed categories of free knitting patterns four at a time, and save one with a large button; a Save button also appears in the top bar on Ravelry pattern pages. Home can only save patterns main served or the page she is on. Free patterns' PDF instructions are drawn in a hidden sandboxed window with no network (60 pages, 120s, 30 MB limits) and saved as pictures that open offline; if that fails the pattern still saves. Checks: 239 e2e passed, 1 skipped; 1612 unit; live run with the real read-only key; crc 1 minor finding fixed, 0 on the fix. Install verified: exe and app.asar match the build, both tasks at Program Files, watchdog ran with result 0, settings unchanged. Not tested: the signed-in PDF route against a real signed-in Ravelry session; her own use of the screens.
+<!-- SECTION:FINAL_SUMMARY:END -->
