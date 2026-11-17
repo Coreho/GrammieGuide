@@ -82,6 +82,7 @@ export function registerBuddyIpc(getStore: (kind: MediaLibrary) => LibraryStore)
       ...(connected ? { generate: (messages) => chatGptBuddyReply(model, messages) } : {}),
       log: logActivity,
       personal: { facts: () => getConfig().buddy.personalFacts, history: personalHistory },
+      todayCard: () => getConfig().display.todayCard,
       contactButton: () => {
         // A hidden button must never be suggested to her (see smsCallbacks.ts).
         const contacts = getConfig().contacts

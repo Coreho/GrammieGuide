@@ -1,3 +1,4 @@
+import { explicitTodayRequest, todayReply, type TodayCardSettings } from '@shared/today/today'
 import type { BuddyChatTurn, BuddyChatResult } from '@shared/ipcContract'
 import type { ClipName } from '@shared/buddy/commands'
 import type { BuddyMessage, BuddyCompletion } from './buddyCompletion'
@@ -89,6 +90,8 @@ export async function buddyChat(
       now?: () => Date
       timeZone?: string
     }
+    /** TASK-79: the Today card's settings, so his answer matches what Home shows. */
+    todayCard?: () => TodayCardSettings
   }
 ): Promise<BuddyChatResult> {
   if (!opts.chatEnabled) {
@@ -109,6 +112,22 @@ export async function buddyChat(
       ? explicitGestureRequest(last.text)
       : null
   if (gesture) return { ok: true, ...gestureResult(gesture, opts.motion) }
+  // "What day is it?" and "What's on today?" are read from the Today card's
+  // own words, with no model, network or key, so he can't misstate a plan.
+  const todayRequest =
+    last?.role === 'user' && typeof last.text === 'string' ? explicitTodayRequest(last.text) : null
+  if (todayRequest) {
+    const reply = todayReply(todayRequest, {
+      now: opts.personal?.now?.() ?? new Date(),
+      timeZone: opts.personal?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      facts: opts.personal?.facts() ?? [],
+      settings: opts.todayCard?.() ?? { enabled: false, showTomorrow: false }
+    })
+    if (reply) {
+      opts.log(`buddy-today-${todayRequest}`)
+      return { ok: true, reply }
+    }
+  }
   const direct =
     last?.role === 'user' && typeof last.text === 'string' ? explicitBuddyAction(last.text) : null
   const toChatResult = (result: BuddyActionResult): BuddyChatResult =>

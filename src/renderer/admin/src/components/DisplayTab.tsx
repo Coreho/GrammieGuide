@@ -19,6 +19,10 @@ export function DisplayTab() {
   const saveIdleDim = (patch: Partial<typeof idleDim>): void => {
     void save({ display: { ...config.display, idleDim: { ...idleDim, ...patch } } })
   }
+  const todayCard = config.display.todayCard
+  const saveTodayCard = (patch: Partial<typeof todayCard>): void => {
+    void save({ display: { ...config.display, todayCard: { ...todayCard, ...patch } } })
+  }
   const { theme, background } = config.display
   const offered = backgroundsFor(theme)
   // A background saved under a theme of the other tone stays saved but isn't shown.
@@ -128,6 +132,34 @@ export function DisplayTab() {
           onChange={(e) => save({ display: { ...config.display, volumeCeiling: Number(e.target.value) } })}
         />
       </label>
+      <h3>Today card</h3>
+      <label>
+        <input
+          type="checkbox"
+          data-setting="today-card"
+          checked={todayCard.enabled}
+          onChange={(e) => saveTodayCard({ enabled: e.target.checked })}
+        />
+        Show today&apos;s plans on Home, under the date
+      </label>
+      <br />
+      <label>
+        <input
+          type="checkbox"
+          data-setting="today-card-tomorrow"
+          checked={todayCard.showTomorrow}
+          disabled={!todayCard.enabled}
+          onChange={(e) => saveTodayCard({ showTomorrow: e.target.checked })}
+        />
+        Also show tomorrow&apos;s plans
+      </label>
+      <p style={{ fontSize: '.85rem', color: '#666' }}>
+        Plans come from the dated plans in the Buddy tab&apos;s facts, so write each one there
+        once. Cancelled and past plans never show. The card takes the same space whether or not
+        anything is planned, so her tiles don&apos;t move when a plan is added or a day passes.
+        Buddy answers &ldquo;What day is it?&rdquo; and &ldquo;What&apos;s on today?&rdquo; from
+        the same card.
+      </p>
       <h3>Dim the screen when idle</h3>
       <label>
         <input

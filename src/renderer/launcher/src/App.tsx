@@ -13,6 +13,8 @@ import type { LauncherApi } from '../../../preload/launcher'
 import { Stage } from './components/Stage'
 import { HomeView } from './components/HomeView'
 import { timeParts } from './components/HomeHeader'
+import { TodayCard } from './components/TodayCard'
+import { todayCardLines } from '@shared/today/today'
 import { NavBar } from './components/NavBar'
 import { VideoControls } from './components/VideoControls'
 import { ReaderView } from './components/ReaderView'
@@ -475,6 +477,18 @@ export default function App() {
             tiles={config.tiles}
             layout={config.display.homeLayout}
             nowPlaying={<NowPlayingChip state={musicState} onStop={() => music.stop()} />}
+            today={
+              config.display.todayCard.enabled ? (
+                <TodayCard
+                  lines={todayCardLines(
+                    config.buddy.personalFacts,
+                    now,
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    config.display.todayCard
+                  )}
+                />
+              ) : undefined
+            }
             contact={
               config.contacts.enabled && config.contacts.preferred ? (
                 <ContactButton

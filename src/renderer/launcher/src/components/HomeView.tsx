@@ -41,7 +41,8 @@ export function HomeView({
   onBuddyTap,
   buddy,
   nowPlaying,
-  contact
+  contact,
+  today
 }: {
   time: string
   ampm: string
@@ -54,10 +55,18 @@ export function HomeView({
   buddy: HomeBuddyProps
   nowPlaying?: ReactNode
   contact?: ReactNode
+  today?: ReactNode
 }) {
   return (
     <>
-      <HomeHeader time={time} ampm={ampm} date={date} weather={weather} nowPlaying={nowPlaying} />
+      <HomeHeader
+        time={time}
+        ampm={ampm}
+        date={date}
+        weather={weather}
+        nowPlaying={nowPlaying}
+        today={today}
+      />
 
       <TileGrid tiles={tiles} layout={layout} onActivate={onActivateTile} />
 
