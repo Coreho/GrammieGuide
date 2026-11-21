@@ -1,11 +1,11 @@
 ---
 id: TASK-91
 title: Photo albums, starting with a New album
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-21T20:40:00Z'
-updated_date: '2026-11-21T20:53:00Z'
+updated_date: '2026-11-21T21:12:00Z'
 labels:
   - photos
 dependencies: []
