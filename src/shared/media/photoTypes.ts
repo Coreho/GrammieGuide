@@ -10,13 +10,15 @@ export interface Photo {
    */
   date: string
   showToHer: boolean
+  /** The album's name; '' is her main album (see shared/media/photoAlbums.ts). */
+  album: string
   order: number
   /** Stable tie-breaker assigned from the library's insertion order. */
   importIndex: number
   narration?: { url: string; autoPlay: boolean }
 }
 
-export type PhotoPatch = Partial<Pick<Photo, 'caption' | 'date' | 'showToHer' | 'order'>>
+export type PhotoPatch = Partial<Pick<Photo, 'caption' | 'date' | 'showToHer' | 'album' | 'order'>>
 
 export const PHOTO_DATE_MAX = 60
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { Photo } from '@shared/media/photoTypes'
+import { photoAlbums, sameAlbum, type PhotoAlbum } from '@shared/media/photoAlbums'
 import { zLayers } from '@shared/zLayers'
 import type { BuiltinViewProps } from './builtins'
 import './PhotoViewer.css'
@@ -16,10 +17,20 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
   // Which photo's card is open. Keyed by photo, so every new photo starts plain
   // and a photo the caregiver swaps in mid-view can't inherit an open card.
   const [aboutId, setAboutId] = useState<string | null>(null)
+  // The album she chose, by name; null while she is choosing. With a single album
+  // there is nothing to choose, so the viewer opens straight to its photos as before.
+  const [albumName, setAlbumName] = useState<string | null>(null)
   const home = useRef<HTMLButtonElement>(null)
   const surface = useRef<HTMLElement>(null)
-  const photo = photos?.[index]
-  const count = photos?.length ?? 0
+  const albums: PhotoAlbum[] = photos ? photoAlbums(photos) : []
+  const choosing = albums.length > 1
+  const album: PhotoAlbum | undefined = choosing
+    ? albums.find((entry) => albumName !== null && sameAlbum(entry.name, albumName))
+    : albums[0]
+  const shown = album?.photos ?? []
+  const atAlbumChoice = choosing && !album
+  const photo = shown[index]
+  const count = shown.length
   const imageReady = Boolean(photo && loadedId === photo.id && failedId !== photo.id)
   const playing = config.photos.slideshowEnabled && !paused
   const hasAbout = Boolean(photo && (photo.caption || photo.date))
@@ -56,10 +67,7 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
     const unsubscribe = window.launcher.onPhotosChanged(() => {
       void window.launcher.listPhotos().then(
         (result) => {
-          if (live) {
-            setPhotos(result)
-            setIndex((current) => Math.min(current, Math.max(0, result.length - 1)))
-          }
+          if (live) setPhotos(result)
         },
         () => {}
       )
@@ -70,6 +78,14 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
     }
   }, [])
 
+  // The caregiver may change photos while she looks: stay on a photo that still exists,
+  // and if her album has gone (moved or emptied) go back to the albums that are left.
+  useEffect(() => {
+    if (!photos) return
+    if (choosing && albumName !== null && !album) setAlbumName(null)
+    setIndex((current) => Math.min(current, Math.max(0, count - 1)))
+  }, [photos, choosing, albumName, album, count])
+
   useEffect(() => {
     // An open card means she is reading: the photo stays until she closes it.
     if (!playing || !imageReady || count < 2 || narration.playing || aboutOpen) return
@@ -79,25 +95,44 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
     return () => window.clearTimeout(timer)
   }, [playing, imageReady, count, index, narration.playing, aboutOpen])
 
-  function move(direction: number): void {
+  function resetPhoto(): void {
     narration.stop()
     autoPlayed.current = null
-    if (count < 2) {
-      onClose()
-      return
-    }
     setFailedId(null)
     setLoadedId(null)
     setAboutId(null)
+  }
+
+  function openAlbum(name: string | null): void {
+    resetPhoto()
+    setIndex(0)
+    setAlbumName(name)
+  }
+
+  /** Leaving one photo for "back": the album choice when there is one, otherwise Home. */
+  function leave(): void {
+    if (choosing && album) openAlbum(null)
+    else onClose()
+  }
+
+  function move(direction: number): void {
+    if (count < 2) {
+      resetPhoto()
+      leave()
+      return
+    }
+    resetPhoto()
     setIndex((current) => (current + direction + count) % count)
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>): void {
     if (event.key === 'Escape') {
       event.preventDefault()
-      onClose()
+      leave()
     }
-    if (event.key === 'ArrowLeft') {
+    if (atAlbumChoice) {
+      if (event.key !== 'Tab') return
+    } else if (event.key === 'ArrowLeft') {
       event.preventDefault()
       move(-1)
     }
@@ -132,56 +167,78 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
           <button ref={home} onClick={onClose}>
             🏠 Home
           </button>
-          <h1>{tile.label}</h1>
+          {choosing && album && (
+            <button className="photo-viewer-albums-button" onClick={() => openAlbum(null)}>
+              ← Albums
+            </button>
+          )}
+          <h1>{album && choosing ? album.label : tile.label}</h1>
           {musicStop}
         </header>
-        <div className="photo-viewer-picture" aria-busy={!photos && !unavailable}>
-          {unavailable && <p role="status">The photos aren&apos;t ready right now.</p>}
-          {!photos && !unavailable && <p role="status">Getting your photos ready…</p>}
-          {photos && count === 0 && (
-            <p role="status">Your photos will be here when your family adds them.</p>
-          )}
-          {photo && failedId === photo.id && (
-            <p role="status">This photo isn&apos;t ready right now.</p>
-          )}
-          {photo && failedId !== photo.id && !hasAbout && (
-            <img
-              key={photo.id}
-              src={photo.url}
-              alt="Family photo"
-              draggable={false}
-              onLoad={() => setLoadedId(photo.id)}
-              onError={() => setFailedId(photo.id)}
-            />
-          )}
-          {photo && failedId !== photo.id && hasAbout && (
-            // The whole picture is the target: no small control to find or aim at.
-            <button
-              key={photo.id}
-              className="photo-viewer-photo"
-              aria-expanded={aboutOpen}
-              aria-controls="photo-viewer-about"
-              aria-label={
-                aboutOpen ? 'Family photo. Hide the words' : 'Family photo. Read about it'
-              }
-              onClick={() => setAboutId(aboutOpen ? null : photo.id)}
-            >
+        {atAlbumChoice && (
+          <ul className="photo-viewer-album-choice" aria-label="Choose an album">
+            {albums.map((entry) => (
+              <li key={entry.name.toLocaleLowerCase()}>
+                <button className="photo-viewer-album" onClick={() => openAlbum(entry.name)}>
+                  <img src={entry.photos[0]!.thumbnailUrl} alt="" draggable={false} />
+                  <span className="photo-viewer-album-name">{entry.label}</span>
+                  <span className="photo-viewer-album-count">
+                    {entry.photos.length === 1 ? '1 photo' : `${entry.photos.length} photos`}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!atAlbumChoice && (
+          <div className="photo-viewer-picture" aria-busy={!photos && !unavailable}>
+            {unavailable && <p role="status">The photos aren&apos;t ready right now.</p>}
+            {!photos && !unavailable && <p role="status">Getting your photos ready…</p>}
+            {photos && count === 0 && (
+              <p role="status">Your photos will be here when your family adds them.</p>
+            )}
+            {photo && failedId === photo.id && (
+              <p role="status">This photo isn&apos;t ready right now.</p>
+            )}
+            {photo && failedId !== photo.id && !hasAbout && (
               <img
+                key={photo.id}
                 src={photo.url}
-                alt=""
+                alt="Family photo"
                 draggable={false}
                 onLoad={() => setLoadedId(photo.id)}
                 onError={() => setFailedId(photo.id)}
               />
-            </button>
-          )}
-          {photo && aboutOpen && (
-            <div id="photo-viewer-about" className="photo-viewer-about" tabIndex={0}>
-              {photo.caption && <p className="photo-viewer-caption">{photo.caption}</p>}
-              {photo.date && <p className="photo-viewer-date">{photo.date}</p>}
-            </div>
-          )}
-        </div>
+            )}
+            {photo && failedId !== photo.id && hasAbout && (
+              // The whole picture is the target: no small control to find or aim at.
+              <button
+                key={photo.id}
+                className="photo-viewer-photo"
+                aria-expanded={aboutOpen}
+                aria-controls="photo-viewer-about"
+                aria-label={
+                  aboutOpen ? 'Family photo. Hide the words' : 'Family photo. Read about it'
+                }
+                onClick={() => setAboutId(aboutOpen ? null : photo.id)}
+              >
+                <img
+                  src={photo.url}
+                  alt=""
+                  draggable={false}
+                  onLoad={() => setLoadedId(photo.id)}
+                  onError={() => setFailedId(photo.id)}
+                />
+              </button>
+            )}
+            {photo && aboutOpen && (
+              <div id="photo-viewer-about" className="photo-viewer-about" tabIndex={0}>
+                {photo.caption && <p className="photo-viewer-caption">{photo.caption}</p>}
+                {photo.date && <p className="photo-viewer-date">{photo.date}</p>}
+              </div>
+            )}
+          </div>
+        )}
         {imageReady && hasAbout && !aboutOpen && (
           <p className="photo-viewer-hint">Tap the photo to read about it</p>
         )}
@@ -193,24 +250,28 @@ export function PhotoViewer({ tile, config, onClose, musicStop }: BuiltinViewPro
             {narration.error && <p role="status">The story isn&apos;t ready right now.</p>}
           </div>
         )}
-        <footer className="photo-viewer-controls">
-          <button
-            aria-label={count > 1 ? 'Previous photo' : 'Back to Home'}
-            onClick={() => move(-1)}
-          >
-            ← Back
-          </button>
-          {config.photos.slideshowEnabled && count > 1 && (
-            <button onClick={() => setPaused((current) => !current)}>
-              {paused ? 'Play photos' : 'Pause photos'}
+        {!atAlbumChoice && (
+          <footer className="photo-viewer-controls">
+            <button
+              aria-label={
+                count > 1 ? 'Previous photo' : choosing ? 'Back to the albums' : 'Back to Home'
+              }
+              onClick={() => move(-1)}
+            >
+              ← Back
             </button>
-          )}
-          {count > 1 && (
-            <button aria-label="Next photo" onClick={() => move(1)}>
-              Next →
-            </button>
-          )}
-        </footer>
+            {config.photos.slideshowEnabled && count > 1 && (
+              <button onClick={() => setPaused((current) => !current)}>
+                {paused ? 'Play photos' : 'Pause photos'}
+              </button>
+            )}
+            {count > 1 && (
+              <button aria-label="Next photo" onClick={() => move(1)}>
+                Next →
+              </button>
+            )}
+          </footer>
+        )}
       </section>
     </div>
   )

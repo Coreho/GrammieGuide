@@ -105,7 +105,7 @@ const adminApi = {
     return () => ipcRenderer.removeListener('knitting:changed', listener)
   },
   listPhotos: () => invoke('photos:listAll'),
-  importPhotos: () => invoke('photos:import'),
+  importPhotos: (album?: string) => invoke('photos:import', { album }),
   updatePhoto: (request: IpcRequest<'photos:update'>) => invoke('photos:update', request),
   removePhoto: (id: string) => invoke('photos:remove', { id }),
   onPhotoImportProgress: (

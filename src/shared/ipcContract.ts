@@ -248,7 +248,8 @@ export interface IpcApi {
   'photos:listAll': { request: void; response: Photo[] }
   /** Open the viewer, record only that action, and return caregiver-approved photos. */
   'photos:open': { request: void; response: Photo[] }
-  'photos:import': { request: void; response: PhotoImportResult }
+  /** `album` is the album new photos go into; omitted or '' is her main album. */
+  'photos:import': { request: { album?: string } | void; response: PhotoImportResult }
   'photos:update': { request: { id: string; patch: PhotoPatch }; response: Photo }
   'photos:remove': { request: { id: string }; response: boolean }
   /** Only photos explicitly chosen for saved Home tiles, without captions or paths. */

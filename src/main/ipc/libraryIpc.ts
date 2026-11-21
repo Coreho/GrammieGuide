@@ -7,6 +7,7 @@ import { LibraryStore } from '../services/media/libraryStore'
 import { PhotoLibrary, validatePhotoPatch } from '../services/photos/photoLibrary'
 import { createNativePhotoCodec } from '../services/photos/nativePhotoCodec'
 import { PHOTO_EXTENSIONS } from '@shared/media/photoTypes'
+import { tidyAlbumName } from '@shared/media/photoAlbums'
 import { requireAdminUnlocked } from './requireAdminUnlocked'
 import { logActivity } from '../services/activityLog/activityLog'
 import { getConfig } from '../config/store'
@@ -125,32 +126,44 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     }, 'Could not read the photos')
   })
   let importingPhotos = false
-  ipcMain.handle('photos:import', async (event): Promise<IpcResponse<'photos:import'>> => {
-    requireAdminUnlocked()
-    if (importingPhotos) throw new Error('A photo import is already running')
-    importingPhotos = true
-    try {
-      const selection = await photoWork(() => {
-        requireAdminUnlocked()
-        return dialog.showOpenDialog({
-          properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
-          filters: [{ name: 'Photos', extensions: [...PHOTO_EXTENSIONS] }]
-        })
-      }, 'Could not open the photo picker')
+  ipcMain.handle(
+    'photos:import',
+    async (event, request: IpcRequest<'photos:import'>): Promise<IpcResponse<'photos:import'>> => {
       requireAdminUnlocked()
-      if (selection.canceled) return { imported: 0, failed: 0 }
-      const result = await photoChange(() => {
+      // Refuse a bad album name before the picker opens, so nobody chooses files for nothing.
+      // The name is never logged.
+      const album = tidyAlbumName(
+        request && typeof request === 'object' ? (request.album ?? '') : ''
+      )
+      if (importingPhotos) throw new Error('A photo import is already running')
+      importingPhotos = true
+      try {
+        const selection = await photoWork(() => {
+          requireAdminUnlocked()
+          return dialog.showOpenDialog({
+            properties: ['openFile', 'multiSelections', 'dontAddToRecent'],
+            filters: [{ name: 'Photos', extensions: [...PHOTO_EXTENSIONS] }]
+          })
+        }, 'Could not open the photo picker')
         requireAdminUnlocked()
-        return photos().import(selection.filePaths, (count) => {
-          if (!event.sender.isDestroyed()) event.sender.send('photos:importProgress', count)
-        })
-      }, 'Could not import photos')
-      if (result.imported) photosChanged()
-      return result
-    } finally {
-      importingPhotos = false
+        if (selection.canceled) return { imported: 0, failed: 0 }
+        const result = await photoChange(() => {
+          requireAdminUnlocked()
+          return photos().import(
+            selection.filePaths,
+            (count) => {
+              if (!event.sender.isDestroyed()) event.sender.send('photos:importProgress', count)
+            },
+            album
+          )
+        }, 'Could not import photos')
+        if (result.imported) photosChanged()
+        return result
+      } finally {
+        importingPhotos = false
+      }
     }
-  })
+  )
   ipcMain.handle(
     'photos:update',
     async (_event, request: IpcRequest<'photos:update'>): Promise<IpcResponse<'photos:update'>> => {
