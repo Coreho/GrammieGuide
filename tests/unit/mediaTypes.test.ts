@@ -30,14 +30,16 @@ const music = {
 
 describe('supported media types', () => {
   it('keeps the protocol types and per-library picker extensions in sync', () => {
-    // Pattern pages and finished pieces are only ever JPEGs the knitting import wrote.
+    // Pattern pages, finished pieces and her nursing papers' pages are only ever JPEGs
+    // the app's own picture step wrote.
     expect(LIBRARY_CONTENT_TYPES).toEqual({
       photos,
       music,
       narration: music,
       patterns: { '.jpg': 'image/jpeg' },
       knitted: { '.jpg': 'image/jpeg' },
-      ravelry: { '.jpg': 'image/jpeg' }
+      ravelry: { '.jpg': 'image/jpeg' },
+      nursing: { '.jpg': 'image/jpeg' }
     })
     expect(MEDIA_CONTENT_TYPES).toEqual({ ...photos, ...music })
     expect(LIBRARY_EXTENSIONS).toEqual({
@@ -46,7 +48,8 @@ describe('supported media types', () => {
       narration: Object.keys(music).map((ext) => ext.slice(1)),
       patterns: ['jpg'],
       knitted: ['jpg'],
-      ravelry: ['jpg']
+      ravelry: ['jpg'],
+      nursing: ['jpg']
     })
   })
 

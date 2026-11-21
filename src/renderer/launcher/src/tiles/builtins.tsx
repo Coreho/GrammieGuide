@@ -7,7 +7,8 @@ import {
   MusicIcon,
   GamesIcon,
   PhoneIcon,
-  KnittingIcon
+  KnittingIcon,
+  NursingIcon
 } from '../icons'
 import { CallsOverlay } from './CallsOverlay'
 import { WeatherOverlay } from '../components/WeatherOverlay'
@@ -16,6 +17,7 @@ import { PhotoViewer } from './PhotoViewer'
 import { MusicOverlay } from './MusicOverlay'
 import { GamesOverlay } from './GamesOverlay'
 import { KnittingShelf } from './KnittingShelf'
+import { NursingHistory } from './NursingHistory'
 
 export type BuiltinKey = (typeof BUILTIN_TILE_KEYS)[number]
 
@@ -53,7 +55,8 @@ const BUILTINS: Record<BuiltinKey, Builtin> = {
   music: { icon: () => <MusicIcon />, View: MusicOverlay },
   games: { icon: () => <GamesIcon />, View: GamesOverlay },
   calls: { icon: () => <PhoneIcon color="currentColor" />, View: CallsOverlay },
-  knitting: { icon: () => <KnittingIcon />, View: KnittingShelf }
+  knitting: { icon: () => <KnittingIcon />, View: KnittingShelf },
+  nursing: { icon: () => <NursingIcon />, View: NursingHistory }
 }
 
 export function builtinFor(tile: Tile): Builtin | undefined {

@@ -34,7 +34,8 @@ export const BUILTIN_TILE_KEYS = [
   'music',
   'games',
   'calls',
-  'knitting'
+  'knitting',
+  'nursing'
 ] as const
 
 export const tileSchema = z.object({

@@ -42,6 +42,7 @@ const launcherApi = {
   getTileImages: () => invoke('photos:tileImages'),
   onPhotosChanged: (cb: () => void) => on('photos:changed', cb),
   getKnitting: () => invoke('knitting:home'),
+  getNursingHistory: () => invoke('nursing:home'),
   ravelryCategories: () => invoke('ravelry:homeCategories'),
   ravelryBrowse: (category: string, page: number) =>
     invoke('ravelry:homeBrowse', { category, page }),

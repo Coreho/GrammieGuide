@@ -1,0 +1,124 @@
+/*
+ * Nursing History reuses the Knitting shelf's look (KnittingShelf.css): the same cards,
+ * header buttons and page viewer, so it is already familiar. Only its own layouts live here.
+ */
+
+/* Chapters two across, in her career's order; a long career scrolls rather than shrinks. */
+.nursing-chapters {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(calc((100% - 2 * 28px) / 3), auto);
+  gap: 28px;
+  margin: 0;
+  padding: 8px 8px 16px;
+  list-style: none;
+  overflow-y: auto;
+}
+.nursing-chapters li {
+  min-height: 0;
+  display: flex;
+}
+/* Doubled class: .knitting-card is declared in another file and would win at equal weight. */
+.knitting-card.nursing-chapter-card {
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px 36px;
+}
+.nursing-chapter-card .knitting-card-title {
+  overflow-wrap: anywhere;
+}
+
+/* A chapter: her story on the left, the papers from that time on the right. */
+.nursing-chapter-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 32px;
+}
+.nursing-story {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 36px;
+  border-radius: 32px;
+  background: var(--page, #fffcf5);
+  box-shadow: inset 0 2px 8px rgba(var(--sh, 60, 55, 45), 0.12);
+}
+.nursing-story p {
+  margin: 0;
+}
+.nursing-story-years {
+  font-size: calc(30px * var(--font-scale, 1));
+  font-weight: 800;
+  color: var(--ink2, #504738);
+}
+.nursing-story-years + .nursing-story-text {
+  margin-top: 14px;
+}
+.nursing-story-text {
+  font-size: calc(30px * var(--font-scale, 1));
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.nursing-papers {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.nursing-papers h2 {
+  flex: none;
+  margin: 0;
+  font-size: calc(30px * var(--font-scale, 1));
+  font-weight: 800;
+}
+.nursing-papers ul {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0;
+  padding: 4px 8px 16px 4px;
+  list-style: none;
+  overflow-y: auto;
+}
+.nursing-paper {
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 28px;
+  border: 0;
+  border-radius: 28px;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  background: linear-gradient(180deg, var(--s1, #fffcf5), var(--s2, #ece6da));
+  box-shadow:
+    0 8px 16px rgba(var(--sh, 60, 55, 45), 0.16),
+    inset 0 2px 0 var(--hl, #fff);
+  cursor: pointer;
+}
+.nursing-paper-title {
+  font-size: calc(28px * var(--font-scale, 1));
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.nursing-paper-detail {
+  font-size: calc(22px * var(--font-scale, 1));
+  font-weight: 700;
+  color: var(--ink2, #504738);
+}
+.nursing-chapter :focus-visible,
+.nursing-chapters :focus-visible {
+  outline: 3px solid var(--a1, #b4533a);
+  outline-offset: 4px;
+}

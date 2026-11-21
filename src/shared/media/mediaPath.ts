@@ -5,7 +5,8 @@ export const MEDIA_LIBRARIES = [
   'narration',
   'patterns',
   'knitted',
-  'ravelry'
+  'ravelry',
+  'nursing'
 ] as const
 export type MediaLibrary = (typeof MEDIA_LIBRARIES)[number]
 

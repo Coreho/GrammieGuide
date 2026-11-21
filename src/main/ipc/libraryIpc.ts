@@ -56,6 +56,9 @@ export function registerLibraryIpc(): (kind: MediaLibrary) => LibraryStore {
     if (request.library === 'ravelry') {
       throw new Error('Use the Knitting tab to change her Ravelry patterns')
     }
+    // Her papers' pages belong to her nursing history file; a page added or removed on its
+    // own would leave the history pointing at nothing.
+    if (request.library === 'nursing') throw new Error('Her nursing papers cannot be changed here')
     return library(request)
   }
 

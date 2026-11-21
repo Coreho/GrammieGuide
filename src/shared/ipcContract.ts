@@ -43,6 +43,7 @@ import type {
   RavelryAddResult,
   RowDirection
 } from './knitting/knitting'
+import type { HomeNursing } from './nursing/nursingHistory'
 import type {
   RavelryBrowseResult,
   RavelryCategoriesResult,
@@ -172,6 +173,8 @@ export interface IpcApi {
   'contacts:startTest': { request: { contactId: string }; response: ContactTestState }
   /** Her project as Home shows it; Home only. */
   'knitting:home': { request: void; response: HomeKnitting }
+  /** Home only: her nursing history with page URLs (TASK-92). Nothing writes it over IPC yet. */
+  'nursing:home': { request: void; response: HomeNursing }
   /** One tap on Home's counter; main applies the double-tap guard. */
   'knitting:changeRows': { request: { direction: RowDirection }; response: HomeKnitting }
   /** Remembers the pattern page she is on, so it reopens there. */
