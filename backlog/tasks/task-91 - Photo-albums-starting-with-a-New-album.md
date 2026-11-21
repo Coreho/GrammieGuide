@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@claude'
 created_date: '2026-11-21T20:40:00Z'
-updated_date: '2026-11-21T20:41:00Z'
+updated_date: '2026-11-21T20:53:00Z'
 labels:
   - photos
 dependencies: []
@@ -21,12 +21,12 @@ Twelve of her old USB sticks were recovered (C:\Users\jeale\GramsUSB) and hold a
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Each photo can belong to a named album; photos saved before albums existed belong to her main album and nothing about them changes
-- [ ] #2 When her visible photos are in more than one album, the Photos tile first offers each album as a large choice with how many photos it has; with one album it opens straight to the photos as today
-- [ ] #3 Inside an album she pages through only that album's photos, with Home and a way back to the album choice
-- [ ] #4 The caregiver can see each photo's album, move a photo to another album, and choose the album when importing
-- [ ] #5 Album names are validated in main and never logged
-- [ ] #6 Unit and e2e tests cover the album choice, a single album opening directly, and moving a photo between albums
+- [x] #1 Each photo can belong to a named album; photos saved before albums existed belong to her main album and nothing about them changes
+- [x] #2 When her visible photos are in more than one album, the Photos tile first offers each album as a large choice with how many photos it has; with one album it opens straight to the photos as today
+- [x] #3 Inside an album she pages through only that album's photos, with Home and a way back to the album choice
+- [x] #4 The caregiver can see each photo's album, move a photo to another album, and choose the album when importing
+- [x] #5 Album names are validated in main and never logged
+- [x] #6 Unit and e2e tests cover the album choice, a single album opening directly, and moving a photo between albums
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -39,3 +39,9 @@ Twelve of her old USB sticks were recovered (C:\Users\jeale\GramsUSB) and hold a
 5. Admin Photos tab: 'Album for new photos' input (datalist of existing albums) used by Add photos; per-photo Album field; a Show filter by album so ~3,000 photos stay manageable.
 6. Tests: unit (photoAlbums, photoLibrary album patch/import/lenient read), e2e (album choice, single album opens directly, moving a photo between albums in admin shows up on Home).
 <!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Photos can carry an album name (library metadata, no config change); no album is her main album, 'My photos', so older photos are untouched. With 2+ albums the Photos tile opens on large album cards, pages only the chosen album and has an Albums button; with one album it opens straight to the photos. Admin: album per photo, album for imports, Show album filter. Names validated in main (one line, <=40 chars, no control characters), read leniently, never logged. Verified: unit tests (photoAlbums, photoLibrary album import/patch/lenient read; 1715 passing), e2e photo-albums.spec (album choice, paging one album, back to choice, moving the last New photo leaves one album that opens directly) plus photo-viewer and photos specs still passing. The full e2e suite was not run (owner's call).
+<!-- SECTION:FINAL_SUMMARY:END -->
