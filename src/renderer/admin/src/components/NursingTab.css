@@ -88,6 +88,10 @@
   .nursing-editor {
     grid-template-columns: minmax(0, 1fr);
   }
+  .nursing-chapter-list,
+  .nursing-preview {
+    position: static;
+  }
 }
 
 .nursing-pane-head {
@@ -281,11 +285,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   gap: 16px;
+  align-items: start;
 }
+/* Rows stay their natural height, so a field with a hint never stretches its neighbour. */
 .nursing-field {
   min-width: 0;
   display: grid;
   gap: 6px;
+  align-content: start;
 }
 .nursing-field-label {
   display: flex;
