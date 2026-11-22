@@ -1,0 +1,494 @@
+/*
+ * The caregiver's Nursing History editor, in the admin panel's own plain language (navy ink,
+ * slate accent, hairline borders), not the Clay look of her Home. The one Clay element is the
+ * small preview of her chapter card, so the caregiver sees what she will see.
+ */
+@import '@fontsource/figtree/700.css';
+@import '@fontsource/figtree/800.css';
+
+.nursing-tab {
+  --ink: #1f2d3d;
+  --ink-soft: #4b5968;
+  --accent: #3a5f8a;
+  --accent-deep: #2c4a6d;
+  --accent-wash: #e4ecf5;
+  --line: #a6afb8;
+  --line-soft: #d5dbe1;
+  --surface: #f5f7f9;
+  --danger: #9b2c2c;
+  --warn-ink: #6b4a00;
+  --warn-wash: #fff4d6;
+  max-width: 1240px;
+  color: var(--ink);
+  line-height: 1.45;
+}
+.nursing-tab ::selection {
+  background: #cfe0f1;
+  color: var(--ink);
+}
+.nursing-tab :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.nursing-tab-head h2 {
+  margin: 0 0 6px;
+}
+.nursing-tab-head p {
+  max-width: 72ch;
+  margin: 0 0 8px;
+  color: var(--ink-soft);
+}
+.nursing-tab-head .nursing-home-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--warn-ink);
+}
+.nursing-home-state::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #c98a00;
+}
+.nursing-home-state.is-on {
+  color: #1d5a37;
+}
+.nursing-home-state.is-on::before {
+  background: #2e8a55;
+}
+
+.nursing-feedback {
+  min-height: 2.2em;
+  margin: 10px 0 6px;
+}
+.nursing-feedback p {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--accent-wash);
+}
+.nursing-feedback [role='alert'] {
+  background: #fbe9e9;
+  color: var(--danger);
+}
+
+/* Chapters on the left, the chosen chapter on the right. */
+.nursing-editor {
+  display: grid;
+  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .nursing-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.nursing-pane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.nursing-pane-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.nursing-pane-head span {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.nursing-chapter-list {
+  position: sticky;
+  top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.nursing-chapter-list ol {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+.nursing-chapter-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  transition: background-color 120ms ease-out;
+}
+.nursing-chapter-list li.is-current {
+  background: var(--accent-wash);
+  box-shadow: inset 0 0 0 1px #b8cbe0;
+}
+.nursing-chapter-pick {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.nursing-chapter-pick:hover {
+  background: rgba(58, 95, 138, 0.08);
+}
+.nursing-chapter-pick.is-draft {
+  cursor: default;
+  font-style: italic;
+}
+.nursing-chapter-name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.is-current .nursing-chapter-name {
+  color: var(--accent-deep);
+}
+.nursing-chapter-meta {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.nursing-order {
+  display: flex;
+  flex-direction: column;
+  padding-right: 4px;
+}
+
+/* Buttons: one primary per form, quiet outlines elsewhere, and square tool buttons. */
+.nursing-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+.nursing-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: #f4f8fc;
+}
+.nursing-button.is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.nursing-button.is-primary:hover:not(:disabled) {
+  background: var(--accent-deep);
+}
+.nursing-button.is-danger {
+  color: var(--danger);
+  border-color: #d9a3a3;
+}
+.nursing-button.is-danger:hover:not(:disabled) {
+  background: #fdf1f1;
+  border-color: var(--danger);
+}
+.nursing-button.is-small {
+  min-height: 34px;
+  padding: 5px 12px;
+}
+.nursing-button:disabled,
+.nursing-icon:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.nursing-chapter-list > .nursing-button {
+  width: 100%;
+}
+.nursing-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.nursing-icon:hover:not(:disabled) {
+  border-color: var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+.nursing-icon.is-danger:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: #d9a3a3;
+}
+.nursing-order .nursing-icon {
+  width: 30px;
+  height: 26px;
+}
+
+/* The chosen chapter. */
+.nursing-detail {
+  min-width: 0;
+  display: grid;
+  gap: 28px;
+}
+.nursing-chapter-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .nursing-chapter-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.nursing-tab fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  display: grid;
+  gap: 16px;
+}
+.nursing-tab legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+.nursing-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.nursing-field {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.nursing-field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 600;
+}
+.nursing-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.nursing-count.is-near {
+  color: var(--warn-ink);
+}
+.nursing-tab input,
+.nursing-tab textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  caret-color: var(--accent);
+}
+.nursing-tab input::placeholder,
+.nursing-tab textarea::placeholder {
+  color: #6f7b87;
+}
+.nursing-tab input:focus-visible,
+.nursing-tab textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  border-color: var(--accent);
+}
+.nursing-tab textarea {
+  min-height: 15em;
+  resize: vertical;
+  line-height: 1.6;
+}
+.nursing-hint {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.nursing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.nursing-unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--warn-ink);
+}
+.nursing-unsaved::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c98a00;
+}
+.nursing-actions .is-danger {
+  margin-left: auto;
+}
+
+/* Her chapter card as Home draws it, at a smaller size. */
+.nursing-preview {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #fdf9ef;
+  border: 1px solid #ece6da;
+}
+.nursing-preview-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #504738;
+}
+.nursing-preview-card {
+  display: grid;
+  gap: 4px;
+  min-height: 88px;
+  align-content: center;
+  padding: 14px 20px;
+  border-radius: 22px;
+  font-family: Figtree, system-ui, sans-serif;
+  color: #30291f;
+  background: linear-gradient(180deg, #fffcf5, #ece6da);
+  box-shadow:
+    0 8px 16px rgba(60, 55, 45, 0.16),
+    inset 0 2px 1px #fff,
+    inset 0 -2px 4px rgba(60, 55, 45, 0.1);
+}
+.nursing-preview-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.nursing-preview-detail {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #504738;
+}
+
+/* Papers: each with its first page, its words and its tools. */
+.nursing-paper-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.nursing-paper-list li {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: #fff;
+}
+.nursing-thumb {
+  width: 58px;
+  aspect-ratio: 17 / 22;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow:
+    0 2px 6px rgba(31, 45, 61, 0.18),
+    0 0 0 1px rgba(31, 45, 61, 0.08);
+}
+.nursing-thumb.is-blank {
+  display: block;
+  box-sizing: border-box;
+  padding: 10px 8px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 7px, #dfe3e8 7px 8px) content-box,
+    #fff;
+}
+.nursing-paper-words {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.nursing-paper-name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.nursing-paper-meta {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+.nursing-warning {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--warn-ink);
+  background: var(--warn-wash);
+}
+.nursing-paper-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nursing-paper-tools .is-small {
+  margin-right: 6px;
+}
+.nursing-paper-edit {
+  min-width: 0;
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+.nursing-paper-edit .nursing-actions {
+  grid-column: 1 / -1;
+}
+
+.nursing-empty {
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nursing-tab * {
+    transition: none !important;
+  }
+}

@@ -13,6 +13,7 @@ import { PhotosTab } from './components/PhotosTab'
 import { MusicTab } from './components/MusicTab'
 import { GamesTab } from './components/GamesTab'
 import { KnittingTab } from './components/KnittingTab'
+import { NursingTab } from './components/NursingTab'
 import { ChecksTab } from './components/ChecksTab'
 import { SitesTab } from './components/SitesTab'
 import { ContactsTab } from './components/ContactsTab'
@@ -32,6 +33,7 @@ type Tab =
   | 'music'
   | 'games'
   | 'knitting'
+  | 'nursing'
   | 'display'
   | 'weather'
   | 'buddy'
@@ -72,6 +74,7 @@ export default function App() {
             'music',
             'games',
             'knitting',
+            'nursing',
             'display',
             'weather',
             'buddy',
@@ -118,6 +121,7 @@ export default function App() {
         {tab === 'music' && <MusicTab />}
         {tab === 'games' && <GamesTab />}
         {tab === 'knitting' && <KnittingTab />}
+        {tab === 'nursing' && <NursingTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'weather' && <WeatherTab />}
         {tab === 'buddy' && <BuddyTab />}

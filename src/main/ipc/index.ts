@@ -69,7 +69,7 @@ export function registerAllIpc(): void {
       }
     }
   })
-  registerNursingIpc({ pages: () => getLibrary('nursing') })
+  registerNursingIpc({ pages: () => getLibrary('nursing'), renderPdf: renderPdfPages })
   registerBuddyIpc(getLibrary)
   registerTileIpc()
   registerNewsIpc()

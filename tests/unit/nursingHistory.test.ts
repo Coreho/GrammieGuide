@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import { NursingStore } from '../../src/main/services/nursing/nursingStore'
 import {
   EMPTY_NURSING_FILE,
+  chapterDetail,
+  moveNursingItem,
   nursingForHome,
   pageCount,
   type NursingFile
@@ -82,6 +84,33 @@ describe('nursing history for Home', () => {
       null
     ])
     expect(home.chapters[0]).toMatchObject({ title: 'Nursing school', years: '1960s' })
+    expect(home.chapters[0]!.papers[0]!.cover).toBe(`grammie-media://nursing/${present}.jpg`)
+  })
+
+  it('uses the first page’s small picture as the cover, and none when it is gone', () => {
+    const [first, second] = [randomUUID(), randomUUID()]
+    const entry = {
+      id: first,
+      fileName: `${first}.jpg`,
+      thumbFileName: `${first}.thumb.jpg`,
+      metadata: {}
+    }
+    expect(nursingForHome(history([first, second]), [entry]).chapters[0]!.papers[0]!.cover).toBe(
+      `grammie-media://nursing/${first}.thumb.jpg`
+    )
+    expect(nursingForHome(history([second, first]), [entry]).chapters[0]!.papers[0]!.cover).toBe(
+      null
+    )
+  })
+
+  it('describes a chapter card and moves items only within the list', () => {
+    expect(chapterDetail('1967 - 1999', 3)).toBe('1967 - 1999 · 3 papers')
+    expect(chapterDetail('', 1)).toBe('1 paper')
+    expect(chapterDetail('1960s', 0)).toBe('1960s')
+    const items = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+    expect(moveNursingItem(items, 'b', 'earlier').map((item) => item.id)).toEqual(['b', 'a', 'c'])
+    expect(moveNursingItem(items, 'c', 'later').map((item) => item.id)).toEqual(['a', 'b', 'c'])
+    expect(moveNursingItem(items, 'x', 'later')).toEqual(items)
   })
 
   it('says page counts the way she reads them', () => {

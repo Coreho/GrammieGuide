@@ -91,10 +91,9 @@
   width: 100%;
   min-height: 96px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 16px 28px;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 28px 14px 16px;
   border: 0;
   border-radius: 28px;
   text-align: left;
@@ -105,6 +104,39 @@
     0 8px 16px rgba(var(--sh, 60, 55, 45), 0.16),
     inset 0 2px 0 var(--hl, #fff);
   cursor: pointer;
+}
+/* The first page, held like a sheet of paper: a white page with a soft contact shadow. */
+.nursing-paper-cover {
+  flex: none;
+  width: calc(76px + 12px * var(--font-scale, 1));
+  aspect-ratio: 17 / 22;
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: top;
+  background: #fff;
+  box-shadow:
+    0 3px 8px rgba(var(--sh, 60, 55, 45), 0.22),
+    0 0 0 1px rgba(var(--sh, 60, 55, 45), 0.1);
+}
+/* No picture: a plain ruled sheet, never a broken-image icon. */
+.nursing-paper-cover.is-blank {
+  display: block;
+  background:
+    repeating-linear-gradient(
+        180deg,
+        transparent 0 13px,
+        rgba(var(--sh, 60, 55, 45), 0.12) 13px 15px
+      )
+      content-box,
+    #fff;
+  padding: 18px 14px;
+  box-sizing: border-box;
+}
+.nursing-paper-words {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .nursing-paper-title {
   font-size: calc(28px * var(--font-scale, 1));

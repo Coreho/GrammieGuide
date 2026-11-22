@@ -82,6 +82,21 @@ const adminApi = {
     ipcRenderer.on('photos:changed', listener)
     return () => ipcRenderer.removeListener('photos:changed', listener)
   },
+  getNursing: () => invoke('nursing:get'),
+  saveNursingChapter: (chapter: IpcRequest<'nursing:saveChapter'>) =>
+    invoke('nursing:saveChapter', chapter),
+  moveNursingChapter: (id: string, direction: IpcRequest<'nursing:moveChapter'>['direction']) =>
+    invoke('nursing:moveChapter', { id, direction }),
+  removeNursingChapter: (id: string) => invoke('nursing:removeChapter', { id }),
+  addNursingPaper: (paper: IpcRequest<'nursing:addPaper'>) => invoke('nursing:addPaper', paper),
+  saveNursingPaper: (paper: IpcRequest<'nursing:savePaper'>) => invoke('nursing:savePaper', paper),
+  moveNursingPaper: (
+    chapterId: string,
+    id: string,
+    direction: IpcRequest<'nursing:movePaper'>['direction']
+  ) => invoke('nursing:movePaper', { chapterId, id, direction }),
+  removeNursingPaper: (chapterId: string, id: string) =>
+    invoke('nursing:removePaper', { chapterId, id }),
   getKnitting: () => invoke('knitting:get'),
   saveKnittingProject: (project: IpcRequest<'knitting:saveProject'>) =>
     invoke('knitting:saveProject', project),

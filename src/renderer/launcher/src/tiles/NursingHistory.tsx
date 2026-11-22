@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { zLayers } from '@shared/zLayers'
 import {
+  chapterDetail,
   pageCount,
   type HomeNursing,
   type HomeNursingChapter,
@@ -123,7 +124,11 @@ export function NursingHistory({ tile, onClose, musicStop }: BuiltinViewProps) {
                   onClick={() => setView({ kind: 'chapter', id: entry.id })}
                 >
                   <span className="knitting-card-title">{entry.title}</span>
-                  {entry.years && <span className="knitting-card-detail">{entry.years}</span>}
+                  {(entry.years || entry.papers.length > 0) && (
+                    <span className="knitting-card-detail">
+                      {chapterDetail(entry.years, entry.papers.length)}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -188,9 +193,12 @@ function ChapterView({
               {chapter.papers.map((entry) => (
                 <li key={entry.id}>
                   <button className="nursing-paper" onClick={() => onOpen(entry.id)}>
-                    <span className="nursing-paper-title">{entry.title}</span>
-                    <span className="nursing-paper-detail">
-                      {[entry.note, pageCount(entry.pages.length)].filter(Boolean).join(' · ')}
+                    <PaperCover url={entry.cover} />
+                    <span className="nursing-paper-words">
+                      <span className="nursing-paper-title">{entry.title}</span>
+                      <span className="nursing-paper-detail">
+                        {[entry.note, pageCount(entry.pages.length)].filter(Boolean).join(' · ')}
+                      </span>
                     </span>
                   </button>
                 </li>
@@ -200,6 +208,24 @@ function ChapterView({
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * A small picture of the paper's first page, so she knows it by sight. The title beside it
+ * names the button, so the picture is decorative; a missing one is a plain blank sheet.
+ */
+function PaperCover({ url }: { url: string | null }) {
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <span className="nursing-paper-cover is-blank" aria-hidden="true" />
+  return (
+    <img
+      className="nursing-paper-cover"
+      src={url}
+      alt=""
+      draggable={false}
+      onError={() => setFailed(true)}
+    />
   )
 }
 

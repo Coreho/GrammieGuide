@@ -14,7 +14,7 @@ const MAX_BYTES = 4_000_000
 /**
  * Her nursing history (nursing/history.json), outside config like her knitting: it is
  * personal writing, not a setting, and a bad config save must never be able to lose it.
- * Home only reads it. The file is replaced atomically, and a damaged one is set aside for the
+ * Home only reads it; the caregiver's admin tab changes it. The file is replaced atomically, and a damaged one is set aside for the
  * caregiver as history.corrupt-<ts>.json (reported through onReset) while Home starts empty;
  * if it can't be moved aside, reads fail instead of anything overwriting it.
  */
@@ -40,6 +40,18 @@ export class NursingStore {
       const parsed = nursingFileSchema.parse(file)
       await this.save(parsed)
       return (this.current = parsed)
+    })
+  }
+
+  /** Changes run one at a time, so two quick edits can't both start from the old history. */
+  update(change: (file: NursingFile) => NursingFile): Promise<NursingFile> {
+    return this.enqueue(async () => {
+      const before = await this.load()
+      const changed = change(before)
+      if (changed === before) return before
+      const after = nursingFileSchema.parse(changed)
+      await this.save(after)
+      return (this.current = after)
     })
   }
 
