@@ -9,6 +9,7 @@ import {
   type PhotoImportProgress,
   type PhotoImportResult
 } from '@shared/media/photoTypes'
+import { MAIN_ALBUM, savedAlbumName, tidyAlbumName } from '@shared/media/photoAlbums'
 import { LibraryStore } from '../media/libraryStore'
 
 /** Structural codec keeps Electron out of the service's node-environment unit tests. */
@@ -35,7 +36,7 @@ export function downscale(image: PhotoImage, limit: number): PhotoImage {
 }
 
 function photo(entry: LibraryEntry, position: number): Photo {
-  const { caption, date, showToHer, order } = entry.metadata
+  const { caption, date, showToHer, album, order } = entry.metadata
   return {
     id: entry.id,
     url: `grammie-media://photos/${entry.fileName}`,
@@ -45,6 +46,8 @@ function photo(entry: LibraryEntry, position: number): Photo {
     date: typeof date === 'string' ? date : '',
     // Older raw media entries have never been approved for her photo viewer.
     showToHer: showToHer === true,
+    // Photos saved before albums existed (no album) are her main album.
+    album: savedAlbumName(album ?? MAIN_ALBUM),
     importIndex: position,
     order: typeof order === 'number' && Number.isSafeInteger(order) && order >= 0 ? order : position
   }
@@ -55,7 +58,9 @@ export function validatePhotoPatch(value: unknown): PhotoPatch {
     throw new Error('Invalid photo changes')
   const patch = value as Record<string, unknown>
   if (
-    Object.keys(patch).some((key) => !['caption', 'date', 'showToHer', 'order'].includes(key)) ||
+    Object.keys(patch).some(
+      (key) => !['caption', 'date', 'showToHer', 'album', 'order'].includes(key)
+    ) ||
     ('caption' in patch && (typeof patch.caption !== 'string' || patch.caption.length > 2000)) ||
     ('date' in patch && (typeof patch.date !== 'string' || patch.date.length > PHOTO_DATE_MAX)) ||
     ('showToHer' in patch && typeof patch.showToHer !== 'boolean') ||
@@ -66,6 +71,7 @@ export function validatePhotoPatch(value: unknown): PhotoPatch {
   const validated = { ...patch } as PhotoPatch
   // One line on her screen: stray spaces and line breaks from a paste are dropped.
   if (validated.date !== undefined) validated.date = validated.date.replace(/\s+/g, ' ').trim()
+  if ('album' in patch) validated.album = tidyAlbumName(patch.album)
   return validated
 }
 
@@ -93,8 +99,11 @@ export class PhotoLibrary {
 
   import(
     paths: string[],
-    progress: (count: PhotoImportProgress) => void
+    progress: (count: PhotoImportProgress) => void,
+    album: string = MAIN_ALBUM
   ): Promise<PhotoImportResult> {
+    // Checked before the queue so a bad name fails the whole import, not each file.
+    const albumName = tidyAlbumName(album)
     return this.run(async () => {
       const existing = await this.listAll()
       let order = existing.reduce((next, entry) => Math.max(next, entry.order + 1), 0)
@@ -118,7 +127,13 @@ export class PhotoLibrary {
           const jpeg = image.toJPEG(85)
           const thumbnail = downscale(image, 320).toJPEG(85)
           if (!jpeg.length || !thumbnail.length) throw new Error('Photo could not be encoded')
-          await this.store.addImage(jpeg, thumbnail, { caption: '', showToHer: true, order })
+          await this.store.addImage(jpeg, thumbnail, {
+            caption: '',
+            showToHer: true,
+            order,
+            // The main album is saved as no album at all, like every photo from before albums.
+            ...(albumName ? { album: albumName } : {})
+          })
           order += 1
           count.imported += 1
         } catch {

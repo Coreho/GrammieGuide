@@ -44,6 +44,14 @@ import type {
   RowDirection
 } from './knitting/knitting'
 import type {
+  AdminNursing,
+  HomeNursing,
+  NursingChapterInput,
+  NursingMove,
+  NursingPaperImportResult,
+  NursingPaperInput
+} from './nursing/nursingHistory'
+import type {
   RavelryBrowseResult,
   RavelryCategoriesResult,
   RavelryPageState,
@@ -172,6 +180,22 @@ export interface IpcApi {
   'contacts:startTest': { request: { contactId: string }; response: ContactTestState }
   /** Her project as Home shows it; Home only. */
   'knitting:home': { request: void; response: HomeKnitting }
+  /** Home only: her nursing history with page URLs (TASK-92). */
+  'nursing:home': { request: void; response: HomeNursing }
+  /** Caregiver only (TASK-94): read and change her nursing history from the admin tab. */
+  'nursing:get': { request: void; response: AdminNursing }
+  /** No id adds a chapter at the end. */
+  'nursing:saveChapter': { request: NursingChapterInput; response: AdminNursing }
+  'nursing:moveChapter': { request: { id: string; direction: NursingMove }; response: AdminNursing }
+  'nursing:removeChapter': { request: { id: string }; response: AdminNursing }
+  /** Opens the picker in main: pictures of the pages, or one PDF. */
+  'nursing:addPaper': { request: NursingPaperInput; response: NursingPaperImportResult }
+  'nursing:savePaper': { request: NursingPaperInput; response: AdminNursing }
+  'nursing:movePaper': {
+    request: { chapterId: string; id: string; direction: NursingMove }
+    response: AdminNursing
+  }
+  'nursing:removePaper': { request: { chapterId: string; id: string }; response: AdminNursing }
   /** One tap on Home's counter; main applies the double-tap guard. */
   'knitting:changeRows': { request: { direction: RowDirection }; response: HomeKnitting }
   /** Remembers the pattern page she is on, so it reopens there. */
@@ -248,7 +272,8 @@ export interface IpcApi {
   'photos:listAll': { request: void; response: Photo[] }
   /** Open the viewer, record only that action, and return caregiver-approved photos. */
   'photos:open': { request: void; response: Photo[] }
-  'photos:import': { request: void; response: PhotoImportResult }
+  /** `album` is the album new photos go into; omitted or '' is her main album. */
+  'photos:import': { request: { album?: string } | void; response: PhotoImportResult }
   'photos:update': { request: { id: string; patch: PhotoPatch }; response: Photo }
   'photos:remove': { request: { id: string }; response: boolean }
   /** Only photos explicitly chosen for saved Home tiles, without captions or paths. */

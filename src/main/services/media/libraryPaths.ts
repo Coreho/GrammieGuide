@@ -8,7 +8,8 @@ export const MEDIA_LIBRARY_FOLDERS: Readonly<Record<MediaLibrary, string>> = {
   narration: join('media', 'narration'),
   patterns: join('media', 'patterns'),
   knitted: join('media', 'knitted'),
-  ravelry: join('media', 'ravelry')
+  ravelry: join('media', 'ravelry'),
+  nursing: join('media', 'nursing')
 }
 
 export function libraryPaths(

@@ -71,6 +71,49 @@ describe('photo library', () => {
     }
   )
 
+  it('imports into a named album, keeps older photos in her main album, and moves photos between albums', async () => {
+    const library = new PhotoLibrary(store, { createFromPath: () => image(100, 100) })
+    await library.import(['old.jpg'], () => undefined)
+    await library.import(['new-1.jpg', 'new-2.jpg'], () => undefined, '  New ')
+    const [old, first, second] = await library.listAll()
+    expect([old!.album, first!.album, second!.album]).toEqual(['', 'New', 'New'])
+    // The main album is saved as no album at all, exactly like photos from before albums.
+    const entries = await store.list()
+    expect('album' in entries[0]!.metadata).toBe(false)
+    expect(entries[1]!.metadata.album).toBe('New')
+
+    expect((await library.update(first!.id, { album: ' Family\nreunion ' })).album).toBe(
+      'Family reunion'
+    )
+    expect((await library.update(second!.id, { album: '' })).album).toBe('')
+    expect(
+      (await new PhotoLibrary(store, { createFromPath: () => image(1, 1) }).listAll()).map(
+        (entry) => entry.album
+      )
+    ).toEqual(['', 'Family reunion', ''])
+  })
+
+  it('refuses a bad album name for an import before touching the library', async () => {
+    const decode = vi.fn(() => image(100, 100))
+    const library = new PhotoLibrary(store, { createFromPath: decode })
+    expect(() => library.import(['a.jpg'], () => undefined, 'x'.repeat(41))).toThrow(
+      'Invalid album name'
+    )
+    expect(decode).not.toHaveBeenCalled()
+    expect(await store.list()).toEqual([])
+  })
+
+  it('validates album changes and reads an unreadable saved album as her main album', async () => {
+    expect(validatePhotoPatch({ album: '  New  ' })).toEqual({ album: 'New' })
+    expect(() => validatePhotoPatch({ album: 5 })).toThrow('Invalid album name')
+    expect(() => validatePhotoPatch({ album: 'a\u0001' })).toThrow('Invalid album name')
+    const library = new PhotoLibrary(store, { createFromPath: () => image(100, 100) })
+    await library.import(['a.jpg'], () => undefined)
+    const [entry] = await store.list()
+    await store.update(entry!.id, { album: 'x'.repeat(200) })
+    expect((await library.listAll())[0]!.album).toBe('')
+  })
+
   it('continues after empty and throwing decodes mid-batch, reporting each attempt with no paths', async () => {
     const decode = vi.fn((path: string) => {
       if (path.endsWith('bad.heic')) return image(0, 0, [], true)

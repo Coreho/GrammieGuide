@@ -18,6 +18,7 @@ import { registerContactIpc } from './contactIpc'
 import { registerWhatsAppIpc } from './whatsAppIpc'
 import { registerKnittingIpc } from './knittingIpc'
 import { registerRavelryIpc } from './ravelryIpc'
+import { registerNursingIpc } from './nursingIpc'
 import { getRavelryHomeBrowse, getRavelryService } from '../services/ravelry/runtime'
 import { renderPdfPages } from '../services/ravelry/pdfPages'
 import { currentPageUrl } from '../services/browser/embeddedBrowser'
@@ -68,6 +69,7 @@ export function registerAllIpc(): void {
       }
     }
   })
+  registerNursingIpc({ pages: () => getLibrary('nursing'), renderPdf: renderPdfPages })
   registerBuddyIpc(getLibrary)
   registerTileIpc()
   registerNewsIpc()

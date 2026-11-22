@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import { PHOTO_DATE_MAX, type Photo, type PhotoImportProgress } from '@shared/media/photoTypes'
+import { MAIN_ALBUM_LABEL, PHOTO_ALBUM_MAX, photoAlbums } from '@shared/media/photoAlbums'
+
+/** One list of album names for every album field, so typing offers the albums that exist. */
+const ALBUM_LIST_ID = 'photo-album-names'
+const ALL_ALBUMS = '\u0000all'
 import './PhotosTab.css'
 import { useConfigStore } from '../state/useConfigStore'
 import { PhotoNarrationEditor } from './PhotoNarrationEditor'
@@ -20,6 +25,7 @@ function PhotoEditor({
   const [caption, setCaption] = useState(photo.caption)
   const [date, setDate] = useState(photo.date)
   const [showToHer, setShowToHer] = useState(photo.showToHer)
+  const [album, setAlbum] = useState(photo.album)
   const [order, setOrder] = useState(String(photo.order))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -31,6 +37,7 @@ function PhotoEditor({
     caption !== photo.caption ||
     date !== photo.date ||
     showToHer !== photo.showToHer ||
+    album.trim() !== photo.album ||
     orderNumber !== photo.order
 
   const save = async (): Promise<void> => {
@@ -40,10 +47,11 @@ function PhotoEditor({
     try {
       const updated = await window.admin.updatePhoto({
         id: photo.id,
-        patch: { caption, date, showToHer, order: orderNumber }
+        patch: { caption, date, showToHer, album, order: orderNumber }
       })
-      // Main tidies the date's spacing; show what was saved so the form isn't left "changed".
+      // Main tidies the date's and album's spacing; show what was saved so the form isn't left "changed".
       setDate(updated.date)
+      setAlbum(updated.album)
       onSaved(updated)
       setSaved(true)
     } catch {
@@ -115,6 +123,20 @@ function PhotoEditor({
             Show to her
           </label>
           <label>
+            Album
+            <input
+              type="text"
+              value={album}
+              maxLength={PHOTO_ALBUM_MAX}
+              list={ALBUM_LIST_ID}
+              placeholder={`${MAIN_ALBUM_LABEL} (leave empty)`}
+              onChange={(event) => {
+                setAlbum(event.target.value)
+                setSaved(false)
+              }}
+            />
+          </label>
+          <label>
             Order
             <input
               type="number"
@@ -164,6 +186,13 @@ export function PhotosTab() {
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [recordingId, setRecordingId] = useState<string | null>(null)
+  const [importAlbum, setImportAlbum] = useState('')
+  const [showAlbum, setShowAlbum] = useState(ALL_ALBUMS)
+  const albums = photoAlbums(photos)
+  // Moving the last photo out of the album being shown ends that album: show them all
+  // again rather than an empty list that hides the photo just saved.
+  const filtered = albums.find((album) => album.name === showAlbum)
+  const shownPhotos = filtered?.photos ?? photos
 
   const changeSlideshow = async (slideshowEnabled: boolean): Promise<void> => {
     setSavingSlideshow(true)
@@ -202,7 +231,7 @@ export function PhotosTab() {
     // Subscribe before opening the picker so even a one-photo import has progress.
     const unsubscribe = window.admin.onPhotoImportProgress(setProgress)
     try {
-      const result = await window.admin.importPhotos()
+      const result = await window.admin.importPhotos(importAlbum)
       setStatus(
         `${result.imported} imported, ${result.failed} failed.${result.failed ? ' Failed photos could not be read or saved. HEIC support depends on this Windows device.' : ''}`
       )
@@ -235,6 +264,29 @@ export function PhotosTab() {
         Gentle slideshow: advance photos every 30 seconds
       </label>
       <p>Off keeps each photo still until she taps Back or Next. She can pause the slideshow.</p>
+      <datalist id={ALBUM_LIST_ID}>
+        {albums
+          .filter((album) => album.name)
+          .map((album) => (
+            <option key={album.name} value={album.name} />
+          ))}
+      </datalist>
+      <p>
+        Albums: when her photos are in more than one album, the Photos tile first asks which album
+        to look at. Photos with no album are in “{MAIN_ALBUM_LABEL}”.
+      </p>
+      <label className="photo-import-album">
+        Album for new photos
+        <input
+          type="text"
+          value={importAlbum}
+          maxLength={PHOTO_ALBUM_MAX}
+          list={ALBUM_LIST_ID}
+          placeholder={`${MAIN_ALBUM_LABEL} (leave empty)`}
+          disabled={importing}
+          onChange={(event) => setImportAlbum(event.target.value)}
+        />
+      </label>
       <div className="photo-actions">
         <button
           disabled={loading || importing || Boolean(recordingId)}
@@ -266,8 +318,25 @@ export function PhotosTab() {
           Save changes on each photo.
         </p>
       )}
+      {albums.length > 1 && (
+        <label className="photo-album-filter">
+          Show
+          <select
+            aria-label="Show album"
+            value={filtered ? showAlbum : ALL_ALBUMS}
+            onChange={(event) => setShowAlbum(event.target.value)}
+          >
+            <option value={ALL_ALBUMS}>All albums ({photos.length})</option>
+            {albums.map((album) => (
+              <option key={album.name} value={album.name}>
+                {album.label} ({album.photos.length})
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <ul className="photo-grid" aria-busy={loading || importing}>
-        {photos.map((photo) => (
+        {shownPhotos.map((photo) => (
           <PhotoEditor
             key={photo.id}
             photo={photo}

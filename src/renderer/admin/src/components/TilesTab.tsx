@@ -28,7 +28,8 @@ const BUILTIN_LABELS: Record<(typeof BUILTIN_TILE_KEYS)[number], string> = {
   music: 'Music',
   games: 'Games',
   calls: 'Family calls',
-  knitting: 'Knitting'
+  knitting: 'Knitting',
+  nursing: 'Nursing History'
 }
 type TileDraft = Omit<Tile, 'colorIndex'> & { colorIndex?: number }
 const emptyDraft = (): TileDraft => ({

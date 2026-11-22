@@ -30,7 +30,9 @@ export const LIBRARY_CONTENT_TYPES: Readonly<
   // Only pictures the knitting import has re-encoded, never the caregiver's original files.
   patterns: { '.jpg': 'image/jpeg' },
   knitted: { '.jpg': 'image/jpeg' },
-  ravelry: { '.jpg': 'image/jpeg' }
+  ravelry: { '.jpg': 'image/jpeg' },
+  // Pages of her nursing papers, re-encoded when they were added, never the original documents.
+  nursing: { '.jpg': 'image/jpeg' }
 }
 
 /** Electron's picker expects extensions without leading dots. */
@@ -40,7 +42,8 @@ export const LIBRARY_EXTENSIONS: Readonly<Record<MediaLibrary, readonly string[]
   narration: Object.keys(LIBRARY_CONTENT_TYPES.narration).map((extension) => extension.slice(1)),
   patterns: Object.keys(LIBRARY_CONTENT_TYPES.patterns).map((extension) => extension.slice(1)),
   knitted: Object.keys(LIBRARY_CONTENT_TYPES.knitted).map((extension) => extension.slice(1)),
-  ravelry: Object.keys(LIBRARY_CONTENT_TYPES.ravelry).map((extension) => extension.slice(1))
+  ravelry: Object.keys(LIBRARY_CONTENT_TYPES.ravelry).map((extension) => extension.slice(1)),
+  nursing: Object.keys(LIBRARY_CONTENT_TYPES.nursing).map((extension) => extension.slice(1))
 }
 
 // The protocol also serves photo narration audio; only imports are restricted per library.
